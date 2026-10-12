@@ -176,61 +176,69 @@ class RoomBooking(models.Model):
                                    help="The total Amount including Tax",
                                    compute='_compute_amount_untaxed',
                                    tracking=4)
+    # Port fix 20.0: breakdown fields must be stored like the totals they share
+    # _compute_amount_untaxed with (Odoo 20 rejects mixed store in one compute).
     amount_untaxed_room = fields.Monetary(string="Room Untaxed",
                                           help="Untaxed Amount for Room",
                                           compute='_compute_amount_untaxed',
-                                          tracking=5)
+                                          store=True, tracking=5)
     amount_untaxed_food = fields.Monetary(string="Food Untaxed",
                                           help="Untaxed Amount for Food",
                                           compute='_compute_amount_untaxed',
-                                          tracking=5)
+                                          store=True, tracking=5)
     amount_untaxed_event = fields.Monetary(string="Event Untaxed",
-                                           help="Untaxed Amount for Event",
-                                           compute='_compute_amount_untaxed',
-                                           tracking=5)
+                                            help="Untaxed Amount for Event",
+                                            compute='_compute_amount_untaxed',
+                                            store=True, tracking=5)
     amount_untaxed_service = fields.Monetary(
         string="Service Untaxed", help="Untaxed Amount for Service",
-        compute='_compute_amount_untaxed', tracking=5)
+        compute='_compute_amount_untaxed', store=True, tracking=5)
     amount_untaxed_fleet = fields.Monetary(string="Amount Untaxed",
-                                           help="Untaxed amount for Fleet",
-                                           compute='_compute_amount_untaxed',
-                                           tracking=5)
+                                            help="Untaxed amount for Fleet",
+                                            compute='_compute_amount_untaxed',
+                                            store=True, tracking=5)
     amount_taxed_room = fields.Monetary(string="Rom Tax", help="Tax for Room",
                                         compute='_compute_amount_untaxed',
-                                        tracking=5)
+                                        store=True, tracking=5)
     amount_taxed_food = fields.Monetary(string="Food Tax", help="Tax for Food",
                                         compute='_compute_amount_untaxed',
-                                        tracking=5)
+                                        store=True, tracking=5)
     amount_taxed_event = fields.Monetary(string="Event Tax",
-                                         help="Tax for Event",
-                                         compute='_compute_amount_untaxed',
-                                         tracking=5)
+                                          help="Tax for Event",
+                                          compute='_compute_amount_untaxed',
+                                          store=True, tracking=5)
     amount_taxed_service = fields.Monetary(string="Service Tax",
-                                           compute='_compute_amount_untaxed',
-                                           help="Tax for Service", tracking=5)
+                                            compute='_compute_amount_untaxed',
+                                            store=True,
+                                            help="Tax for Service",
+                                            tracking=5)
     amount_taxed_fleet = fields.Monetary(string="Fleet Tax",
-                                         compute='_compute_amount_untaxed',
-                                         help="Tax for Fleet", tracking=5)
+                                          compute='_compute_amount_untaxed',
+                                          store=True, tracking=5)
     amount_total_room = fields.Monetary(string="Total Amount for Room",
                                         compute='_compute_amount_untaxed',
+                                        store=True,
                                         help="This is the Total Amount for "
                                              "Room", tracking=5)
     amount_total_food = fields.Monetary(string="Total Amount for Food",
                                         compute='_compute_amount_untaxed',
+                                        store=True,
                                         help="This is the Total Amount for "
                                              "Food", tracking=5)
     amount_total_event = fields.Monetary(string="Total Amount for Event",
-                                         compute='_compute_amount_untaxed',
-                                         help="This is the Total Amount for "
-                                              "Event", tracking=5)
-    amount_total_service = fields.Monetary(string="Total Amount for Service",
-                                           compute='_compute_amount_untaxed',
-                                           help="This is the Total Amount for "
-                                                "Service", tracking=5)
+                                          compute='_compute_amount_untaxed',
+                                          store=True,
+                                          help="This is the Total Amount for "
+                                               "Event", tracking=5)
+    amount_total_service = fields.Monetary(
+        string="Total Amount for Service",
+        compute='_compute_amount_untaxed', store=True,
+        help="This is the Total Amount for Service", tracking=5)
     amount_total_fleet = fields.Monetary(string="Total Amount for Fleet",
-                                         compute='_compute_amount_untaxed',
-                                         help="This is the Total Amount for "
-                                              "Fleet", tracking=5)
+                                        compute='_compute_amount_untaxed',
+                                        store=True,
+                                        help="This is the Total Amount for "
+                                             "Fleet", tracking=5)
     has_pos_orders = fields.Boolean(compute='_compute_has_pos_orders', string='Has POS Orders',
                                     help='Indicates if there are POS orders linked to this booking')
 
