@@ -2,11 +2,13 @@
 <!-- Popup for selecting a room booking and viewing its details -->
 <templates id="template" xml:space="preserve">
     <t t-name="hotel_pos_extension.HotelRoomPopup">
-        <Dialog title="props.title" size="'md'">
+        <!-- 20.0 port: bare `props` is not in scope in Owl 3 templates;
+             use this.props like core popups do. -->
+        <Dialog title="this.props.title" size="'md'">
             <div class="row">
                 <span class="label">Room No</span>
                 <select class="form-control" t-on-change="onBookingChange">
-                    <t t-foreach="props.bookings" t-as="booking" t-key="booking.id">
+                    <t t-foreach="this.props.bookings" t-as="booking" t-key="booking.id">
                         <option t-att-value="booking.id">
                             <t t-esc="booking.name"/>
                         </option>

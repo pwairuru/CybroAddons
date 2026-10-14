@@ -1,18 +1,23 @@
 /** @odoo-module */
 
-import { Component, proxy as useState } from "@odoo/owl";
+import { Component, useProps, proxy, t } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 
 export class HotelRoomPopup extends Component {
     static template = "hotel_pos_extension.HotelRoomPopup";
     static components = { Dialog };
+    // 20.0 port: declare props like core SelectionPopup (undeclared props
+    // do not reach the component), and use proxy directly as core does.
+    props = useProps({
+        title: t.string().optional(""),
+        bookings: t.array().optional([]),
+        getPayload: t.function(),
+        close: t.function(),
+    });
 
     setup() {
-        // TEMP-DIAG-ROOM-POPUP (remove after diagnosis)
-        console.log("HOTEL_POPUP_SETUP props keys:", Object.keys(this.props || {}));
-        const bookings = (this.props && this.props.bookings) || [];
-        this.state = useState({
-            selectedBooking: bookings[0] || null,
+        this.state = proxy({
+            selectedBooking: this.props.bookings[0] || null,
         });
     }
 
