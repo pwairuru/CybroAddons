@@ -1,7 +1,6 @@
 /** @odoo-module */
 import { registry } from "@web/core/registry";
-// 20.0 port: useState removed in Owl 3; proxy({...}) is the Odoo 20 pattern.
-import { Component, onMounted, onWillUnmount, proxy as useState } from "@odoo/owl";
+import { Component, onMounted, onWillUnmount, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
 class KitchenScreenDashboard extends Component {

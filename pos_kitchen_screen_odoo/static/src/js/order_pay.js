@@ -5,8 +5,6 @@ import { patch } from "@web/core/utils/patch";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { _t } from "@web/core/l10n/translation";
 import { rpc } from "@web/core/network/rpc";
-import { getOnNotified } from "@point_of_sale/utils";
-import { ask } from "@point_of_sale/app/utils/make_awaitable_dialog";
 
 patch(PosStore.prototype, {
     async setup() {
@@ -20,7 +18,9 @@ patch(PosStore.prototype, {
         const order = this.getOrder();
         if (!order) return;
 
-        const order_name = order.pos_reference;
+        // 20.0 port: client orders expose tracking_number, which the
+        // server stores as pos_reference.
+        const order_name = order.tracking_number;
 
         const result = await rpc("/web/dataset/call_kw/pos.order/check_order", {
             model: "pos.order",
@@ -57,25 +57,6 @@ patch(PosStore.prototype, {
             return;
         }
 
-        if (
-            order.lines.some(
-                (line) =>
-                    line.getProduct().tracking !== "none" &&
-                    !line.has_valid_product_lot()
-            ) &&
-            (this.pickingType.use_create_lots || this.pickingType.use_existing_lots) &&
-            result === false
-        ) {
-            const confirmed = await ask(this.env.services.dialog, {
-                title: _t("Some Serial/Lot Numbers are missing"),
-                body: _t(
-                    "You are trying to sell products with serial/lot numbers, but some of them are not set.\nWould you like to proceed anyway?"
-                ),
-            });
-            if (!confirmed) {
-                return;
-            }
-        }
         super.pay()
     },
 });
