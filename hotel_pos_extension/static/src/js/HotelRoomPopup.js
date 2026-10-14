@@ -8,8 +8,11 @@ export class HotelRoomPopup extends Component {
     static components = { Dialog };
 
     setup() {
+        // TEMP-DIAG-ROOM-POPUP (remove after diagnosis)
+        console.log("HOTEL_POPUP_SETUP props keys:", Object.keys(this.props || {}));
+        const bookings = (this.props && this.props.bookings) || [];
         this.state = useState({
-            selectedBooking: this.props.bookings[0] || null,
+            selectedBooking: bookings[0] || null,
         });
     }
 
