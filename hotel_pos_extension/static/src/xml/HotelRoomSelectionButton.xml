@@ -3,9 +3,17 @@
 <templates id="template" xml:space="preserve">
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('control-buttons')]" position="inside">
-            <button class="room-selection-button btn btn-secondary btn-lg lh-lg text-truncate w-auto" t-on-click="onClickAddRoom">
-                <i class="fa fa-bed me-2" role="img" aria-label="Room" title="Room"/>
-                <t t-esc="currentBookingName"/>
+            <button class="room-selection-button btn btn-secondary btn-lg lh-lg text-truncate w-auto" t-on-click="() => this.onClickAddRoom()">
+                <!-- 20.0 port: no FontAwesome in POS (fa-bed renders blank);
+                     no _t() in getter (lazy string races translations and
+                     renders empty). Static template text follows the same
+                     translation path as core control buttons. -->
+                <t t-if="currentBookingName">
+                    <t t-esc="currentBookingName"/>
+                </t>
+                <t t-else="">
+                    Add Room
+                </t>
             </button>
         </xpath>
     </t>

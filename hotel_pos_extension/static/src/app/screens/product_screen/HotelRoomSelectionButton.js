@@ -17,8 +17,11 @@ patch(ProductScreen.prototype, {
     },
 
     get currentBookingName() {
+        // 20.0 port: return the plain room name only. The "Add Room"
+        // fallback lives as static text in the template: a lazy _t()
+        // string here races translations loading and renders empty.
         const order = this.pos.getOrder();
-        return order?.uiState?.roomName || _t("Add Room");
+        return order?.uiState?.roomName || "";
     },
 
     async onClickAddRoom() {
