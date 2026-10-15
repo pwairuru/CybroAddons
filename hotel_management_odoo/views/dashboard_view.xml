@@ -5,9 +5,10 @@
         <field name="name">Dashboard</field>
         <field name="tag">custom_dashboard_tags</field>
     </record>
-    <!--Menu Dashboard-->
+    <!--Menu Dashboard (Hoteli: first child, app opens on dashboard)-->
     <menuitem name="Dashboard" id="hotel_dashboard_menu"
               groups="hotel_management_odoo.hotel_group_reception"
               parent="hotel_management_menu_root"
+              sequence="1"
               action="hotel_dashboard_action"/>
 </odoo>
