@@ -75,7 +75,7 @@ class KitchenScreenDashboard extends Component {
 
     getCurrentShopId() {
         let session_shop_id;
-        if (this.props.action?.context?.default_shop_id) {
+        if (this.props?.action?.context?.default_shop_id) {
             sessionStorage.setItem('shop_id', this.props.action.context.default_shop_id);
             session_shop_id = this.props.action.context.default_shop_id;
         } else {
