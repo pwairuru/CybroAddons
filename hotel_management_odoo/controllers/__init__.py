@@ -20,3 +20,5 @@
 #
 #############################################################################
 from . import hotel_management_odoo
+from . import channel_webhook
+from . import guest_portal

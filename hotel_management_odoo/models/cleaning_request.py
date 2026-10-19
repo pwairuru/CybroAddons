@@ -23,6 +23,13 @@ from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
+HK_STATUSES = [('dirty', 'Dirty'), ('clean', 'Clean'),
+               ('inspected', 'Inspected'), ('ooo', 'Out of Order')]
+HK_TASKS = [('departure', 'Departure Clean'), ('stayover', 'Stayover'),
+            ('deep', 'Deep Clean'), ('inspection', 'Inspection'),
+            ('public', 'Public Area')]
+
+
 class CleaningRequest(models.Model):
     """Class for creating and assigning Cleaning Request"""
     _name = "cleaning.request"
@@ -77,6 +84,25 @@ class CleaningRequest(models.Model):
                                           column2='user_id',
                                           string="Domain Partner",
                                           help="Choose the Domain Partner")
+    # Task 10 pro fields: task type (departure vs stayover), HK room
+    # condition, SLA deadline/breach, company. Legacy `state` untouched
+    # so rack dirty-count stays backward compatible.
+    task_type = fields.Selection(selection=HK_TASKS, default='stayover',
+                                 required=True, tracking=True,
+                                 string="Task Type",
+                                 help="Departure clean vs stayover service")
+    room_status = fields.Selection(selection=HK_STATUSES, default='dirty',
+                                   required=True, tracking=True,
+                                   string="Room Condition",
+                                   help="Housekeeping condition of the room")
+    sla_deadline = fields.Datetime(string="SLA Deadline",
+                                   help="Service must finish before this time")
+    sla_breach = fields.Boolean(string="SLA Breach",
+                                compute='_compute_sla_breach', store=True,
+                                help="Deadline passed while request open")
+    company_id = fields.Many2one('res.company', string="Company",
+                                 required=True, index=True,
+                                 default=lambda self: self.env.company)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -86,6 +112,15 @@ class CleaningRequest(models.Model):
                 vals['sequence'] = self.env['ir.sequence'].next_by_code(
                     'cleaning.request')
         return super().create(vals_list)
+
+    @api.depends('sla_deadline', 'state', 'room_status')
+    def _compute_sla_breach(self):
+        now = fields.Datetime.now()
+        for rec in self:
+            rec.sla_breach = bool(
+                rec.sla_deadline and rec.state != 'done'
+                and rec.room_status != 'inspected'
+                and rec.sla_deadline < now)
 
     @api.onchange('team_id')
     def _onchange_team_id(self):
@@ -113,6 +148,45 @@ class CleaningRequest(models.Model):
     def action_done_cleaning(self):
         """Button action for  updating the state to done"""
         self.write({'state': 'done'})
+
+    # Task 10 pro transitions: dirty -> clean -> inspected, OOO closes.
+    def action_mark_clean(self):
+        """Cleaner marks a dirty room clean."""
+        for rec in self:
+            if rec.room_status != 'dirty':
+                raise ValidationError(
+                    _('Only dirty rooms can be marked clean (now %s).')
+                    % rec.room_status)
+        self.write({'room_status': 'clean'})
+        return self
+
+    def action_mark_dirty(self):
+        """Reopen a room as dirty (e.g. failed inspection)."""
+        for rec in self:
+            if rec.room_status == 'inspected':
+                raise ValidationError(
+                    _('Inspected rooms reopen via a new request.'))
+        self.write({'room_status': 'dirty'})
+        return self
+
+    def action_inspect(self):
+        """Supervisor verifies a clean room."""
+        for rec in self:
+            if rec.room_status != 'clean':
+                raise ValidationError(
+                    _('Only clean rooms can be inspected (now %s).')
+                    % rec.room_status)
+        self.write({'room_status': 'inspected'})
+        return self
+
+    def action_mark_ooo(self):
+        """Pull room out of order; closes the request."""
+        for rec in self:
+            if rec.room_status == 'inspected':
+                raise ValidationError(
+                    _('Inspected rooms go OOO via a new request.'))
+        self.write({'room_status': 'ooo', 'state': 'done'})
+        return self
 
     def action_assign_support(self):
         """Button action for updating the state to support"""

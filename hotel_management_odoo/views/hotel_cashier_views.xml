@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Task 11: cashier shift views (operational, under Cashier) -->
+    <record id="hotel_cashier_shift_view_list" model="ir.ui.view">
+        <field name="name">hotel.cashier.shift.view.list</field>
+        <field name="model">hotel.cashier.shift</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="user_id"/>
+                <field name="company_id"/>
+                <field name="state"/>
+                <field name="opening_cash"/>
+                <field name="expected_cash"/>
+                <field name="closing_cash"/>
+                <field name="variance"/>
+                <field name="opened_at"/>
+                <field name="closed_at"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_cashier_shift_view_form" model="ir.ui.view">
+        <field name="name">hotel.cashier.shift.view.form</field>
+        <field name="model">hotel.cashier.shift</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_open" string="Open" type="object"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,open,closed"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="user_id"/>
+                        <field name="company_id"/>
+                        <field name="opening_cash"/>
+                        <field name="expected_cash"/>
+                        <field name="closing_cash"/>
+                        <field name="variance"/>
+                        <field name="opened_at"/>
+                        <field name="closed_at"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_cashier_shift_action" model="ir.actions.act_window">
+        <field name="name">Cashier Shifts</field>
+        <field name="res_model">hotel.cashier.shift</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_cashier_shift_menu"
+              name="Cashier Shifts"
+              sequence="10"
+              parent="hotel_cashier_menu"
+              action="hotel_cashier_shift_action"/>
+</odoo>

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Conferences menu (operational, NOT under Configuration) -->
+    <menuitem id="hotel_conference_menu"
+              name="Conferences"
+              sequence="12"
+              parent="hotel_management_menu_root"/>
+
+    <!-- Venue master (Configuration) -->
+    <record id="hotel_venue_view_list" model="ir.ui.view">
+        <field name="name">hotel.venue.view.list</field>
+        <field name="model">hotel.venue</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="capacity"/>
+                <field name="flat_price"/>
+                <field name="pax_price"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_venue_view_form" model="ir.ui.view">
+        <field name="name">hotel.venue.view.form</field>
+        <field name="model">hotel.venue</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="company_id"/>
+                        <field name="capacity"/>
+                        <field name="flat_price"/>
+                        <field name="pax_price"/>
+                        <field name="venue_product_id"/>
+                        <field name="pax_product_id"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_venue_action" model="ir.actions.act_window">
+        <field name="name">Venues</field>
+        <field name="res_model">hotel.venue</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_venue_menu_action"
+              name="Venues"
+              sequence="10"
+              parent="hotel_config_menu"
+              action="hotel_venue_action"/>
+
+    <!-- Conference list/form -->
+    <record id="hotel_conference_view_list" model="ir.ui.view">
+        <field name="name">hotel.conference.view.list</field>
+        <field name="model">hotel.conference</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="venue_id"/>
+                <field name="date"/>
+                <field name="slot"/>
+                <field name="partner_id"/>
+                <field name="pax"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_conference_attendee_view_list" model="ir.ui.view">
+        <field name="name">hotel.conference.attendee.view.list</field>
+        <field name="model">hotel.conference.attendee</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="partner_id"/>
+                <field name="personal_folio_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_conference_view_form" model="ir.ui.view">
+        <field name="name">hotel.conference.view.form</field>
+        <field name="model">hotel.conference</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm" string="Confirm"
+                            invisible="state != 'draft'" type="object"
+                            class="btn-primary"/>
+                    <button name="action_done" string="Mark Done"
+                            invisible="state != 'confirmed'" type="object"/>
+                    <button name="action_cancel" string="Cancel"
+                            invisible="state in ('done', 'cancel')" type="object"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,confirmed,done"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name" readonly="1"/>
+                        <field name="company_id"/>
+                        <field name="venue_id"/>
+                        <field name="date"/>
+                        <field name="slot"/>
+                        <field name="partner_id"/>
+                        <field name="pax"/>
+                        <field name="venue_price"/>
+                        <field name="pax_price"/>
+                    </group>
+                    <group string="Billing">
+                        <field name="master_folio_id" readonly="1"/>
+                        <field name="master_total" readonly="1"/>
+                        <field name="personal_total" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Attendees">
+                            <field name="attendee_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_conference_action" model="ir.actions.act_window">
+        <field name="name">Conferences</field>
+        <field name="res_model">hotel.conference</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_conference_menu_action"
+              name="Conferences"
+              sequence="10"
+              parent="hotel_conference_menu"
+              action="hotel_conference_action"/>
+</odoo>

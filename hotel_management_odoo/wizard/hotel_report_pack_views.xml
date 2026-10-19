@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Task 11: report pack wizard -->
+    <record id="hotel_report_pack_view_form" model="ir.ui.view">
+        <field name="name">hotel.report.pack.view.form</field>
+        <field name="model">hotel.report.pack</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="report_type"/>
+                        <field name="company_id"/>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <footer>
+                        <button name="action_print_pdf" string="Print PDF"
+                                type="object" class="btn-primary"/>
+                        <button name="action_print_xlsx" string="Print Excel"
+                                type="object" class="btn-primary"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_report_pack_action" model="ir.actions.act_window">
+        <field name="name">Hotel Reports</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="hotel_report_pack_action_occupancy" model="ir.actions.act_window">
+        <field name="name">Occupancy Report</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_occupancy'}</field>
+    </record>
+    <record id="hotel_report_pack_action_inhouse" model="ir.actions.act_window">
+        <field name="name">In-House Guests</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_inhouse'}</field>
+    </record>
+    <record id="hotel_report_pack_action_arrivals" model="ir.actions.act_window">
+        <field name="name">Arrivals &amp; Departures</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_arrivals_departures'}</field>
+    </record>
+    <record id="hotel_report_pack_action_cashier" model="ir.actions.act_window">
+        <field name="name">Cashier Shifts</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_cashier_shifts'}</field>
+    </record>
+    <record id="hotel_report_pack_action_housekeeping" model="ir.actions.act_window">
+        <field name="name">Housekeeping Status</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_housekeeping_status'}</field>
+    </record>
+    <record id="hotel_report_pack_action_flash" model="ir.actions.act_window">
+        <field name="name">Manager Flash</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_flash'}</field>
+    </record>
+    <record id="hotel_report_pack_action_adr" model="ir.actions.act_window">
+        <field name="name">ADR / RevPAR</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_adr_revpar'}</field>
+    </record>
+    <record id="hotel_report_pack_action_assets" model="ir.actions.act_window">
+        <field name="name">Asset Register</field>
+        <field name="res_model">hotel.report.pack</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_report_type': 'hotel_asset_register'}</field>
+    </record>
+
+    <menuitem id="hotel_report_pack_menu_occupancy" name="Occupancy"
+              sequence="10" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_occupancy"/>
+    <menuitem id="hotel_report_pack_menu_inhouse" name="In-House Guests"
+              sequence="20" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_inhouse"/>
+    <menuitem id="hotel_report_pack_menu_arrivals" name="Arrivals &amp; Departures"
+              sequence="30" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_arrivals"/>
+    <menuitem id="hotel_report_pack_menu_cashier" name="Cashier Shifts"
+              sequence="40" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_cashier"/>
+    <menuitem id="hotel_report_pack_menu_housekeeping" name="Housekeeping Status"
+              sequence="50" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_housekeeping"/>
+    <menuitem id="hotel_report_pack_menu_flash" name="Manager Flash"
+              sequence="60" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_flash"/>
+    <menuitem id="hotel_report_pack_menu_adr" name="ADR / RevPAR"
+              sequence="70" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_adr"/>
+    <menuitem id="hotel_report_pack_menu_assets" name="Asset Register"
+              sequence="80" parent="hotel_reporting_menu"
+              action="hotel_report_pack_action_assets"/>
+</odoo>

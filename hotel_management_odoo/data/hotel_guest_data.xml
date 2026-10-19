@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="hotel_checkin_block_expired_id" model="ir.config_parameter">
+        <field name="key">hotel.checkin.block_expired_id</field>
+        <field name="value">1</field>
+    </record>
+
+    <record id="hotel_sms_checkin" model="mail.template">
+        <field name="name">Hotel: check-in SMS</field>
+        <field name="model_id" ref="hotel_management_odoo.model_room_booking"/>
+        <field name="subject">Check-in confirmed</field>
+        <field name="body_html"><![CDATA[
+<p>Hi {guest}, room {room} check-in {checkin}. Balance {balance}.</p>
+]]></field>
+    </record>
+
+    <record id="hotel_sms_checkout" model="mail.template">
+        <field name="name">Hotel: checkout SMS</field>
+        <field name="model_id" ref="hotel_management_odoo.model_room_booking"/>
+        <field name="subject">Thanks for staying</field>
+        <field name="body_html"><![CDATA[
+<p>Hi {guest}, checkout {checkout}. Balance {balance}.</p>
+]]></field>
+    </record>
+
+    <record id="hotel_whatsapp_confirm" model="mail.template">
+        <field name="name">Hotel: booking WhatsApp</field>
+        <field name="model_id" ref="hotel_management_odoo.model_room_booking"/>
+        <field name="subject">Booking confirmed</field>
+        <field name="body_html"><![CDATA[
+<p>Hi {guest}, booking confirmed: room {room}, check-in {checkin}, checkout {checkout}.</p>
+]]></field>
+    </record>
+</odoo>

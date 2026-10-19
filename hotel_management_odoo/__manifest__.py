@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel Management',
-    'version': '20.0.1.0.0',
+    'version': '20.0.1.0.1',
     'category': 'Industries',
     'summary': """A complete Hotel Management System that cover all areas of 
      Hotel services""" ,
@@ -51,8 +51,17 @@
         'views/maintenance_request_views.xml',
         'views/cleaning_team_views.xml',
         'views/cleaning_request_views.xml',
+        'views/hotel_service_ops_views.xml',
         'views/food_booking_line_views.xml',
+        'views/hotel_folio_views.xml',
+        'views/hotel_guest_views.xml',
+        'data/hotel_guest_data.xml',
+        'views/hotel_night_audit_views.xml',
+        'views/hotel_rate_views.xml',
+        'views/hotel_conference_views.xml',
+        'views/hotel_cashier_views.xml',
         'views/dashboard_view.xml',
+        'wizard/hotel_report_pack_views.xml',
         'wizard/room_booking_detail_views.xml',
         'wizard/sale_order_detail_views.xml',
         'wizard/compute_bill_views.xml',
@@ -60,6 +69,7 @@
         'report/room_booking_reports.xml',
         'report/sale_order_reports.xml',
         'report/combined_bill_report.xml',
+        'report/hotel_reports.xml',
     ],
     'assets': {
         'web.assets_backend': [

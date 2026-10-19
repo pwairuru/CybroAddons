@@ -39,8 +39,6 @@ class ProductTemplate(models.Model):
                               tracking=True)
     is_room_avail = fields.Boolean(default=True, string="Available",
                                    help="Check if the room is available")
-    list_price = fields.Float(string='Rent', digits='Product Price',
-                              help="The rent of the room.")
     room_amenities_ids = fields.Many2many("hotel.amenity",
                                           string="Room Amenities",
                                           help="List of room amenities.")
@@ -59,7 +57,7 @@ class ProductTemplate(models.Model):
                                  tracking=True,
                                  default="single")
     num_person = fields.Integer(string='Number Of Persons',
-                                required=True,
+                                required=True, default=1,
                                 help="Automatically chooses the No. of Persons",
                                 tracking=True)
 

@@ -122,3 +122,74 @@ html .o_web_client > .o_action_manager {
 .icon-amber  { background: #fffce0; color: #f59e0b; }
 .icon-rose   { background: #fff1f2; color: #f43f5e; }
 .icon-slate  { background: #f1f5f9; color: #64748b; }
+
+/* ---- Task 4: glance tiles accent ---- */
+.dash-grid-tiles .dash-card {
+    border-left: 4px solid transparent;
+}
+.tile-occupancy { border-left-color: #14b8a6 !important; }
+.tile-adr { border-left-color: #3b82f6 !important; }
+.tile-revpar { border-left-color: #a855f7 !important; }
+.tile-arrivals { border-left-color: #22c55e !important; }
+.tile-departures { border-left-color: #f97316 !important; }
+.tile-dirty { border-left-color: #ef4444 !important; }
+
+/* ---- Task 4: room rack tape chart ---- */
+.rack-wrapper {
+    overflow-x: auto;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin-bottom: 8px;
+}
+
+.rack-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 640px;
+}
+
+.rack-table th,
+.rack-table td {
+    padding: 10px 12px;
+    text-align: center;
+    border-bottom: 1px solid #edf2f7;
+    white-space: nowrap;
+}
+
+.rack-table thead th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #8492a6;
+    background: #f8fafc;
+}
+
+.rack-room-col {
+    text-align: left !important;
+    font-weight: 700;
+    color: #1a202c;
+    position: sticky;
+    left: 0;
+    background: #ffffff;
+}
+
+.rack-cell {
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.rack-status-available { background: #e6f9f0; color: #15803d; }
+.rack-status-reserved { background: #fffbeb; color: #b45309; }
+.rack-status-occupied { background: #ebf4ff; color: #1d4ed8; }
+.rack-status-dirty { background: #fff0f0; color: #b91c1c; }
+.rack-status-ooo { background: #f1f5f9; color: #475569; }
+
+@media (max-width: 576px) {
+    .rack-table { min-width: 520px; font-size: 12px; }
+    .rack-table th,
+    .rack-table td { padding: 8px; }
+}

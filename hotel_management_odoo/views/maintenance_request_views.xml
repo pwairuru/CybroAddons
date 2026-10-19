@@ -103,9 +103,11 @@
             (0, 0, {'view_mode': 'list', 'view_id': ref('maintenance_request_view_tree')}),
             (0, 0, {'view_mode': 'form', 'view_id': ref('maintenance_request_view_form')})]"/>
     </record>
-    <!--    Maintenance Request Menu-->
+    <!--    Maintenance Request Menu (operational tickets under Housekeeping;
+            team master stays under Configuration)-->
     <menuitem id="maintenance_request_menu"
               name="Maintenance Request"
-              parent="maintenance_menu"
+              sequence="15"
+              parent="hotel_housekeeping_menu"
               action="maintenance_request_action"/>
 </odoo>

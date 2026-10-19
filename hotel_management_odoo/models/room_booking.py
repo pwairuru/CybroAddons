@@ -149,7 +149,7 @@ class RoomBooking(models.Model):
                                    string="Pricelist",
                                    compute='_compute_pricelist_id',
                                    store=True, readonly=False,
-                                   required=True,
+                                   required=True, precompute=True,
                                    tracking=1,
                                    help="If you change the pricelist,"
                                         " only newly added lines"
@@ -272,13 +272,15 @@ class RoomBooking(models.Model):
 
     @api.depends('partner_id')
     def _compute_pricelist_id(self):
-        """Computes PriceList"""
+        """Computes PriceList (never False: pricelist_id is NOT NULL)."""
         for order in self:
-            if not order.partner_id:
-                order.pricelist_id = False
-                continue
-            order = order.with_company(order.company_id)
-            order.pricelist_id = order.partner_id.property_product_pricelist
+            company_order = order.with_company(order.company_id)
+            pricelist = company_order.partner_id.property_product_pricelist
+            if not pricelist:
+                pricelist = self.env['product.pricelist'].search(
+                    [('company_id', 'in', (False, order.company_id.id))],
+                    limit=1)
+            order.pricelist_id = pricelist
 
     @api.depends('room_line_ids.price_subtotal', 'room_line_ids.price_tax',
                  'room_line_ids.price_total',
@@ -633,13 +635,13 @@ class RoomBooking(models.Model):
         for record in self:
             if not record.room_line_ids:
                 raise ValidationError(("Please Enter Room Details"))
-            else:
-                for room in record.room_line_ids:
-                    room.room_id.write({
-                        'status': 'occupied',
-                    })
-                    room.room_id.is_room_avail = False
-                record.write({"state": "check_in"})
+            record.partner_id.check_documents_valid()
+            for room in record.room_line_ids:
+                room.room_id.write({
+                    'status': 'occupied',
+                })
+                room.room_id.is_room_avail = False
+            record.write({"state": "check_in"})
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',

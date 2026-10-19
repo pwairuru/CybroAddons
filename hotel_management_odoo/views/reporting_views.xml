@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!--    Reporting Menu-->
+    <!--    Reports Menu (operational)-->
     <menuitem id="hotel_reporting_menu"
-              name="Reporting"
+              name="Reports"
               sequence="30"
               parent="hotel_management_menu_root"/>
     <!--    Room Booking Report Menu-->
