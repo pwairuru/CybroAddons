@@ -122,4 +122,12 @@
                        Command.link(ref('hotel_group_reception')),
                        Command.link(ref('hotel_group_manager'))]"/>
     </record>
+
+    <!--    Fresh-install onboarding: admin gets the hotel Admin role so the
+            Dashboard + Configuration menus are visible right after install.
+            (Upgraded DBs may already carry these via older versions.)-->
+    <record id="base.user_admin" model="res.users">
+        <field name="group_ids"
+               eval="[Command.link(ref('hotel_group_admin'))]"/>
+    </record>
 </odoo>

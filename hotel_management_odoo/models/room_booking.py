@@ -145,11 +145,30 @@ class RoomBooking(models.Model):
                               domain="['|', ('company_id', '=', False), "
                                      "('company_id', '=',"
                                      " company_id)]")
+    @api.model
+    def _default_pricelist(self):
+        """Company pricelist, creating a fallback so the required field
+        is never empty (fresh DBs may have no pricelist at all)."""
+        return self._company_pricelist(self.env.company)
+
+    @api.model
+    def _company_pricelist(self, company):
+        pricelist = self.env['product.pricelist'].search(
+            [('company_id', 'in', (False, company.id))], limit=1)
+        if not pricelist:
+            pricelist = self.env['product.pricelist'].create({
+                'name': 'Default %s' % (company.currency_id.name or ''),
+                'currency_id': company.currency_id.id,
+                'company_id': company.id,
+            })
+        return pricelist
+
     pricelist_id = fields.Many2one(comodel_name='product.pricelist',
                                    string="Pricelist",
                                    compute='_compute_pricelist_id',
                                    store=True, readonly=False,
                                    required=True, precompute=True,
+                                   default=_default_pricelist,
                                    tracking=1,
                                    help="If you change the pricelist,"
                                         " only newly added lines"
@@ -247,13 +266,32 @@ class RoomBooking(models.Model):
         for rec in self:
             rec.has_pos_orders = False
 
+    @api.model
+    def _resolve_pricelist(self, partner, company):
+        """Pricelist for a partner/company: partner property first,
+        else a company-currency pricelist (created if missing)."""
+        pricelist = partner.with_company(
+            company).property_product_pricelist
+        if not pricelist:
+            pricelist = self._company_pricelist(company)
+        return pricelist
+
     @api.model_create_multi
     def create(self, vals_list):
-        """Sequence Generation"""
+        """Sequence Generation + pricelist default (compute does not run
+        on create, only the field default does)."""
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
                 vals['name'] = self.env['ir.sequence'].next_by_code(
                     'room.booking')
+            if not vals.get('pricelist_id') and vals.get('partner_id'):
+                partner = self.env['res.partner'].browse(
+                    vals['partner_id'])
+                company = self.env['res.company'].browse(
+                    vals.get('company_id')) or self.env.company
+                if partner.exists():
+                    vals['pricelist_id'] = self._resolve_pricelist(
+                        partner, company).id
         return super().create(vals_list)
 
     @api.depends('partner_id')
@@ -274,13 +312,9 @@ class RoomBooking(models.Model):
     def _compute_pricelist_id(self):
         """Computes PriceList (never False: pricelist_id is NOT NULL)."""
         for order in self:
-            company_order = order.with_company(order.company_id)
-            pricelist = company_order.partner_id.property_product_pricelist
-            if not pricelist:
-                pricelist = self.env['product.pricelist'].search(
-                    [('company_id', 'in', (False, order.company_id.id))],
-                    limit=1)
-            order.pricelist_id = pricelist
+            company = order.company_id or self.env.company
+            order.pricelist_id = order._resolve_pricelist(
+                order.partner_id, company)
 
     @api.depends('room_line_ids.price_subtotal', 'room_line_ids.price_tax',
                  'room_line_ids.price_total',

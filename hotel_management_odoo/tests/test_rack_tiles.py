@@ -30,13 +30,15 @@ class TestRackTiles(TransactionCase):
         })
         self.guest = self.env['res.partner'].create({'name': 'Rack Guest'})
         # Deterministic pricing: fixtures assert company-currency revenue,
-        # so pin the guest to a company-currency pricelist instead of the
-        # ambient default (which may price in another currency).
-        kes_pricelist = self.env['product.pricelist'].search(
-            [('currency_id', '=', self.env.company.currency_id.id)],
-            limit=1)
-        if kes_pricelist:
-            self.guest.property_product_pricelist = kes_pricelist.id
+        # so pin the guest to a dedicated rule-free pricelist. Never reuse
+        # an ambient pricelist: dev DBs carry ruled pricelists (discounts
+        # change price_unit) and search() order is not guaranteed.
+        self.pricelist = self.env['product.pricelist'].create({
+            'name': 'Rack Test Pricelist',
+            'currency_id': self.env.company.currency_id.id,
+            'company_id': self.env.company.id,
+        })
+        self.guest.property_product_pricelist = self.pricelist.id
         self.booking = self.env['room.booking'].create({
             'partner_id': self.guest.id,
             'checkin_date': '2026-10-19 14:00:00',

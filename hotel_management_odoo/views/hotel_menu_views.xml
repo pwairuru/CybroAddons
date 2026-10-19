@@ -13,12 +13,13 @@
               groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               parent="hotel_management_menu_root"/>
     <!--    Operational parents (Task 11): only these sit at root next to
-            Dashboard / Reservation / Folios / Conferences.-->
+            Dashboard / Reservation / Folios / Conferences.
+            Rack action is attached in room_booking_views.xml (same ID update:
+            menuitems cannot forward-reference actions on fresh install).-->
     <menuitem id="hotel_rack_menu"
               name="Rack"
               sequence="2"
-              parent="hotel_management_menu_root"
-              action="room_booking_action"/>
+              parent="hotel_management_menu_root"/>
     <menuitem id="hotel_housekeeping_menu"
               name="Housekeeping"
               sequence="13"
