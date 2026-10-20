@@ -112,13 +112,29 @@ class HotelFolio(models.Model):
         if not journal:
             raise ValidationError("No sales journal found for company %s."
                                   % company.display_name)
-        move_lines = [(0, 0, {
-            'name': line.product_id.display_name or '/',
-            'product_id': line.product_id.id,
-            'quantity': line.quantity,
-            'price_unit': line.price_unit,
-            'tax_ids': [(6, 0, line.tax_ids.ids)],
-        }) for line in self.line_ids]
+        move_lines = []
+        for line in self.line_ids:
+            product = line.product_id
+            line_account = (
+                product.property_account_income_id
+                or product.categ_id.property_account_income_categ_id
+                or journal.default_account_id
+                or self.env['account.account'].search([
+                    ('company_ids', 'in', company.id),
+                    ('account_type', '=', 'income'),
+                ], limit=1))
+            if not line_account:
+                raise ValidationError(
+                    "No income account for %s (company %s)."
+                    % (product.display_name, company.display_name))
+            move_lines.append((0, 0, {
+                'name': product.display_name or '/',
+                'product_id': product.id,
+                'quantity': line.quantity,
+                'price_unit': line.price_unit,
+                'account_id': line_account.id,
+                'tax_ids': [(6, 0, line.tax_ids.ids)],
+            }))
         if deposit_total > 0:
             first_product = self.line_ids[0].product_id
             account = (first_product.property_account_income_id
@@ -126,8 +142,16 @@ class HotelFolio(models.Model):
                        .property_account_income_categ_id
                        or journal.default_account_id)
             if not account:
+                account = self.env['account.account'].search([
+                    ('company_ids', 'in', company.id),
+                    ('account_type', '=', 'income'),
+                ], limit=1)
+            if not account:
                 raise ValidationError(
-                    "Cannot determine an income account for the deposit line.")
+                    "Cannot determine an income account for the deposit "
+                    "line: set one on the product/category or create an "
+                    "income account for company %s."
+                    % company.display_name)
             move_lines.append((0, 0, {
                 'name': 'Deposit applied',
                 'quantity': 1,
