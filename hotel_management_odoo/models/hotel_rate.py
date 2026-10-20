@@ -144,8 +144,11 @@ class HotelRateEngine(models.AbstractModel):
         return sorted(pool, key=lambda r: (r.date_from, r.id))[-1]
 
     @api.model
-    def price_for(self, room_template_id, date, plan_id, pax=2):
-        """Nightly price for a room template on a date under a plan."""
+    def price_for(self, room_template_id, date, plan_id, pax=1):
+        """Nightly price for a room template on a date under a plan.
+
+        pax defaults to 1 (no guest-count assumption); pass the real
+        occupancy to enforce capacity."""
         day = _to_date(date)
         room = self.env['product.template'].browse(room_template_id)
         if not room.exists() or not room.is_room:
@@ -169,10 +172,12 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def check_stay(self, room_template_id, date_from, date_to,
-                   plan_id, pax=2):
+                   plan_id, pax=1):
         """Validate closed + min-stay for a stay window.
 
-        Returns the night count. Raises ValidationError on violation.
+        Min-stay is the max over any rule/restriction overlapping the
+        window (conservative: a 3-night rule touching 1 night requires
+        3). Returns the night count. Raises ValidationError on violation.
         """
         start = _to_date(date_from)
         end = _to_date(date_to)
@@ -224,7 +229,7 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def post_stay_nights(self, folio_id, room_template_id,
-                         date_from, date_to, plan_id, pax=2):
+                         date_from, date_to, plan_id, pax=1):
         """Post one folio line per night; returns the created lines.
 
         Pre-validates ALL nights are open before the first post_charge

@@ -46,7 +46,7 @@
                             </div>
                             <div class="col-3">
                                 <strong>Manager:</strong><br/>
-                                <span t-field="o.booking_id.user_id.name"/>
+                                <span t-field="o.booking_id.invoice_address_id.name"/>
                             </div>
                             <div class="col-3 text-right">
                                 <strong>Customer:</strong><br/>

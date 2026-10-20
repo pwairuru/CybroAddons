@@ -1,9 +1,9 @@
 id,name,model_id:id,group_id:id,operation,domain
-access_hotel_amenity_user,access.hotel.amenity.user,model_hotel_amenity,base.group_user,crud
+access_hotel_amenity_user,access.hotel.amenity.user,model_hotel_amenity,base.group_user,r
 access_hotel_service_user,access.hotel.service.user,model_hotel_service,base.group_user,crud
-access_hotel_floor_user,access.hotel.floor.user,model_hotel_floor,base.group_user,crud
-access_room_booking_user,access.room.booking.user,model_room_booking,base.group_user,crud
-access_room_booking_line_user,access.room.booking.line.user,model_room_booking_line,base.group_user,crud
+access_hotel_floor_user,access.hotel.floor.user,model_hotel_floor,base.group_user,r
+access_room_booking_user,access.room.booking.user,model_room_booking,base.group_user,r
+access_room_booking_line_user,access.room.booking.line.user,model_room_booking_line,base.group_user,r
 access_food_booking_line_user,access.food.booking.line.user,model_food_booking_line,base.group_user,crud
 access_service_booking_line_user,access.service.booking.line.user,model_service_booking_line,base.group_user,crud
 access_fleet_booking_line_user,access.fleet.booking.line.user,model_fleet_booking_line,base.group_user,crud
@@ -26,9 +26,9 @@ access_hotel_cashier_shift_user,access.hotel.cashier.shift.user,model_hotel_cash
 access_hotel_folio_line_user,access.hotel.folio.line.user,model_hotel_folio_line,base.group_user,r
 access_hotel_business_date_user,access.hotel.business.date.user,model_hotel_business_date,base.group_user,r
 access_hotel_night_audit_user,access.hotel.night.audit.user,model_hotel_night_audit,base.group_user,r
-access_hotel_rate_plan_user,access.hotel.rate.plan.user,model_hotel_rate_plan,base.group_user,crud
-access_hotel_rate_rule_user,access.hotel.rate.rule.user,model_hotel_rate_rule,base.group_user,crud
-access_hotel_rate_restriction_user,access.hotel.rate.restriction.user,model_hotel_rate_restriction,base.group_user,crud
+access_hotel_rate_plan_user,access.hotel.rate.plan.user,model_hotel_rate_plan,base.group_user,r
+access_hotel_rate_rule_user,access.hotel.rate.rule.user,model_hotel_rate_rule,base.group_user,r
+access_hotel_rate_restriction_user,access.hotel.rate.restriction.user,model_hotel_rate_restriction,base.group_user,r
 access_hotel_daily_inventory_reception,access.hotel.daily.inventory.reception,model_hotel_daily_inventory,hotel_management_odoo.hotel_group_reception,r
 access_hotel_venue_user,access.hotel.venue.user,model_hotel_venue,base.group_user,crud
 access_hotel_venue_reception,access.hotel.venue.reception,model_hotel_venue,hotel_management_odoo.hotel_group_reception,r
@@ -69,4 +69,10 @@ access_hotel_complaint_housekeeping,access.hotel.complaint.housekeeping,model_ho
 access_hotel_wakeup_call_housekeeping,access.hotel.wakeup.call.housekeeping,model_hotel_wakeup_call,hotel_management_odoo.hotel_group_housekeeping,crud
 access_hotel_asset_housekeeping,access.hotel.asset.housekeeping,model_hotel_asset,hotel_management_odoo.hotel_group_housekeeping,r
 access_room_booking_reception,access.room.booking.reception,model_room_booking,hotel_management_odoo.hotel_group_reception,crud
+access_room_booking_line_reception,access.room.booking.line.reception,model_room_booking_line,hotel_management_odoo.hotel_group_reception,crud
+access_hotel_floor_manager,access.hotel.floor.manager,model_hotel_floor,hotel_management_odoo.hotel_group_manager,crud
+access_hotel_amenity_manager,access.hotel.amenity.manager,model_hotel_amenity,hotel_management_odoo.hotel_group_manager,crud
+access_hotel_rate_plan_manager,access.hotel.rate.plan.manager,model_hotel_rate_plan,hotel_management_odoo.hotel_group_manager,crud
+access_hotel_rate_rule_manager,access.hotel.rate.rule.manager,model_hotel_rate_rule,hotel_management_odoo.hotel_group_manager,crud
+access_hotel_rate_restriction_manager,access.hotel.rate.restriction.manager,model_hotel_rate_restriction,hotel_management_odoo.hotel_group_manager,crud
 access_hotel_folio_reception,access.hotel.folio.reception,model_hotel_folio,hotel_management_odoo.hotel_group_reception,crud

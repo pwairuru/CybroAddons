@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from datetime import timedelta
+
+from odoo import fields
 from odoo.exceptions import ValidationError
 from odoo.tests.common import TransactionCase
 
@@ -8,26 +11,51 @@ class TestFamilyMaster(TransactionCase):
         super().setUp()
         self.dad = self.env.company.partner_id
 
+    def _room(self, name):
+        return self.env['product.template'].create({
+            'name': name, 'is_room': True, 'list_price': 10000.0,
+        })
+
+    def _booking_with_room(self, vals=None, room=None):
+        room = room or self._room('Room Test')
+        now = fields.Datetime.now()
+        vals = dict(vals or {})
+        vals.setdefault('partner_id', self.dad.id)
+        booking = self.env['room.booking'].create(vals)
+        self.env['room.booking.line'].create({
+            'booking_id': booking.id,
+            'room_id': room.id,
+            'checkin_date': now,
+            'checkout_date': now + timedelta(days=1),
+        })
+        return booking
+
+    def _close(self, booking):
+        booking.action_reserve()
+        booking.action_checkin()
+        booking.action_checkout()
+        booking.action_done()
+
     def test_checkout_one_room_keeps_master_open(self):
         master = self.env['room.booking'].create({'partner_id': self.dad.id})
-        room_a = self.env['room.booking'].create(
-            {'partner_id': self.dad.id, 'master_id': master.id})
-        room_b = self.env['room.booking'].create(
-            {'partner_id': self.dad.id, 'master_id': master.id})
+        room_a = self._booking_with_room({'master_id': master.id})
+        room_b = self._booking_with_room({'master_id': master.id})
+        room_a.action_reserve()
+        room_a.action_checkin()
         room_a.action_checkout()
+        room_a.action_done()
         assert room_b.state != 'done' and master.state != 'done'
 
     def test_master_done_blocked_until_children_done(self):
         master = self.env['room.booking'].create({'partner_id': self.dad.id})
-        child = self.env['room.booking'].create(
-            {'partner_id': self.dad.id, 'master_id': master.id})
+        child = self._booking_with_room({'master_id': master.id})
         with self.assertRaises(ValidationError):
             master.action_done()
-        child.action_checkout()
-        child.action_done()
-        master.action_checkout()
-        master.action_done()
-        self.assertEqual(master.state, 'done')
+        self._close(child)
+        with self.assertRaises(ValidationError):
+            master.action_done()
+        master.action_cancel()
+        self.assertEqual(master.state, 'cancel')
 
     def test_per_room_occupant_differs_from_payer(self):
         master = self.env['room.booking'].create({'partner_id': self.dad.id})

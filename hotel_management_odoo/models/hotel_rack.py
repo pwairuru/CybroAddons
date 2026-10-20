@@ -11,17 +11,20 @@ Produces:
   priority: ooo > occupied > reserved > dirty > available
 - tiles: {occupancy, adr, revpar, arrivals, departures, dirty, ...}
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
-_RACK_STATUSES = ('available', 'reserved', 'occupied', 'dirty', 'ooo')
+_RACK_STATUSES = ('available', 'reserved', 'occupied', 'dirty',
+                   'ooo', 'conflict')
 _DISPLAY = {
     'available': 'Available',
     'reserved': 'Reserved',
     'occupied': 'In-House',
     'dirty': 'Dirty',
     'ooo': 'OOO',
+    'conflict': 'Conflict',
 }
 
 
@@ -48,8 +51,12 @@ class HotelDailyInventory(models.AbstractModel):
 
     @api.model
     def _rooms(self):
-        return self.env['product.template'].search(
-            [('is_room', '=', True)], order='name')
+        return self.env['product.template'].with_company(
+            self.env.company).search(
+                [('is_room', '=', True),
+                 '|', ('company_id', '=', False),
+                 ('company_id', '=', self.env.company.id)],
+                order='name')
 
     @api.model
     def _ooo_room_ids(self):
@@ -68,6 +75,7 @@ class HotelDailyInventory(models.AbstractModel):
         # Legacy rows (room_status False) still count until migrated.
         reqs = self.env['cleaning.request'].search([
             ('cleaning_type', '=', 'room'),
+            ('company_id', '=', self.env.company.id),
             ('state', 'not in', ('done',)),
             ('room_id', '!=', False),
             '|',
@@ -86,19 +94,24 @@ class HotelDailyInventory(models.AbstractModel):
         else:
             end = start + timedelta(days=max(int(days or 7) - 1, 0))
         if end < start:
-            start, end = end, start
+            raise ValidationError(
+                _("Rack end date (%s) is before start (%s).")
+                % (end, start))
         if (end - start).days > 31:
             end = start + timedelta(days=31)
         rooms = self._rooms()
         ooo_ids = self._ooo_room_ids()
         dirty_ids = self._dirty_room_ids()
+        # UTC day bounds: datetimes are stored naive-UTC; server-local
+        # midnight shifts occupancy at TZ edges, so build UTC bounds.
         window_start_dt = fields.Datetime.to_string(
-            datetime.combine(start, datetime.now().time()).replace(
-                hour=0, minute=0, second=0))
+            datetime.combine(start, datetime.min.time()).replace(
+                tzinfo=timezone.utc).replace(tzinfo=None))
         window_end_dt = fields.Datetime.to_string(
-            datetime.combine(end, datetime.now().time()).replace(
-                hour=23, minute=59, second=59))
+            datetime.combine(end, datetime.max.time()).replace(
+                tzinfo=timezone.utc).replace(tzinfo=None))
         lines = self.env['room.booking.line'].search([
+            ('booking_id.company_id', '=', self.env.company.id),
             ('booking_id.state', 'in', ('reserved', 'check_in')),
             ('checkin_date', '<=', window_end_dt),
             ('checkout_date', '>', window_start_dt),
@@ -114,19 +127,30 @@ class HotelDailyInventory(models.AbstractModel):
                 if room.id in ooo_ids:
                     status = 'ooo'
                 else:
+                    hits = []
                     for line in lines:
                         if line.room_id.id != room.id:
                             continue
                         ci = _to_date(line.checkin_date)
                         co = _to_date(line.checkout_date)
                         if ci and co and ci <= day < co:
-                            if line.booking_id.state == 'check_in':
-                                status = 'occupied'
-                                booking_id = line.booking_id.id
-                                break
-                            if status != 'occupied' and line.booking_id.state == 'reserved':
-                                status = 'reserved'
-                                booking_id = line.booking_id.id
+                            hits.append(line)
+                    live = [ln for ln in hits
+                            if ln.booking_id.state == 'check_in']
+                    upcoming = [ln for ln in hits
+                                if ln.booking_id.state == 'reserved']
+                    if len(live) > 1 or (live and upcoming):
+                        status = 'conflict'
+                        booking_id = live[0].booking_id.id
+                    elif live:
+                        status = 'occupied'
+                        booking_id = live[0].booking_id.id
+                    elif len(upcoming) > 1:
+                        status = 'conflict'
+                        booking_id = upcoming[0].booking_id.id
+                    elif upcoming:
+                        status = 'reserved'
+                        booking_id = upcoming[0].booking_id.id
                     if status == 'available' and room.id in dirty_ids:
                         status = 'dirty'
                 cells.append({
@@ -159,8 +183,16 @@ class HotelDailyInventory(models.AbstractModel):
         ooo_room_ids = ooo_ids & set(rooms.ids)
         sellable = max(total - len(ooo_room_ids), 0)
 
+        day_start = fields.Datetime.to_string(
+            datetime.combine(today, datetime.min.time()))
+        day_end = fields.Datetime.to_string(
+            datetime.combine(today + timedelta(days=1),
+                             datetime.min.time()))
         lines = self.env['room.booking.line'].search([
+            ('booking_id.company_id', '=', self.env.company.id),
             ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('checkin_date', '<', day_end),
+            ('checkout_date', '>', day_start),
         ])
         occupied_ids, reserved_ids = set(), set()
         revenue = 0.0

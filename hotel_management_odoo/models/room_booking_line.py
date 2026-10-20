@@ -19,9 +19,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from openpyxl.worksheet import related
-
-from odoo import api, fields, models, tools
+from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 
@@ -31,9 +29,9 @@ class RoomBookingLine(models.Model):
     _description = "Hotel Folio Line"
     _rec_name = 'room_id'
 
-    @tools.ormcache()
+    @api.model
     def _set_default_uom_id(self):
-        return self.env.ref('uom.product_uom_day')
+        return self.env.ref('uom.product_uom_day', raise_if_not_found=False)
 
     booking_id = fields.Many2one("room.booking", string="Booking",
                                  help="Indicates the Room",
@@ -47,12 +45,16 @@ class RoomBookingLine(models.Model):
                                          " Otherwise sets to current Date",
                                     required=True)
     room_id = fields.Many2one('product.template', string="Room",
-                              domain=[('status', '=', 'available')],
-                              help="Indicates the Room",
-                              required=True)
+                               domain=[('is_room', '=', True)],
+                               help="Indicates the Room. Availability for "
+                                    "the stay dates is enforced server-side "
+                                    "(overlap check), not by room status.",
+                               required=True)
     uom_qty = fields.Float(string="Duration",
-                           help="The quantity converted into the UoM used by "
-                                "the product", readonly=True)
+                           compute='_compute_uom_qty', store=True,
+                           readonly=True,
+                           help="Nights between check-in and check-out "
+                                "(minimum 1).")
     uom_id = fields.Many2one('uom.uom',
                              default=_set_default_uom_id,
                              string="Unit of Measure",
@@ -60,13 +62,13 @@ class RoomBookingLine(models.Model):
                              readonly=True)
     price_unit = fields.Float(string='Rent', digits='Product Price',
                               compute='_compute_price_unit', store=True,
-                              readonly=False, precompute=True,
+                              readonly=False, tracking=True,
                               help="The rent price of the selected room.")
     tax_ids = fields.Many2many('account.tax',
                                'hotel_room_order_line_taxes_rel',
                                'room_id', 'tax_id',
                                compute='_compute_tax_ids', store=True,
-                               readonly=False, precompute=True,
+                               readonly=False, precompute=True, tracking=True,
                                string='Taxes',
                                help="Default taxes used when selling the room."
                                , domain=[('type_tax_use', '=', 'sale')])
@@ -99,7 +101,63 @@ class RoomBookingLine(models.Model):
                                  default=lambda self: self.env.company)
 
 
-    @api.depends('room_id', 'booking_id.pricelist_id', 'uom_qty')
+    @api.depends('checkin_date', 'checkout_date')
+    def _compute_uom_qty(self):
+        """Nights between line dates (minimum 1). Server-side so direct
+        RPC creates get a quantity even without the UI onchange."""
+        for line in self:
+            if line.checkin_date and line.checkout_date \
+                    and line.checkout_date > line.checkin_date:
+                diff = line.checkout_date - line.checkin_date
+                qty = diff.days + (1 if diff.total_seconds() % 86400 else 0)
+                line.uom_qty = max(qty, 1)
+            else:
+                line.uom_qty = 0
+
+    @api.constrains('uom_qty', 'checkin_date', 'checkout_date')
+    def _check_uom_qty(self):
+        for line in self:
+            if line.checkin_date and line.checkout_date \
+                    and line.uom_qty <= 0:
+                raise ValidationError(
+                    _("Line duration must be positive: check-out must be "
+                      "after check-in."))
+
+    @api.constrains('room_id', 'checkin_date', 'checkout_date',
+                     'booking_id')
+    def _check_no_overlap(self):
+        """No two active bookings hold the same room over the same night.
+
+        Within-booking duplicates are rejected by room.booking; this
+        covers cross-booking double-sells. Cancelled/done/check_out
+        bookings release the room. State changes into active states go
+        through action_reserve/action_checkin, which run the same
+        overlap search explicitly.
+        """
+        for line in self:
+            if not line.room_id or not line.checkin_date \
+                    or not line.checkout_date:
+                continue
+            if line.booking_id.state not in ('draft', 'reserved',
+                                             'check_in'):
+                continue
+            clash = self.search([
+                ('id', '!=', line.id),
+                ('room_id', '=', line.room_id.id),
+                ('booking_id.state', 'in',
+                 ('draft', 'reserved', 'check_in')),
+                ('checkin_date', '<', line.checkout_date),
+                ('checkout_date', '>', line.checkin_date),
+            ], limit=1)
+            if clash:
+                raise ValidationError(
+                    _("Room %s is already booked %s - %s (booking %s).")
+                    % (line.room_id.display_name,
+                       clash.checkin_date, clash.checkout_date,
+                       clash.booking_id.name))
+
+    @api.depends('room_id', 'booking_id.pricelist_id',
+                 'booking_id.partner_id', 'booking_id.company_id', 'uom_qty')
     def _compute_price_unit(self):
         """Compute the rent using the booking's pricelist, falling back to
         the room's list price when there is no pricelist."""
@@ -110,7 +168,10 @@ class RoomBookingLine(models.Model):
             pricelist = line.booking_id.pricelist_id
             if pricelist:
                 line.price_unit = pricelist._get_product_price(
-                    line.room_id, line.uom_qty or 1.0)
+                    line.room_id, line.uom_qty or 1.0,
+                    partner=line.booking_id.partner_id or False,
+                    date=fields.Date.to_string(
+                        fields.Date.context_today(line)))
             else:
                 line.price_unit = line.room_id.list_price
 
@@ -120,15 +181,16 @@ class RoomBookingLine(models.Model):
         and update the qty of hotel service line
         -----------------------------------------------------------------
         @param self: object pointer"""
-        if self.checkout_date < self.checkin_date:
+        if not self.checkin_date or not self.checkout_date:
+            return
+        if self.checkout_date <= self.checkin_date:
             raise ValidationError(
-                _("Checkout must be greater or equal checkin date"))
-        if self.checkin_date and self.checkout_date:
-            diffdate = self.checkout_date - self.checkin_date
-            qty = diffdate.days
-            if diffdate.total_seconds() > 0:
-                qty = qty + 1
-            self.uom_qty = qty
+                _("Checkout must be after check-in date"))
+        diffdate = self.checkout_date - self.checkin_date
+        qty = diffdate.days
+        if diffdate.total_seconds() % 86400:
+            qty = qty + 1
+        self.uom_qty = max(qty, 1)
 
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
@@ -164,14 +226,42 @@ class RoomBookingLine(models.Model):
             },
         )
 
-    @api.depends('room_id', 'company_id')
+    @api.depends('room_id', 'company_id', 'booking_id.company_id')
     def _compute_tax_ids(self):
         """Compute default taxes safely filtering by company"""
         for line in self:
             if not line.room_id:
                 line.tax_ids = False
                 continue
+            company = line.company_id or line.booking_id.company_id
             taxes = line.room_id.sudo().taxes_id.filtered(
-                lambda t: not t.company_id or t.company_id == line.company_id
+                lambda t: not t.company_id or t.company_id == company
             )
             line.tax_ids = taxes
+
+    locked = fields.Boolean(
+        string="Locked", compute='_compute_locked', store=True,
+        help="True once the booking is invoiced; price/tax/qty edits "
+             "are then rejected server-side.")
+    booking_line_visible = fields.Boolean(default=False,
+                                          string="Booking Line Visible",
+                                          compute='_compute_locked',
+                                          store=True, readonly=True,
+                                          help="Kept for view compatibility; "
+                                               "mirrors Locked.")
+
+    @api.depends('booking_id.invoice_status')
+    def _compute_locked(self):
+        for line in self:
+            locked = line.booking_id.invoice_status == 'invoiced'
+            line.locked = locked
+            line.booking_line_visible = locked
+
+    @api.constrains('price_unit', 'tax_ids', 'uom_qty')
+    def _check_locked(self):
+        for line in self:
+            if line.locked and not self.env.context.get(
+                    'hotel_allow_locked_write'):
+                raise ValidationError(
+                    _("Invoiced lines cannot be edited (room %s).")
+                    % line.room_id.display_name)

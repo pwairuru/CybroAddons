@@ -29,6 +29,9 @@ class HotelFloor(models.Model):
     _order = 'id desc'
 
     name = fields.Char(string="Name", help="Name of the floor", required=True)
+    company_id = fields.Many2one('res.company', string="Company",
+                                 required=True, index=True,
+                                 default=lambda self: self.env.company)
     user_id = fields.Many2one('res.users', string='Manager',
                               help="Manager of the Floor",
                               required=True)

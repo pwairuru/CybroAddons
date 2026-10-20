@@ -94,6 +94,24 @@ class MaintenanceRequest(models.Model):
                                           compute='_compute_domain_partner_ids',
                                           help="For filtering Users")
 
+    _STATE_FLOW = {
+        'draft': ('team_leader_approve',),
+        'team_leader_approve': ('pending',),
+        'pending': ('ongoing',),
+        'ongoing': ('support', 'verify'),
+        'support': ('ongoing',),
+        'verify': ('done',),
+        'done': (),
+        'cancel': (),
+    }
+
+    def _check_request_transition(self, target):
+        for rec in self:
+            if target not in self._STATE_FLOW.get(rec.state, ()):
+                raise ValidationError(
+                    "Cannot move maintenance request %s from %s to %s."
+                    % (rec.sequence or rec.name, rec.state, target))
+
     @api.model_create_multi
     def create(self, vals_list):
         """Sequence Generation"""
@@ -113,6 +131,7 @@ class MaintenanceRequest(models.Model):
 
     def action_assign_team(self):
         """Button action for changing the state to team_leader_approve"""
+        self._check_request_transition('team_leader_approve')
         if self.type == 'room' and not self.room_maintenance_ids:
             raise ValidationError(("Please choose the Room"))
         if self.type == 'vehicle' and not self.vehicle_maintenance_id:
@@ -131,6 +150,7 @@ class MaintenanceRequest(models.Model):
 
     def action_assign_user(self):
         """Button action for changing the state to pending"""
+        self._check_request_transition('pending')
         if self.assigned_user_id:
             self.state = 'pending'
         else:
@@ -139,10 +159,12 @@ class MaintenanceRequest(models.Model):
 
     def action_start(self):
         """Button action for changing the state to ongoing"""
+        self._check_request_transition('ongoing')
         self.state = 'ongoing'
 
     def action_support(self):
         """Button action for changing the state to support"""
+        self._check_request_transition('support')
         if self.support_reason:
             self.state = 'support'
         else:
@@ -150,6 +172,7 @@ class MaintenanceRequest(models.Model):
 
     def action_complete(self):
         """Button action for changing the state to verify"""
+        self._check_request_transition('verify')
         if self.remarks:
             self.state = 'verify'
         else:
@@ -157,6 +180,7 @@ class MaintenanceRequest(models.Model):
 
     def action_assign_support(self):
         """Button action for changing the state to ongoing"""
+        self._check_request_transition('ongoing')
         if self.support_team_ids:
             self.state = 'ongoing'
         else:
@@ -164,4 +188,5 @@ class MaintenanceRequest(models.Model):
 
     def action_verify(self):
         """Button action for changing the state to done"""
+        self._check_request_transition('done')
         self.state = 'done'

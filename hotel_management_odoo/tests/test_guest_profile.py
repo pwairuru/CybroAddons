@@ -54,6 +54,7 @@ class TestGuestProfile(TransactionCase):
             'checkin_date': checkin,
             'checkout_date': checkout,
         })
+        booking.action_reserve()
         return booking
 
     def _folio(self, total=20000.0):
