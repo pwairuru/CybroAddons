@@ -1,6 +1,6 @@
 /** @odoo-module */
 import { registry } from "@web/core/registry";
-import { Component, onMounted, onWillUnmount, useState } from "@odoo/owl";
+import { Component, onMounted, onWillUnmount, proxy } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
 class KitchenScreenDashboard extends Component {
@@ -36,7 +36,7 @@ class KitchenScreenDashboard extends Component {
         this.countdownIntervals = {};
 
         // State management
-        this.state = useState({
+        this.state = proxy({
             order_details: [],
             shop_id: this.currentShopId,
             stages: 'draft',

@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Privilege scope so group shows in Users form without developer mode (Odoo 20: no category_id on res.groups) -->
+    <record id="privilege_kitchen_screen" model="res.groups.privilege">
+        <field name="name">Kitchen Screen</field>
+        <field name="category_id" ref="base.module_category_sales"/>
+        <field name="sequence">22</field>
+    </record>
     <!-- Kitchen screen group for cook -->
     <record id="kitchen_cook" model="res.groups">
         <field name="name">Kitchen Cook</field>
+        <field name="privilege_id" ref="privilege_kitchen_screen"/>
+        <field name="comment">Access the kitchen screen dashboard and manage kitchen orders.</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
 </odoo>

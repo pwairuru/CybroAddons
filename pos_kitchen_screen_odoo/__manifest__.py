@@ -21,7 +21,7 @@
 ############################################################################
 {
     'name': 'POS Kitchen Screen',
-    'version': '20.0.1.0.0',
+    'version': '20.0.1.0.3',
     'category': 'Point Of Sale',
     'summary': 'POS Kitchen Screen facilitates sending certain orders '
                'automatically to the kitchen.The POS Kitchen Screen allows for '

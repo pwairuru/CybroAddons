@@ -2,11 +2,11 @@
 <odoo>
     <!--Kitchen screen menu item    -->
     <menuitem id="pos_kitchen_screen_menu_root"
-              name="Pos kitchen screen"
+              name="Kitchen screen"
               parent="point_of_sale.menu_point_root"
               sequence="10"/>
     <menuitem id="pos_kitchen_screen_menu_action"
-              name="Pos kitchen screen"
+              name="Kitchen screen"
               parent="pos_kitchen_screen_menu_root"
               action="kitchen_screen_action"
               sequence="10"/>

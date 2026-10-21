@@ -20,6 +20,11 @@
 #
 ############################################################################
 from odoo import api, fields, models
+from datetime import datetime, time
+
+import pytz
+
+EAT = pytz.timezone('Africa/Nairobi')
 
 
 class KitchenScreen(models.Model):
@@ -56,12 +61,67 @@ class KitchenScreen(models.Model):
         help='Change the cooking stage when completing the preparation time',
     )
 
+    cooking_count = fields.Integer(
+        compute='_compute_order_counts', string='Cooking',
+        help="Today's (EAT) kitchen orders still cooking (draft)")
+    ready_count = fields.Integer(
+        compute='_compute_order_counts', string='Ready',
+        help="Today's (EAT) kitchen orders ready for pickup (waiting)")
+    completed_count = fields.Integer(
+        compute='_compute_order_counts', string='Completed',
+        help="Today's (EAT) completed kitchen orders (ready)")
+
     def kitchen_screen(self):
         """Redirect to corresponding kitchen screen for the cook"""
         return {
             'type': 'ir.actions.act_url',
             'target': 'new',
             'url': '/pos/kitchen?pos_config_id= %s' % self.pos_config_id.id,
+        }
+
+    @api.depends('pos_config_id')
+    def _compute_order_counts(self):
+        """Today's (EAT) status counts for kanban cards. Same base
+        domain as the dashboard (get_details) plus a start-of-today
+        EAT cutoff so Completed never accumulates history. No stored
+        fields, no schema change."""
+        Order = self.env['pos.order'].sudo()
+        today_eat = datetime.now(EAT).date()
+        day_start_utc = EAT.localize(
+            datetime.combine(today_eat, time.min)).astimezone(
+            pytz.utc).replace(tzinfo=None)
+        for rec in self:
+            if not rec.pos_config_id:
+                rec.cooking_count = 0
+                rec.ready_count = 0
+                rec.completed_count = 0
+                continue
+            base = [
+                ('is_cooking', '=', True),
+                ('config_id', '=', rec.pos_config_id.id),
+                ('state', 'not in', ['cancel']),
+                ('date_order', '>=', day_start_utc),
+            ]
+            rec.cooking_count = Order.search_count(
+                base + [('order_status', '=', 'draft')])
+            rec.ready_count = Order.search_count(
+                base + [('order_status', '=', 'waiting')])
+            rec.completed_count = Order.search_count(
+                base + [('order_status', '=', 'ready')])
+
+    def action_open_kitchen_screen(self):
+        """Open the kitchen dashboard for this record.
+
+        Single entry point used by the kanban card, list and form
+        buttons so every view passes the right shop without fragile
+        per-view context expressions.
+        """
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'kitchen_custom_dashboard_tags',
+            'target': 'fullscreen',
+            'context': {'default_shop_id': self.shop_number},
         }
 
     @api.model_create_multi
