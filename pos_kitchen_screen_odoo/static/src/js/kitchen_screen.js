@@ -138,7 +138,7 @@ class KitchenScreenDashboard extends Component {
                 if (order.order_status === 'waiting' && order.avg_prepare_time) {
 
                     if (!this.countdownIntervals[order.id]) {
-                        this.startCountdown(order.id, order.avg_prepare_time);
+                        this.startCountdown(order.id, order.avg_prepare_time, order.config_id);
                     }
                 } else if (order.order_status === 'ready') {
                     this.updateCountdownState(order.id, 0, true);
@@ -167,34 +167,37 @@ class KitchenScreenDashboard extends Component {
 
         this.countdownIntervals[orderId] = setInterval(async () => {
             totalSeconds--;
-            this.updateCountdownState(orderId, totalSeconds, false);
-            if (totalSeconds <= 0) {
-                try {
-
-                    let orderData = await this.orm.call(
-                        'kitchen.screen',
-                        'search_read',
-                        [
-                            [["pos_config_id", "=", config_id[0]]],
-                            ["is_preparation_complete"]
-                        ]
-                    );
-                    clearInterval(this.countdownIntervals[orderId]);
-                    delete this.countdownIntervals[orderId];
-                    this.updateCountdownState(orderId, 0, true);
-                    if (orderData[0].is_preparation_complete === true){
-                        this.done_order({ target: { value: orderId.toString() } });
-                    }
-
-                } catch (error) {
-                    console.error("Error fetching order data:", error);
-                    // Handle error appropriately
+            if (totalSeconds > 0) {
+                this.updateCountdownState(orderId, totalSeconds, false, false);
+                return;
+            }
+            clearInterval(this.countdownIntervals[orderId]);
+            delete this.countdownIntervals[orderId];
+            let autoDone = false;
+            try {
+                let orderData = await this.orm.call(
+                    'kitchen.screen',
+                    'search_read',
+                    [
+                        [["pos_config_id", "=", config_id[0]]],
+                        ["is_preparation_complete"]
+                    ]
+                );
+                if (orderData[0] && orderData[0].is_preparation_complete === true) {
+                    await this.done_order({ target: { value: orderId.toString() } });
+                    autoDone = true;
                 }
+            } catch (error) {
+                console.error("Error fetching order data:", error);
+                // Handle error appropriately
+            }
+            if (!autoDone) {
+                this.updateCountdownState(orderId, 0, false, true);
             }
         }, 1000);
     }
 
-    updateCountdownState(orderId, totalSeconds, isCompleted = false) {
+    updateCountdownState(orderId, totalSeconds, isCompleted = false, isOverdue = false) {
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
         this.state.countdowns = {
@@ -202,7 +205,8 @@ class KitchenScreenDashboard extends Component {
             [orderId]: {
                 minutes,
                 seconds,
-                isCompleted
+                isCompleted,
+                isOverdue
             }
         };
     }

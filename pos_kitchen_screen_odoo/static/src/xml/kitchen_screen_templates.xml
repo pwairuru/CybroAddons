@@ -408,6 +408,11 @@
                                                                                             00:00 (Ready)
                                                                                         </span>
                                                                                     </t>
+                                                                                    <t t-elif="this.state.countdowns[order.id].isOverdue">
+                                                                                        <span class="kitchen-overdue">
+                                                                                            00:00 OVERDUE
+                                                                                        </span>
+                                                                                    </t>
                                                                                     <t t-else="">
                                                                                         <t t-esc="this.state.countdowns[order.id].minutes.toString().padStart(2, '0')"/>
                                                                                         :
@@ -610,6 +615,11 @@
                                                                                     <t t-if="this.state.countdowns[order.id].isCompleted">
                                                                                         <span style="color: green;">
                                                                                             00:00 (Ready)
+                                                                                        </span>
+                                                                                    </t>
+                                                                                    <t t-elif="this.state.countdowns[order.id].isOverdue">
+                                                                                        <span class="kitchen-overdue">
+                                                                                            00:00 OVERDUE
                                                                                         </span>
                                                                                     </t>
                                                                                     <t t-else="">
