@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel POS Extension',
-    'version': '20.0.1.0.0',
+    'version': '20.0.1.0.1',
     'category': 'Point of Sale',
     'summary': 'Hotel Room Charge from POS',
     'description': """This module allows charging POS orders directly to hotel folios.""",
@@ -36,6 +36,7 @@
         'views/pos_payment_method_views.xml',
         'views/pos_order_views.xml',
         'views/room_booking_views.xml',
+        'receipt/pos_order_receipt_footer.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
@@ -44,6 +45,10 @@
             'hotel_pos_extension/static/src/app/screens/product_screen/HotelRoomSelectionButton.js',
             'hotel_pos_extension/static/src/js/**/*',
             'hotel_pos_extension/static/src/xml/**/*',
+            ('remove', 'hotel_pos_extension/static/src/xml/CustomerDisplayDebrand.xml'),
+        ],
+        'point_of_sale.customer_display_assets': [
+            'hotel_pos_extension/static/src/xml/CustomerDisplayDebrand.xml',
         ],
     },
     'license': 'LGPL-3',

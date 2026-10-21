@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <!-- Customer display idle screensaver: show the POS config logo instead of Odoo -->
+    <t t-name="hotel_pos_extension.CustomerDisplayScreensaverDebrand" t-inherit="point_of_sale.CustomerDisplay" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('pos-logo')]" position="replace">
+            <img t-att-src="this.configLogoSrc" alt="Logo" class="w-50" style="max-height: 25vh; object-fit: contain;"/>
+        </xpath>
+    </t>
+    <!-- Customer display footer: config logo instead of "Powered by Odoo" -->
+    <t t-name="hotel_pos_extension.CustomerDisplayFooterDebrand" t-inherit="point_of_sale.CustomerDisplayFooter" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('rounded-3')]" position="replace">
+            <div class="d-flex bottom-0 align-items-center ps-3 pe-2 py-1 rounded-3 small">
+                <img t-att-src="this.configLogoSrc" alt="Logo" style="height: 2rem; object-fit: contain;"/>
+            </div>
+        </xpath>
+    </t>
+</templates>

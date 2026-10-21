@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Remove "Powered by Odoo" from the printed POS receipt footer.
+         Company header + configurable receipt footer already brand the ticket. -->
+    <template id="pos_order_receipt_footer_debrand" inherit_id="point_of_sale.pos_order_receipt_footer" name="POS receipt footer debrand">
+        <xpath expr="//div[strong[text()='Odoo']]" position="replace"/>
+    </template>
+</odoo>
