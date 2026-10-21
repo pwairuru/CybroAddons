@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="hotel_document_type_view_list" model="ir.ui.view">
+        <field name="name">hotel.document.type.view.list</field>
+        <field name="model">hotel.document.type</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="requires_expiry"/>
+                <field name="company_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_document_type_view_form" model="ir.ui.view">
+        <field name="name">hotel.document.type.view.form</field>
+        <field name="model">hotel.document.type</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="code"/>
+                        <field name="requires_expiry"/>
+                        <field name="company_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_document_view_list" model="ir.ui.view">
+        <field name="name">hotel.document.view.list</field>
+        <field name="model">hotel.document</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="partner_id"/>
+                <field name="type_id"/>
+                <field name="number"/>
+                <field name="expiry_date"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_document_view_form" model="ir.ui.view">
+        <field name="name">hotel.document.view.form</field>
+        <field name="model">hotel.document</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="type_id"/>
+                        <field name="number"/>
+                        <field name="expiry_date"/>
+                        <field name="issuing_country"/>
+                        <field name="company_id"/>
+                        <field name="state"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_loyalty_program_view_list" model="ir.ui.view">
+        <field name="name">hotel.loyalty.program.view.list</field>
+        <field name="model">hotel.loyalty.program</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="points_per_1000"/>
+                <field name="company_id"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_loyalty_program_view_form" model="ir.ui.view">
+        <field name="name">hotel.loyalty.program.view.form</field>
+        <field name="model">hotel.loyalty.program</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="points_per_1000"/>
+                        <field name="company_id"/>
+                        <field name="active"/>
+                    </group>
+                    <notebook>
+                        <page string="Entries">
+                            <field name="entry_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="res_partner_guest_view_form" model="ir.ui.view">
+        <field name="name">res.partner.guest.view.form</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <page name="sales_purchases" position="after">
+                <page string="Hotel Guest">
+                    <group>
+                        <field name="is_hotel_guest"/>
+                        <field name="nationality"/>
+                        <field name="date_of_birth"/>
+                        <field name="vip"/>
+                        <field name="loyalty_points" readonly="1"/>
+                        <field name="stay_count" readonly="1"/>
+                        <field name="total_nights" readonly="1"/>
+                        <field name="total_spent" readonly="1"/>
+                    </group>
+                    <field name="document_ids"/>
+                </page>
+            </page>
+        </field>
+    </record>
+
+    <record id="hotel_document_type_action" model="ir.actions.act_window">
+        <field name="name">Document Types</field>
+        <field name="res_model">hotel.document.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_document_type_menu"
+              name="Document Types"
+              sequence="40"
+              parent="hotel_config_menu"
+              action="hotel_document_type_action"/>
+
+    <record id="hotel_document_action" model="ir.actions.act_window">
+        <field name="name">Guest Documents</field>
+        <field name="res_model">hotel.document</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_document_menu"
+              name="Guest Documents"
+              sequence="20"
+              parent="hotel_folio_menu"
+              action="hotel_document_action"/>
+
+    <record id="hotel_loyalty_program_action" model="ir.actions.act_window">
+        <field name="name">Loyalty Programs</field>
+        <field name="res_model">hotel.loyalty.program</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_loyalty_program_menu"
+              name="Loyalty Programs"
+              sequence="42"
+              parent="hotel_config_menu"
+              action="hotel_loyalty_program_action"/>
+</odoo>

@@ -5,12 +5,15 @@
         <field name="name">cleaning.request.view.tree</field>
         <field name="model">cleaning.request</field>
         <field name="arch" type="xml">
-            <list>
-                <field name="sequence"/>
-                <field name="cleaning_type"/>
-                <field name="team_id"/>
-                <field name="state"/>
-            </list>
+                <list>
+                    <field name="sequence"/>
+                    <field name="cleaning_type"/>
+                    <field name="task_type"/>
+                    <field name="room_status"/>
+                    <field name="team_id"/>
+                    <field name="state"/>
+                    <field name="sla_breach"/>
+                </list>
         </field>
     </record>
     <!--        Cleaning Request Form view-->
@@ -32,6 +35,15 @@
                             invisible="state != 'ongoing'"
                             type="object"
                             class="btn-primary"/>
+                    <button name="action_mark_clean" string="Mark Clean"
+                            invisible="room_status != 'dirty'"
+                            type="object"/>
+                    <button name="action_inspect" string="Inspect"
+                            invisible="room_status != 'clean'"
+                            type="object"/>
+                    <button name="action_mark_ooo" string="Mark OOO"
+                            invisible="room_status in ['inspected', 'ooo']"
+                            type="object"/>
                     <button name="action_maintain_request"
                             string="Maintain Request"
                             invisible="state != 'ongoing'"
@@ -58,6 +70,11 @@
                         <group>
                             <field name="team_id"/>
                             <field name="cleaning_type"/>
+                            <field name="task_type"/>
+                            <field name="room_status"/>
+                            <field name="sla_deadline"/>
+                            <field name="sla_breach"/>
+                            <field name="company_id"/>
                             <field name="room_id"
                                    invisible="cleaning_type != 'room' " domain="[('is_room','=',True)]"/>
                             <field name="hotel"
@@ -106,9 +123,10 @@
         <field name="view_mode">list,form</field>
         <field name="context">{}</field>
     </record>
-    <!--Menu Cleaning Request-->
+    <!--Menu Cleaning Request (operational, Task 11)-->
     <menuitem id="cleaning_request_menu"
               name="Cleaning Request"
-              parent="hotel_config_menu_cleaning"
+              sequence="10"
+              parent="hotel_housekeeping_menu"
               action="cleaning_request_action"/>
 </odoo>

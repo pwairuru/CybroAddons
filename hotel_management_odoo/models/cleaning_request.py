@@ -23,6 +23,13 @@ from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
+HK_STATUSES = [('dirty', 'Dirty'), ('clean', 'Clean'),
+               ('inspected', 'Inspected'), ('ooo', 'Out of Order')]
+HK_TASKS = [('departure', 'Departure Clean'), ('stayover', 'Stayover'),
+            ('deep', 'Deep Clean'), ('inspection', 'Inspection'),
+            ('public', 'Public Area')]
+
+
 class CleaningRequest(models.Model):
     """Class for creating and assigning Cleaning Request"""
     _name = "cleaning.request"
@@ -77,6 +84,41 @@ class CleaningRequest(models.Model):
                                           column2='user_id',
                                           string="Domain Partner",
                                           help="Choose the Domain Partner")
+    # Task 10 pro fields: task type (departure vs stayover), HK room
+    # condition, SLA deadline/breach, company. Legacy `state` untouched
+    # so rack dirty-count stays backward compatible.
+    task_type = fields.Selection(selection=HK_TASKS, default='stayover',
+                                 required=True, tracking=True,
+                                 string="Task Type",
+                                 help="Departure clean vs stayover service")
+    room_status = fields.Selection(selection=HK_STATUSES, default='dirty',
+                                   required=True, tracking=True,
+                                   string="Room Condition",
+                                   help="Housekeeping condition of the room")
+    sla_deadline = fields.Datetime(string="SLA Deadline",
+                                    help="Service must finish before this time")
+    sla_breach = fields.Boolean(string="SLA Breach",
+                                compute='_compute_sla_breach',
+                                help="Deadline passed while request open. "
+                                     "Non-stored so it is always fresh.")
+    company_id = fields.Many2one('res.company', string="Company",
+                                 required=True, index=True,
+                                 default=lambda self: self.env.company)
+
+    _STATE_FLOW = {
+        'draft': ('assign', 'done'),
+        'assign': ('ongoing', 'support', 'done'),
+        'ongoing': ('support', 'done'),
+        'support': ('ongoing', 'done'),
+        'done': (),
+    }
+
+    def _check_request_transition(self, target):
+        for rec in self:
+            if target not in self._STATE_FLOW.get(rec.state, ()):
+                raise ValidationError(
+                    _('Cannot move cleaning request %s from %s to %s.')
+                    % (rec.sequence, rec.state, target))
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -87,6 +129,15 @@ class CleaningRequest(models.Model):
                     'cleaning.request')
         return super().create(vals_list)
 
+    @api.depends('sla_deadline', 'state', 'room_status')
+    def _compute_sla_breach(self):
+        now = fields.Datetime.now()
+        for rec in self:
+            rec.sla_breach = bool(
+                rec.sla_deadline and rec.state != 'done'
+                and rec.room_status != 'inspected'
+                and rec.sla_deadline < now)
+
     @api.onchange('team_id')
     def _onchange_team_id(self):
         """Function for updating the domain partner ids"""
@@ -95,6 +146,7 @@ class CleaningRequest(models.Model):
 
     def action_assign_cleaning(self):
         """Button action for updating the state to assign"""
+        self._check_request_transition('assign')
         if not self.assigned_id:
             raise ValidationError(_('Please select an Assigned To person before assigning.'))
         if self.cleaning_type == 'room' and not self.room_id:
@@ -108,14 +160,70 @@ class CleaningRequest(models.Model):
 
     def action_start_cleaning(self):
         """Button action for updating the state to ongoing"""
+        self._check_request_transition('ongoing')
         self.write({'state': 'ongoing'})
 
     def action_done_cleaning(self):
         """Button action for  updating the state to done"""
+        self._check_request_transition('done')
         self.write({'state': 'done'})
+
+    # Task 10 pro transitions: dirty -> clean -> inspected, OOO closes.
+    def _require_room_type(self):
+        for rec in self:
+            if rec.cleaning_type != 'room' or not rec.room_id:
+                raise ValidationError(
+                    _('Room condition transitions need a room request.'))
+
+    def action_mark_clean(self):
+        """Cleaner marks a dirty room clean."""
+        self._require_room_type()
+        for rec in self:
+            if rec.room_status != 'dirty':
+                raise ValidationError(
+                    _('Only dirty rooms can be marked clean (now %s).')
+                    % rec.room_status)
+        self.write({'room_status': 'clean'})
+        return self
+
+    def action_mark_dirty(self):
+        """Reopen a room as dirty (e.g. failed inspection)."""
+        self._require_room_type()
+        for rec in self:
+            if rec.room_status == 'inspected':
+                raise ValidationError(
+                    _('Inspected rooms reopen via a new request.'))
+        self.write({'room_status': 'dirty'})
+        return self
+
+    def action_inspect(self):
+        """Supervisor verifies a clean room."""
+        self._require_room_type()
+        for rec in self:
+            if rec.state == 'done':
+                raise ValidationError(
+                    _('Completed requests cannot be inspected; '
+                      'open a new request.'))
+            if rec.room_status != 'clean':
+                raise ValidationError(
+                    _('Only clean rooms can be inspected (now %s).')
+                    % rec.room_status)
+        self.write({'room_status': 'inspected'})
+        return self
+
+    def action_mark_ooo(self):
+        """Pull room out of order; closes the request."""
+        self._require_room_type()
+        for rec in self:
+            if rec.room_status == 'inspected':
+                raise ValidationError(
+                    _('Inspected rooms go OOO via a new request.'))
+        self.write({'room_status': 'ooo', 'state': 'done'})
+        return self
 
     def action_assign_support(self):
         """Button action for updating the state to support"""
+        self._check_request_transition('support')
         if self.support_reason:
             self.write({'state': 'support'})
         else:
@@ -123,19 +231,51 @@ class CleaningRequest(models.Model):
 
     def action_assign_assign_support(self):
         """Button action for updating the state to ongoing"""
-        if self.support_team_ids:
-            self.write({'state': 'ongoing'})
-        else:
+        if self.state != 'support' or not self.support_team_ids:
             raise ValidationError(_('Please choose a support'))
+        self.write({'state': 'ongoing'})
 
     def action_maintain_request(self):
         """Button action for creating the maintenance request"""
+        domain = [('state', 'not in', ('done', 'cancel'))]
+        if self.cleaning_type == 'room' and self.room_id:
+            domain.append(
+                ('room_maintenance_ids', 'in', self.room_id.ids))
+        elif self.cleaning_type == 'vehicle' and self.vehicle_id:
+            domain.append(
+                ('vehicle_maintenance_id', '=', self.vehicle_id.id))
+        else:
+            domain.append(('id', '=', 0))
+        existing = self.env['maintenance.request'].search(domain,
+                                                          limit=1)
+        if existing:
+            raise ValidationError(
+                _('An open maintenance request already exists (%s).')
+                % (existing.sequence or existing.name))
         vals = {
             'name': 'Maintenance Request - %s' % self.sequence,
             'date': fields.Date.today(),
             'state': 'draft',
             'type': self.cleaning_type,
             'is_hotel': True,
+            'company_id': self.company_id.id,
+        }
+        if self.cleaning_type == 'room':
+            vals['room_maintenance_ids'] = [(6, 0, self.room_id.ids)]
+        elif self.cleaning_type == 'vehicle':
+            vals['vehicle_maintenance_id'] = self.vehicle_id.id
+        elif self.cleaning_type == 'hotel':
+            vals['hotel_maintenance'] = self.hotel
+        self.env['maintenance.request'].with_company(
+            self.company_id).sudo().create(vals)
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "Maintenance Request Sent Successfully",
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
         }
         if self.cleaning_type == 'room':
             vals['room_maintenance_ids'] = [(6, 0, self.room_id.ids)]

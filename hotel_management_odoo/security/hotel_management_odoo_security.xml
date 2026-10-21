@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!-- Hotel record rules: model="ir.access" is CORRECT on Odoo 20.
+
+     Odoo 20 merged ir.rule into ir.access (base/models has
+     ir_access.py, no ir_rule.py; Task 11 verified the XML fields
+     model/operation/domain match ir_access.py, including the `domain`
+     field on ir.access). Do NOT "fix" these back to ir.rule.
+     Records without group_id are global company-scope restrictions
+     (AND-ed for every non-superuser); records with group_id are role
+     permissions (unioned per user). -->
 <odoo>
     <!--  MAINTENANCE RECORD RULE-->
     <record id="maintenance_request_rule_leader"
@@ -49,6 +58,288 @@
         <field name="model_id" ref="model_cleaning_request"/>
         <field name="group_id" ref="hotel_management_odoo.hotel_group_admin"/>
         <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <!--    GUEST DOCS / LOYALTY RECORD RULES (Task 9 minimal)-->
+    <!--    Reception sees only allowed-company rows; admin inherits via
+            hotel_group_reception. Full portal/field matrix stays Task 11.-->
+    <record id="hotel_document_rule_reception" model="ir.access">
+        <field name="name">Guest documents: reception company scope</field>
+        <field name="model_id" ref="model_hotel_document"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_reception"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_loyalty_entry_rule_reception" model="ir.access">
+        <field name="name">Loyalty entries: reception company scope</field>
+        <field name="model_id" ref="model_hotel_loyalty_entry"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_reception"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+
+    <!-- Task 11: global company-scope RESTRICTIONS (no group = enforced for
+         every non-superuser; permissions below are unioned, restrictions AND-ed) -->
+    <record id="hotel_company_restrict_booking" model="ir.access">
+        <field name="name">Company scope: room.booking</field>
+        <field name="model_id" ref="model_room_booking"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_booking_line" model="ir.access">
+        <field name="name">Company scope: room.booking.line</field>
+        <field name="model_id" ref="model_room_booking_line"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_folio" model="ir.access">
+        <field name="name">Company scope: hotel.folio</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_deposit" model="ir.access">
+        <field name="name">Company scope: hotel.deposit</field>
+        <field name="model_id" ref="model_hotel_deposit"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_ledger" model="ir.access">
+        <field name="name">Company scope: hotel.city.ledger</field>
+        <field name="model_id" ref="model_hotel_city_ledger"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_shift" model="ir.access">
+        <field name="name">Company scope: hotel.cashier.shift</field>
+        <field name="model_id" ref="model_hotel_cashier_shift"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_audit" model="ir.access">
+        <field name="name">Company scope: hotel.night.audit</field>
+        <field name="model_id" ref="model_hotel_night_audit"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_bizdate" model="ir.access">
+        <field name="name">Company scope: hotel.business.date</field>
+        <field name="model_id" ref="model_hotel_business_date"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_cleaning" model="ir.access">
+        <field name="name">Company scope: cleaning.request</field>
+        <field name="model_id" ref="model_cleaning_request"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_conference" model="ir.access">
+        <field name="name">Company scope: hotel.conference</field>
+        <field name="model_id" ref="model_hotel_conference"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_venue" model="ir.access">
+        <field name="name">Company scope: hotel.venue</field>
+        <field name="model_id" ref="model_hotel_venue"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_rate" model="ir.access">
+        <field name="name">Company scope: hotel.rate.plan</field>
+        <field name="model_id" ref="model_hotel_rate_plan"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_document" model="ir.access">
+        <field name="name">Company scope: hotel.document</field>
+        <field name="model_id" ref="model_hotel_document"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_loyalty" model="ir.access">
+        <field name="name">Company scope: hotel.loyalty.entry</field>
+        <field name="model_id" ref="model_hotel_loyalty_entry"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_asset" model="ir.access">
+        <field name="name">Company scope: hotel.asset</field>
+        <field name="model_id" ref="model_hotel_asset"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_linen_move" model="ir.access">
+        <field name="name">Company scope: hotel.linen.move</field>
+        <field name="model_id" ref="model_hotel_linen_move"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_lost" model="ir.access">
+        <field name="name">Company scope: hotel.lost.found</field>
+        <field name="model_id" ref="model_hotel_lost_found"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_complaint" model="ir.access">
+        <field name="name">Company scope: hotel.complaint</field>
+        <field name="model_id" ref="model_hotel_complaint"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_wakeup" model="ir.access">
+        <field name="name">Company scope: hotel.wakeup.call</field>
+        <field name="model_id" ref="model_hotel_wakeup_call"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_channel" model="ir.access">
+        <field name="name">Company scope: hotel.channel.message</field>
+        <field name="model_id" ref="model_hotel_channel_message"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+
+    <!-- Task 11: role PERMISSIONS (unioned per user; manager needs none —
+         it implies every role below via hotel_group_manager) -->
+    <record id="hotel_perm_reception_booking" model="ir.access">
+        <field name="name">Reception: room.booking</field>
+        <field name="model_id" ref="model_room_booking"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_reception"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_reception_folio" model="ir.access">
+        <field name="name">Reception: hotel.folio</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_reception"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_hk_cleaning" model="ir.access">
+        <field name="name">Housekeeping: cleaning.request</field>
+        <field name="model_id" ref="model_cleaning_request"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_housekeeping"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_hk_linen" model="ir.access">
+        <field name="name">Housekeeping: hotel.linen.move</field>
+        <field name="model_id" ref="model_hotel_linen_move"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_housekeeping"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_hk_lost" model="ir.access">
+        <field name="name">Housekeeping: hotel.lost.found</field>
+        <field name="model_id" ref="model_hotel_lost_found"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_housekeeping"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_hk_complaint" model="ir.access">
+        <field name="name">Housekeeping: hotel.complaint</field>
+        <field name="model_id" ref="model_hotel_complaint"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_housekeeping"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_hk_wakeup" model="ir.access">
+        <field name="name">Housekeeping: hotel.wakeup.call</field>
+        <field name="model_id" ref="model_hotel_wakeup_call"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_housekeeping"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_hk_asset" model="ir.access">
+        <field name="name">Housekeeping: hotel.asset read</field>
+        <field name="model_id" ref="model_hotel_asset"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_housekeeping"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">r</field>
+    </record>
+    <record id="hotel_perm_cashier_shift" model="ir.access">
+        <field name="name">Cashier: hotel.cashier.shift</field>
+        <field name="model_id" ref="model_hotel_cashier_shift"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_cashier"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_cashier_folio" model="ir.access">
+        <field name="name">Cashier: hotel.folio read/write</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_cashier"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">ru</field>
+    </record>
+    <record id="hotel_perm_cashier_deposit" model="ir.access">
+        <field name="name">Cashier: hotel.deposit read</field>
+        <field name="model_id" ref="model_hotel_deposit"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_cashier"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">r</field>
+    </record>
+    <record id="hotel_perm_auditor_audit" model="ir.access">
+        <field name="name">Auditor: hotel.night.audit</field>
+        <field name="model_id" ref="model_hotel_night_audit"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_auditor"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_auditor_bizdate" model="ir.access">
+        <field name="name">Auditor: hotel.business.date</field>
+        <field name="model_id" ref="model_hotel_business_date"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_auditor"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_perm_auditor_booking" model="ir.access">
+        <field name="name">Auditor: room.booking read</field>
+        <field name="model_id" ref="model_room_booking"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_auditor"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">r</field>
+    </record>
+    <record id="hotel_perm_auditor_folio" model="ir.access">
+        <field name="name">Auditor: hotel.folio read</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_auditor"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">r</field>
+    </record>
+    <record id="hotel_perm_auditor_shift" model="ir.access">
+        <field name="name">Auditor: hotel.cashier.shift read</field>
+        <field name="model_id" ref="model_hotel_cashier_shift"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_auditor"/>
+        <field name="domain">[(1, '=', 1)]</field>
+        <field name="operation">r</field>
+    </record>
+
+    <!-- Task 11 fix round 1: close scoping gaps (fields verified live:
+         folio.line related-stored, cleaning.team new, maintenance core) -->
+    <record id="hotel_company_restrict_folio_line" model="ir.access">
+        <field name="name">Company scope: hotel.folio.line</field>
+        <field name="model_id" ref="model_hotel_folio_line"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_cleaning_team" model="ir.access">
+        <field name="name">Company scope: cleaning.team</field>
+        <field name="model_id" ref="model_cleaning_team"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_maint_request" model="ir.access">
+        <field name="name">Company scope: maintenance.request</field>
+        <field name="model_id" ref="model_maintenance_request"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="operation">crud</field>
+    </record>
+    <record id="hotel_company_restrict_maint_team" model="ir.access">
+        <field name="name">Company scope: maintenance.team</field>
+        <field name="model_id" ref="model_maintenance_team"/>
+        <field name="domain">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
         <field name="operation">crud</field>
     </record>
 </odoo>

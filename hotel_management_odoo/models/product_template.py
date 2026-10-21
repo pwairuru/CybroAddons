@@ -19,16 +19,17 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import api, fields, models, tools,_
+from odoo import api, fields, models,_
 from odoo.exceptions import ValidationError
 class ProductTemplate(models.Model):
     _inherit = "product.template"
     _description = "Product Template"
 
-    @tools.ormcache()
+    @api.model
     def _get_default_uom_id(self):
         """Method for getting the default uom id"""
-        return self.env.ref('uom.product_uom_unit')
+        return self.env.ref('uom.product_uom_unit',
+                            raise_if_not_found=False)
 
     is_room = fields.Boolean(string="Room",help="is room")
     status = fields.Selection([("available", "Available"),
@@ -39,8 +40,6 @@ class ProductTemplate(models.Model):
                               tracking=True)
     is_room_avail = fields.Boolean(default=True, string="Available",
                                    help="Check if the room is available")
-    list_price = fields.Float(string='Rent', digits='Product Price',
-                              help="The rent of the room.")
     room_amenities_ids = fields.Many2many("hotel.amenity",
                                           string="Room Amenities",
                                           help="List of room amenities.")
@@ -59,7 +58,7 @@ class ProductTemplate(models.Model):
                                  tracking=True,
                                  default="single")
     num_person = fields.Integer(string='Number Of Persons',
-                                required=True,
+                                required=True, default=1,
                                 help="Automatically chooses the No. of Persons",
                                 tracking=True)
 
@@ -69,6 +68,25 @@ class ProductTemplate(models.Model):
         for room in self:
             if room.num_person <= 0:
                 raise ValidationError(_("Room capacity must be more than 0"))
+
+    @api.constrains('status', 'is_room_avail')
+    def _check_status_avail_sync(self):
+        """status and is_room_avail are one flag in two fields (legacy).
+
+        Invariant: available ⟺ True. All writers must set both via
+        room.booking._hold_rooms/_release_rooms; this guard catches any
+        path that updates only one side."""
+        for room in self:
+            if not room.is_room:
+                continue
+            consistent = (room.status == 'available') == bool(
+                room.is_room_avail)
+            if not consistent:
+                raise ValidationError(
+                    _("Room %s: status (%s) and Available (%s) disagree; "
+                      "update both together.")
+                    % (room.display_name, room.status,
+                       room.is_room_avail))
 
     @api.onchange("room_type")
     def _onchange_room_type(self):

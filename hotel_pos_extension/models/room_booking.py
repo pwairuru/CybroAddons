@@ -58,8 +58,9 @@ class RoomBooking(models.Model):
                 }
                 booking_list = []
                 if flag:
-                    # Parent returns a list of items for the record
-                    booking_list = rec._compute_amount_untaxed(flag=True)
+                    # Parent exposes uninvoiced lines via _to_invoice_lines
+                    # (pure totals live in _compute_amount_untaxed).
+                    booking_list = rec._to_invoice_lines()
                 res_list.append((vals, booking_list))
             res = res_list[0] if len(self) == 1 else res_list
         

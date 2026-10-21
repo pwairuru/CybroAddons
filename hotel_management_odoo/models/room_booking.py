@@ -20,7 +20,7 @@
 #
 #############################################################################
 from datetime import datetime, timedelta
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 
@@ -57,12 +57,17 @@ class RoomBooking(models.Model):
                                                    "maintenance request send "
                                                    "once")
     checkin_date = fields.Datetime(string="Check In",
-                                   help="Date of Checkin",
-                                   default=fields.Datetime.now())
-    checkout_date = fields.Datetime(string="Check Out",
-                                    help="Date of Checkout",
-                                    default=fields.Datetime.now() + timedelta(
-                                        hours=23, minutes=59, seconds=59))
+                                    help="Date of Checkin",
+                                    default=fields.Datetime.now)
+    checkout_date = fields.Datetime(
+        string="Check Out", help="Date of Checkout",
+        default=lambda self: fields.Datetime.now() + timedelta(
+            hours=23, minutes=59, seconds=59))
+    actual_checkout_date = fields.Datetime(
+        string="Actual Check-Out",
+        help="When the guest really left; the booked Check Out above "
+             "is never mutated so history and audit stay intact.",
+        readonly=True, copy=False)
     hotel_policy = fields.Selection([("prepaid", "On Booking"),
                                      ("manual", "On Check In"),
                                      ("picking", "On Checkout"),
@@ -73,9 +78,9 @@ class RoomBooking(models.Model):
                                          "booking time, check-in "
                                          "or check-out time.", tracking=True)
     duration = fields.Integer(string="Duration in Days",
-                              help="Number of days which will automatically "
-                                   "count from the check-in and check-out "
-                                   "date.", )
+                               compute='_compute_duration', store=True,
+                               readonly=True,
+                               help="Nights between check-in and check-out.")
     invoice_button_visible = fields.Boolean(string='Invoice Button Display',
                                             help="Invoice button will be "
                                                  "visible if this button is "
@@ -91,8 +96,6 @@ class RoomBooking(models.Model):
                                        string="Invoice",
                                        help="Indicates the invoice",
                                        copy=False)
-    duration_visible = fields.Float(string="Duration",
-                                    help="A dummy field for Duration")
     need_service = fields.Boolean(default=False, string="Need Service",
                                   help="Check if a Service to be added with"
                                        " the Booking")
@@ -130,26 +133,67 @@ class RoomBooking(models.Model):
                                                " it will included in the "
                                                "main invoice.", )
     state = fields.Selection(selection=[('draft', 'Draft'),
-                                        ('reserved', 'Reserved'),
-                                        ('check_in', 'Check In'),
-                                        ('check_out', 'Check Out'),
-                                        ('cancel', 'Cancelled'),
-                                        ('done', 'Done')], string='State',
-                             help="State of the Booking",
-                             default='draft', tracking=True)
-    user_id = fields.Many2one(comodel_name='res.partner',
-                              string="Invoice Address",
-                              compute='_compute_user_id',
-                              help="Sets the User automatically",
-                              required=True,
-                              domain="['|', ('company_id', '=', False), "
-                                     "('company_id', '=',"
-                                     " company_id)]")
+                                             ('reserved', 'Reserved'),
+                                             ('check_in', 'Check In'),
+                                             ('check_out', 'Check Out'),
+                                             ('cancel', 'Cancelled'),
+                                             ('done', 'Done')], string='State',
+                              help="State of the Booking. Server-side "
+                                   "transitions only (action methods); direct "
+                                   "writes are rejected.",
+                              default='draft', tracking=True, readonly=True)
+    invoice_address_id = fields.Many2one(
+        comodel_name='res.partner', string="Invoice Address",
+        compute='_compute_invoice_address_id', store=True, readonly=False,
+        domain="['|', ('company_id', '=', False), "
+               "('company_id', '=', company_id)]",
+        help="Invoice recipient; defaults to the customer.")
+    @api.depends('checkin_date', 'checkout_date')
+    def _compute_duration(self):
+        for rec in self:
+            if rec.checkin_date and rec.checkout_date \
+                    and rec.checkout_date > rec.checkin_date:
+                rec.duration = (rec.checkout_date.date()
+                                - rec.checkin_date.date()).days or 1
+            else:
+                rec.duration = 0
+
+    @api.model
+    def _default_pricelist(self):
+        """Company pricelist default (search only — never create inside
+        a default: creation races under concurrency)."""
+        pricelist = self.env['product.pricelist'].search(
+            [('company_id', 'in', (False, self.env.company.id))], limit=1)
+        return pricelist or False
+
+    # hotel_pos_extension overrides _compute_has_pos_orders with real
+    # POS logic; base stays False so the POS page hides without POS.
+    has_pos_orders = fields.Boolean(
+        compute='_compute_has_pos_orders', string='Has POS Orders',
+        help='Indicates if there are POS orders linked to this booking')
+
+    def _compute_has_pos_orders(self):
+        for rec in self:
+            rec.has_pos_orders = False
+
+    @api.model
+    def _company_pricelist(self, company):
+        pricelist = self.env['product.pricelist'].search(
+            [('company_id', 'in', (False, company.id))], limit=1)
+        if not pricelist:
+            pricelist = self.env['product.pricelist'].create({
+                'name': 'Default %s' % (company.currency_id.name or ''),
+                'currency_id': company.currency_id.id,
+                'company_id': company.id,
+            })
+        return pricelist
+
     pricelist_id = fields.Many2one(comodel_name='product.pricelist',
                                    string="Pricelist",
                                    compute='_compute_pricelist_id',
                                    store=True, readonly=False,
-                                   required=True,
+                                   required=True, precompute=True,
+                                   default=_default_pricelist,
                                    tracking=1,
                                    help="If you change the pricelist,"
                                         " only newly added lines"
@@ -239,46 +283,81 @@ class RoomBooking(models.Model):
                                         store=True,
                                         help="This is the Total Amount for "
                                              "Fleet", tracking=5)
-    has_pos_orders = fields.Boolean(compute='_compute_has_pos_orders', string='Has POS Orders',
-                                    help='Indicates if there are POS orders linked to this booking')
+    @api.model
+    def _resolve_pricelist(self, partner, company):
+        """Pricelist for a partner/company: partner property first,
+        else a company-currency pricelist (created if missing)."""
+        pricelist = partner.with_company(
+            company).property_product_pricelist
+        if not pricelist:
+            pricelist = self._company_pricelist(company)
+        return pricelist
 
-    def _compute_has_pos_orders(self):
-        """Compute POS order availability."""
-        for rec in self:
-            rec.has_pos_orders = False
+    @api.model
+    def _search_pricelist(self, partner, company):
+        """Search-only variant for computes (no creation inside a
+        computed field)."""
+        pricelist = partner.with_company(
+            company).property_product_pricelist
+        if not pricelist:
+            pricelist = self.env['product.pricelist'].search(
+                [('company_id', 'in', (False, company.id))], limit=1)
+        return pricelist
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Sequence Generation"""
+        """Sequence Generation + pricelist fill (stored computed fields
+        INSERT before computing, so a required computed field must be
+        present in vals or the INSERT hits NOT NULL)."""
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
                 vals['name'] = self.env['ir.sequence'].next_by_code(
                     'room.booking')
+            if not vals.get('pricelist_id'):
+                company = self.env['res.company'].browse(
+                    vals.get('company_id')) or self.env.company
+                if vals.get('partner_id'):
+                    partner = self.env['res.partner'].browse(
+                        vals['partner_id'])
+                    if partner.exists():
+                        vals['pricelist_id'] = self._resolve_pricelist(
+                            partner, company).id
+                if not vals.get('pricelist_id'):
+                    vals['pricelist_id'] = self._company_pricelist(
+                        company).id
         return super().create(vals_list)
 
-    @api.depends('partner_id')
-    def _compute_user_id(self):
-        """Computes the User id"""
+    @api.depends('partner_id', 'company_id')
+    def _compute_invoice_address_id(self):
+        """Computes the invoice address from the customer, falling
+        back to the customer itself (never False)."""
         for order in self:
-            order.user_id = \
-                order.partner_id.address_get(['invoice'])[
-                    'invoice'] if order.partner_id else False
+            address = False
+            if order.partner_id:
+                address = order.partner_id.address_get(
+                    ['invoice', 'contact']).get('invoice')
+            order.invoice_address_id = address or order.partner_id
 
     def _compute_invoice_count(self):
-        """Compute the invoice count"""
+        """Compute the invoice count via the booking link."""
         for record in self:
             record.invoice_count = self.env['account.move'].search_count(
-                [('ref', '=', record.name)])
+                [('hotel_booking_id', '=', record.id)])
 
-    @api.depends('partner_id')
+    @api.depends('partner_id', 'company_id')
     def _compute_pricelist_id(self):
-        """Computes PriceList"""
+        """Computes PriceList (search only; creation happens in
+        create()/write() so computes stay side-effect free)."""
         for order in self:
-            if not order.partner_id:
-                order.pricelist_id = False
+            if order.pricelist_id:
                 continue
-            order = order.with_company(order.company_id)
-            order.pricelist_id = order.partner_id.property_product_pricelist
+            company = order.company_id or self.env.company
+            pricelist = self._search_pricelist(order.partner_id, company) \
+                if order.partner_id else self.env[
+                    'product.pricelist'].search(
+                        [('company_id', 'in', (False, company.id))],
+                        limit=1)
+            order.pricelist_id = pricelist or order.pricelist_id
 
     @api.depends('room_line_ids.price_subtotal', 'room_line_ids.price_tax',
                  'room_line_ids.price_total',
@@ -292,130 +371,265 @@ class RoomBooking(models.Model):
                  'event_line_ids.price_subtotal', 'event_line_ids.price_tax',
                  'event_line_ids.price_total',
                  )
-    def _compute_amount_untaxed(self, flag=False):
-        """Compute the total amounts of the Sale Order"""
-        total_booking_list = []
+    def _compute_amount_untaxed(self):
+        """Pure totals over booking lines (no invoice queries, no
+        side effects — safe inside @api.depends)."""
         for record in self:
-            # Map existing invoice lines by name, price, and type to avoid double invoicing
-            account_move_lines = self.env['account.move.line'].search([
-                ('ref', '=', record.name),
-                ('display_type', '!=', 'payment_term')
-            ])
-            invoiced_map = {}
-            for aml in account_move_lines:
-                key = (aml.name, aml.price_unit, aml.product_type)
-                invoiced_map[key] = invoiced_map.get(key, 0.0) + aml.quantity
-
-            def get_delta(name, qty, price, ptype):
-                key = (name, price, ptype)
-                already_invoiced = invoiced_map.get(key, 0.0)
-                remaining = qty - already_invoiced
-                return max(0.0, remaining)
-
-            booking_list = []
-
             # Rooms
-            record.amount_untaxed_room = sum(record.room_line_ids.mapped('price_subtotal'))
-            record.amount_taxed_room = sum(record.room_line_ids.mapped('price_tax'))
-            record.amount_total_room = sum(record.room_line_ids.mapped('price_total'))
-            for room in record.room_line_ids:
-                delta = get_delta(room.room_id.name, room.uom_qty, room.price_unit, 'room')
-                if delta > 0:
-                    booking_list.append({'name': room.room_id.name, 'quantity': delta, 'price_unit': room.price_unit,
-                                         'product_type': 'room'})
-                if flag:
-                    room.booking_line_visible = True
-
+            record.amount_untaxed_room = sum(
+                record.room_line_ids.mapped('price_subtotal'))
+            record.amount_taxed_room = sum(
+                record.room_line_ids.mapped('price_tax'))
+            record.amount_total_room = sum(
+                record.room_line_ids.mapped('price_total'))
             # Food
-            record.amount_untaxed_food = sum(record.food_order_line_ids.mapped('price_subtotal'))
-            record.amount_taxed_food = sum(record.food_order_line_ids.mapped('price_tax'))
-            record.amount_total_food = sum(record.food_order_line_ids.mapped('price_total'))
-            for food in record.food_order_line_ids:
-                delta = get_delta(food.food_id.name, food.uom_qty, food.price_unit, 'food')
-                if delta > 0:
-                    booking_list.append({'name': food.food_id.name, 'quantity': delta, 'price_unit': food.price_unit,
-                                         'product_type': 'food'})
-
+            record.amount_untaxed_food = sum(
+                record.food_order_line_ids.mapped('price_subtotal'))
+            record.amount_taxed_food = sum(
+                record.food_order_line_ids.mapped('price_tax'))
+            record.amount_total_food = sum(
+                record.food_order_line_ids.mapped('price_total'))
             # Service
-            record.amount_untaxed_service = sum(record.service_line_ids.mapped('price_subtotal'))
-            record.amount_taxed_service = sum(record.service_line_ids.mapped('price_tax'))
-            record.amount_total_service = sum(record.service_line_ids.mapped('price_total'))
-            for service in record.service_line_ids:
-                delta = get_delta(service.service_id.name, service.uom_qty, service.price_unit, 'service')
-                if delta > 0:
-                    booking_list.append(
-                        {'name': service.service_id.name, 'quantity': delta, 'price_unit': service.price_unit,
-                         'product_type': 'service'})
-
+            record.amount_untaxed_service = sum(
+                record.service_line_ids.mapped('price_subtotal'))
+            record.amount_taxed_service = sum(
+                record.service_line_ids.mapped('price_tax'))
+            record.amount_total_service = sum(
+                record.service_line_ids.mapped('price_total'))
             # Fleet
-            record.amount_untaxed_fleet = sum(record.vehicle_line_ids.mapped('price_subtotal'))
-            record.amount_taxed_fleet = sum(record.vehicle_line_ids.mapped('price_tax'))
-            record.amount_total_fleet = sum(record.vehicle_line_ids.mapped('price_total'))
-            for fleet in record.vehicle_line_ids:
-                delta = get_delta(fleet.fleet_id.name, fleet.uom_qty, fleet.price_unit, 'fleet')
-                if delta > 0:
-                    booking_list.append({'name': fleet.fleet_id.name, 'quantity': delta, 'price_unit': fleet.price_unit,
-                                         'product_type': 'fleet'})
-
+            record.amount_untaxed_fleet = sum(
+                record.vehicle_line_ids.mapped('price_subtotal'))
+            record.amount_taxed_fleet = sum(
+                record.vehicle_line_ids.mapped('price_tax'))
+            record.amount_total_fleet = sum(
+                record.vehicle_line_ids.mapped('price_total'))
             # Event
-            record.amount_untaxed_event = sum(record.event_line_ids.mapped('price_subtotal'))
-            record.amount_taxed_event = sum(record.event_line_ids.mapped('price_tax'))
-            record.amount_total_event = sum(record.event_line_ids.mapped('price_total'))
-            for event in record.event_line_ids:
-                delta = get_delta(event.event_id.name, event.uom_qty, event.price_unit, 'event')
-                if delta > 0:
-                    booking_list.append({'name': event.event_id.name, 'quantity': delta, 'price_unit': event.price_unit,
-                                         'product_type': 'event'})
+            record.amount_untaxed_event = sum(
+                record.event_line_ids.mapped('price_subtotal'))
+            record.amount_taxed_event = sum(
+                record.event_line_ids.mapped('price_tax'))
+            record.amount_total_event = sum(
+                record.event_line_ids.mapped('price_total'))
 
-            record.amount_untaxed = (record.amount_untaxed_room + record.amount_untaxed_food +
-                                     record.amount_untaxed_fleet + record.amount_untaxed_event +
-                                     record.amount_untaxed_service)
-            record.amount_tax = (record.amount_taxed_room + record.amount_taxed_food +
-                                 record.amount_taxed_fleet + record.amount_taxed_event +
-                                 record.amount_taxed_service)
+            record.amount_untaxed = (record.amount_untaxed_room
+                                     + record.amount_untaxed_food
+                                     + record.amount_untaxed_fleet
+                                     + record.amount_untaxed_event
+                                     + record.amount_untaxed_service)
+            record.amount_tax = (record.amount_taxed_room
+                                 + record.amount_taxed_food
+                                 + record.amount_taxed_fleet
+                                 + record.amount_taxed_event
+                                 + record.amount_taxed_service)
             record.amount_total = record.amount_untaxed + record.amount_tax
 
-            if flag:
-                return booking_list
-            total_booking_list.extend(booking_list)
-        return total_booking_list
+    def _to_invoice_lines(self):
+        """Booking lines minus what hotel_booking_id invoices already
+        cover. Separate from the totals compute so stored amounts never
+        depend on invoice state."""
+        self.ensure_one()
+        invoiced = {}
+        for aml in self.env['account.move.line'].search([
+                ('move_id.hotel_booking_id', '=', self.id),
+                ('display_type', '!=', 'payment_term')]):
+            key = (aml.name, aml.price_unit, aml.product_type)
+            invoiced[key] = invoiced.get(key, 0.0) + aml.quantity
+        pending = []
+
+        def _delta(name, qty, price, ptype):
+            return max(0.0, qty - invoiced.get((name, price, ptype), 0.0))
+
+        for room in self.room_line_ids:
+            qty = _delta(room.room_id.name, room.uom_qty,
+                         room.price_unit, 'room')
+            if qty > 0:
+                pending.append({'name': room.room_id.name, 'quantity': qty,
+                                'price_unit': room.price_unit,
+                                'product_type': 'room',
+                                'product_id':
+                                room.room_id.product_variant_id.id,
+                                'tax_ids': room.tax_ids.ids})
+        for food in self.food_order_line_ids:
+            qty = _delta(food.food_id.name, food.uom_qty,
+                         food.price_unit, 'food')
+            if qty > 0:
+                pending.append({'name': food.food_id.name, 'quantity': qty,
+                                'price_unit': food.price_unit,
+                                'product_type': 'food',
+                                'product_id': False,
+                                'tax_ids': food.tax_ids.ids})
+        for service in self.service_line_ids:
+            qty = _delta(service.service_id.name, service.uom_qty,
+                         service.price_unit, 'service')
+            if qty > 0:
+                pending.append({'name': service.service_id.name,
+                                'quantity': qty,
+                                'price_unit': service.price_unit,
+                                'product_type': 'service',
+                                'product_id': False,
+                                'tax_ids': service.tax_ids.ids})
+        for fleet in self.vehicle_line_ids:
+            qty = _delta(fleet.fleet_id.name, fleet.uom_qty,
+                         fleet.price_unit, 'fleet')
+            if qty > 0:
+                pending.append({'name': fleet.fleet_id.name, 'quantity': qty,
+                                'price_unit': fleet.price_unit,
+                                'product_type': 'fleet',
+                                'product_id': False,
+                                'tax_ids': fleet.tax_ids.ids})
+        for event in self.event_line_ids:
+            qty = _delta(event.event_id.name, event.uom_qty,
+                         event.price_unit, 'event')
+            if qty > 0:
+                pending.append({'name': event.event_id.name, 'quantity': qty,
+                                'price_unit': event.price_unit,
+                                'product_type': 'event',
+                                'product_id': False,
+                                'tax_ids': event.tax_ids.ids})
+        return pending
 
     @api.onchange('need_food')
     def _onchange_need_food(self):
         """Unlink Food Booking Line if Need Food is false"""
-        if not self.need_food and self.food_order_line_ids:
-            for food in self.food_order_line_ids:
-                food.unlink()
+        if not self.need_food and self.food_order_line_ids \
+                and self.state in ('draft', 'reserved', 'check_in'):
+            self.food_order_line_ids = [
+                (2, line.id, 0) for line in self.food_order_line_ids
+                if line.id]
 
     @api.onchange('need_service')
     def _onchange_need_service(self):
         """Unlink Service Booking Line if Need Service is False"""
-        if not self.need_service and self.service_line_ids:
-            for serv in self.service_line_ids:
-                serv.unlink()
+        if not self.need_service and self.service_line_ids \
+                and self.state in ('draft', 'reserved', 'check_in'):
+            self.service_line_ids = [
+                (2, line.id, 0) for line in self.service_line_ids
+                if line.id]
 
     @api.onchange('need_fleet')
     def _onchange_need_fleet(self):
         """Unlink Fleet Booking Line if Need Fleet is False"""
-        if not self.need_fleet:
-            if self.vehicle_line_ids:
-                for fleet in self.vehicle_line_ids:
-                    fleet.unlink()
+        if not self.need_fleet and self.vehicle_line_ids \
+                and self.state in ('draft', 'reserved', 'check_in'):
+            self.vehicle_line_ids = [
+                (2, line.id, 0) for line in self.vehicle_line_ids
+                if line.id]
 
     @api.onchange('need_event')
     def _onchange_need_event(self):
         """Unlink Event Booking Line if Need Event is False"""
-        if not self.need_event:
-            if self.event_line_ids:
-                for event in self.event_line_ids:
-                    event.unlink()
+        if not self.need_event and self.event_line_ids \
+                and self.state in ('draft', 'reserved', 'check_in'):
+            self.event_line_ids = [
+                (2, line.id, 0) for line in self.event_line_ids
+                if line.id]
 
     @api.onchange('food_order_line_ids', 'room_line_ids',
                   'service_line_ids', 'vehicle_line_ids', 'event_line_ids')
     def _onchange_room_line_ids(self):
-        """Invokes the Compute amounts function"""
-        self._compute_amount_untaxed()
+        """Reset the invoice flag when lines change."""
         self.invoice_button_visible = False
+
+    _STATE_TRANSITIONS = {
+        'draft': ('reserved', 'cancel'),
+        'reserved': ('check_in', 'cancel'),
+        'check_in': ('check_out',),
+        'check_out': ('done',),
+        'cancel': (),
+        'done': (),
+    }
+
+    def _check_transition(self, target):
+        for rec in self:
+            allowed = self._STATE_TRANSITIONS.get(rec.state, ())
+            if target not in allowed:
+                raise ValidationError(
+                    _("Cannot move booking %s from %s to %s.")
+                    % (rec.name, rec.state, target))
+
+    def write(self, vals):
+        """State is server-authoritative: only action methods move it.
+        Pricelist follows the customer unless explicitly set."""
+        if 'state' in vals and not self.env.context.get(
+                'hotel_allow_state_write'):
+            raise ValidationError(
+                _("State changes must go through Reserve / Check-In / "
+                  "Check-Out / Done / Cancel actions."))
+        if ('partner_id' in vals or 'company_id' in vals) \
+                and 'pricelist_id' not in vals:
+            for rec in self:
+                partner = self.env['res.partner'].browse(
+                    vals.get('partner_id', rec.partner_id.id))
+                company = self.env['res.company'].browse(
+                    vals.get('company_id', rec.company_id.id))
+                if partner.exists() and company.exists():
+                    vals = dict(
+                        vals,
+                        pricelist_id=self._resolve_pricelist(
+                            partner, company).id)
+                    break
+        return super().write(vals)
+
+    def _room_held_elsewhere(self, room, states=('reserved', 'check_in')):
+        """True if another booking actively holds this room."""
+        return bool(self.env['room.booking.line'].search([
+            ('room_id', '=', room.id),
+            ('booking_id.state', 'in', list(states)),
+            ('booking_id', 'not in', self.ids),
+        ], limit=1))
+
+    def _release_rooms(self):
+        """Free rooms no other active booking holds (status + flag kept
+        in sync — single writer)."""
+        rooms = self.mapped('room_line_ids.room_id')
+        for room in rooms:
+            if not self._room_held_elsewhere(room):
+                room.write({'status': 'available', 'is_room_avail': True})
+
+    def _hold_rooms(self, status):
+        for room in self.mapped('room_line_ids.room_id'):
+            room.write({'status': status, 'is_room_avail': False})
+
+    @api.model
+    def _check_room_available(self, room, checkin, checkout,
+                              ignore_booking=False):
+        """Server-side availability: overlap + OOO + dirty. View domains
+        are UX only; this is the enforcement point."""
+        booking_domain = [
+            ('room_id', '=', room.id),
+            ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('checkin_date', '<', checkout),
+            ('checkout_date', '>', checkin),
+        ]
+        if ignore_booking:
+            booking_domain.append(('booking_id', '!=', ignore_booking.id))
+        clash = self.env['room.booking.line'].search(booking_domain,
+                                                     limit=1)
+        if clash:
+            raise ValidationError(
+                _("Room %s is already booked %s - %s (booking %s).")
+                % (room.display_name, clash.checkin_date,
+                   clash.checkout_date, clash.booking_id.name))
+        ooo = self.env['maintenance.request'].search([
+            ('type', '=', 'room'),
+            ('state', 'not in', ('done', 'cancel')),
+            ('room_maintenance_ids', 'in', room.id),
+        ], limit=1)
+        if ooo:
+            raise ValidationError(
+                _("Room %s is out of order (%s).")
+                % (room.display_name, ooo.sequence or ooo.name))
+        dirty = self.env['cleaning.request'].search([
+            ('cleaning_type', '=', 'room'),
+            ('room_id', '=', room.id),
+            ('state', 'not in', ('done',)),
+            '|', ('room_status', '=', False),
+            ('room_status', 'not in', ('clean', 'inspected')),
+        ], limit=1)
+        if dirty:
+            raise ValidationError(
+                _("Room %s is dirty (%s); clean it first.")
+                % (room.display_name, dirty.sequence))
 
     @api.constrains("room_line_ids")
     def _check_duplicate_folio_room_line(self):
@@ -439,59 +653,23 @@ class RoomBooking(models.Model):
                     )
                 ids.add(line.room_id.id)
 
-    def create_list(self, line_ids):
-        """Returns a Dictionary containing the Booking line Values"""
-        account_move_line = self.env['account.move.line'].search_read(
-            domain=[('ref', '=', self.name),
-                    ('display_type', '!=', 'payment_term')],
-            fields=['name', 'quantity', 'price_unit', 'product_type'], )
-        for rec in account_move_line:
-            del rec['id']
-        booking_dict = {}
-        for line in line_ids:
-            name = ""
-            product_type = ""
-            if line_ids._name == 'food.booking.line':
-                name = line.food_id.name
-                product_type = 'food'
-            elif line_ids._name == 'fleet.booking.line':
-                name = line.fleet_id.name
-                product_type = 'fleet'
-            elif line_ids._name == 'service.booking.line':
-                name = line.service_id.name
-                product_type = 'service'
-            elif line_ids._name == 'event.booking.line':
-                name = line.event_id.name
-                product_type = 'event'
-            booking_dict = {'name': name,
-                            'quantity': line.uom_qty,
-                            'price_unit': line.price_unit,
-                            'product_type': product_type}
-        return booking_dict
-
     def action_reserve(self):
         """Button Reserve Function"""
         for record in self:
-            if record.state == 'reserved':
-                message = ("Room Already Reserved.")
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'type': 'warning',
-                        'message': message,
-                        'next': {'type': 'ir.actions.act_window_close'},
-                    }
-                }
-            if record.room_line_ids:
-                for room in record.room_line_ids:
-                    room.room_id.write({
-                        'status': 'reserved',
-                    })
-                    room.room_id.is_room_avail = False
-                record.write({"state": "reserved"})
-            else:
+            record._check_transition('reserved')
+            if not record.room_line_ids:
                 raise ValidationError(("Please Enter Room Details"))
+            if not record.checkin_date or not record.checkout_date \
+                    or record.checkout_date <= record.checkin_date:
+                raise ValidationError(
+                    ("Check-out must be after check-in."))
+            for line in record.room_line_ids:
+                self._check_room_available(
+                    line.room_id, line.checkin_date, line.checkout_date,
+                    ignore_booking=record)
+            record._hold_rooms('reserved')
+            record.with_context(hotel_allow_state_write=True).write(
+                {"state": "reserved"})
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -507,54 +685,64 @@ class RoomBooking(models.Model):
         @param self: object pointer
         """
         for record in self:
-            if record.room_line_ids:
-                for room in record.room_line_ids:
-                    room.room_id.write({
-                        'status': 'available',
-                    })
-                    room.room_id.is_room_avail = True
-            record.write({"state": "cancel"})
+            record._check_transition('cancel')
+            record._release_rooms()
+            record.with_context(hotel_allow_state_write=True).write(
+                {"state": "cancel"})
 
     def action_maintenance_request(self):
         """
         Function that handles the maintenance request
         """
-        room_list = []
-        for rec in self.room_line_ids.room_id.ids:
-            room_list.append(rec)
-        if room_list:
-            room_id = self.env['product.template'].search([
-                ('id', 'in', room_list)])
-            self.env['maintenance.request'].sudo().create({
+        rooms = self.mapped('room_line_ids.room_id')
+        if not rooms:
+            raise ValidationError(("Please Enter Room Details"))
+        existing = self.env['maintenance.request'].search([
+            ('type', '=', 'room'),
+            ('state', 'not in', ('done', 'cancel')),
+            ('room_maintenance_ids', 'in', rooms.ids),
+        ], limit=1)
+        if existing:
+            raise ValidationError(
+                _("An open maintenance request already covers these "
+                  "rooms (%s).") % (existing.sequence or existing.name))
+        self.env['maintenance.request'].with_company(
+            self.company_id).sudo().create({
                 'name': 'Maintenance Request - %s' % self.name,
                 'date': fields.Date.today(),
                 'state': 'draft',
                 'type': 'room',
-                'room_maintenance_ids': room_id.ids,
+                'room_maintenance_ids': rooms.ids,
                 'is_hotel': True,
             })
-            self.maintenance_request_sent = True
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'type': 'success',
-                    'message': "Maintenance Request Sent Successfully",
-                    'next': {'type': 'ir.actions.act_window_close'},
-                }
+        self.maintenance_request_sent = True
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "Maintenance Request Sent Successfully",
+                'next': {'type': 'ir.actions.act_window_close'},
             }
-        raise ValidationError(("Please Enter Room Details"))
+        }
 
     def action_done(self):
         """Button action_confirm function"""
         for record in self:
-            moves = self.env['account.move'].search([('ref', '=', record.name)])
-            unpaid_moves = moves.filtered(lambda m: m.payment_state == 'not_paid')
+            record._check_transition('done')
+            moves = self.env['account.move'].search(
+                [('hotel_booking_id', '=', record.id)])
+            unpaid_moves = moves.filtered(
+                lambda m: m.payment_state == 'not_paid')
             if unpaid_moves:
-                invoice_names = ', '.join(unpaid_moves.mapped(lambda m: m.name or 'Draft'))
-                raise ValidationError(('Your Invoice (%s) is Due for Payment.') % invoice_names)
-            record.write({"state": "done"})
-            record.is_checkin = False
+                invoice_names = ', '.join(
+                    unpaid_moves.mapped(lambda m: m.name or 'Draft'))
+                raise ValidationError(
+                    ('Your Invoice (%s) is Due for Payment.')
+                    % invoice_names)
+            record._release_rooms()
+            record.with_context(hotel_allow_state_write=True).write(
+                {"state": "done", "is_checkin": False})
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -566,39 +754,73 @@ class RoomBooking(models.Model):
         }
 
     def action_checkout(self):
-        """Button action_heck_out function"""
+        """Check out: frees rooms, stamps the actual checkout time. The
+        booked line dates are never mutated."""
         for record in self:
-            record.write({"state": "check_out"})
-            for room in record.room_line_ids:
-                room.room_id.write({
-                    'status': 'available',
-                    'is_room_avail': True
-                })
-                room.write({'checkout_date': datetime.today()})
+            record._check_transition('check_out')
+            record._release_rooms()
+            record.with_context(hotel_allow_state_write=True).write({
+                "state": "check_out",
+                "actual_checkout_date": fields.Datetime.now(),
+            })
 
     def action_invoice(self):
-        """Method for creating invoice"""
+        """Create an invoice for uninvoiced booking lines, linked via
+        hotel_booking_id (never by ref string matching)."""
         self.ensure_one()
         if not self.room_line_ids:
             raise ValidationError(("Please Enter Room Details"))
-        booking_list = self._compute_amount_untaxed(True)
-        if not booking_list:
+        pending = self._to_invoice_lines()
+        if not pending:
             raise ValidationError((
-                                      "No new items to invoice. All items appear to be already invoiced (e.g. via POS or separate invoice)."))
+                "No new items to invoice. All items appear to be already "
+                "invoiced (e.g. via POS or separate invoice)."))
 
+        journal = self.env['account.journal'].search([
+            ('type', '=', 'sale'),
+            ('company_id', '=', self.company_id.id),
+        ], limit=1)
+        if not journal:
+            raise ValidationError(
+                _("No sales journal for company %s. Create one in "
+                  "Invoicing > Configuration > Journals, then invoice "
+                  "again.") % self.company_id.display_name)
         account_move = self.env["account.move"].create([{
             'move_type': 'out_invoice',
             'invoice_date': fields.Date.today(),
             'partner_id': self.partner_id.id,
+            'journal_id': journal.id,
+            'company_id': self.company_id.id,
+            'currency_id': self.currency_id.id,
+            'hotel_booking_id': self.id,
             'ref': self.name,
         }])
-        for rec in booking_list:
+        for rec in pending:
+            product = self.env['product.product'].browse(
+                rec['product_id']) if rec.get('product_id') else False
+            if product and not product.exists():
+                product = False
+            account = False
+            if product:
+                account = product.property_account_income_id \
+                    or product.categ_id.property_account_income_categ_id
+            if not account:
+                account = self.env['account.account'].search([
+                    ('company_ids', 'in', self.company_id.id),
+                    ('account_type', '=', 'income'),
+                ], limit=1)
+            if not account:
+                raise ValidationError(
+                    _("No income account available for company %s.")
+                    % self.company_id.display_name)
             self.env['account.move.line'].create([{
                 'name': rec['name'],
                 'quantity': rec['quantity'],
                 'price_unit': rec['price_unit'],
                 'move_id': account_move.id,
-                'price_subtotal': rec['quantity'] * rec['price_unit'],
+                'product_id': product.id if product else False,
+                'account_id': account.id,
+                'tax_ids': [(6, 0, rec.get('tax_ids') or [])],
                 'product_type': rec['product_type'],
             }])
         self.write({'invoice_status': "invoiced"})
@@ -622,7 +844,7 @@ class RoomBooking(models.Model):
             'view_mode': 'list,form',
             'view_type': 'list,form',
             'res_model': 'account.move',
-            'domain': [('ref', '=', self.name)],
+            'domain': [('hotel_booking_id', '=', self.id)],
             'context': "{'create': False}"
         }
 
@@ -631,15 +853,17 @@ class RoomBooking(models.Model):
         @param self: object pointer
         """
         for record in self:
+            record._check_transition('check_in')
             if not record.room_line_ids:
                 raise ValidationError(("Please Enter Room Details"))
-            else:
-                for room in record.room_line_ids:
-                    room.room_id.write({
-                        'status': 'occupied',
-                    })
-                    room.room_id.is_room_avail = False
-                record.write({"state": "check_in"})
+            record.partner_id.check_documents_valid()
+            for line in record.room_line_ids:
+                self._check_room_available(
+                    line.room_id, line.checkin_date, line.checkout_date,
+                    ignore_booking=record)
+            record._hold_rooms('occupied')
+            record.with_context(hotel_allow_state_write=True).write(
+                {"state": "check_in", "is_checkin": True})
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -652,91 +876,76 @@ class RoomBooking(models.Model):
 
     @api.model
     def get_details(self):
-        """ Returns different counts for displaying in dashboard"""
+        """Dashboard counters. Company-scoped, domain-filtered, currency
+        converted — no full-table scans."""
+        company = self.env.company
         today_date = fields.Date.context_today(self)
-        total_room = self.env['product.template'].search_count(
-            [('is_room', '=', True)])
-        check_in = self.env['room.booking'].search_count(
-            [('state', '=', 'check_in')])
-        available_room = self.env['product.template'].search(
+        Room = self.env['product.template'].with_company(company)
+        Booking = self.env['room.booking'].with_company(company)
+        Move = self.env['account.move'].with_company(company)
+        total_room = Room.search_count([('is_room', '=', True)])
+        available_room = Room.search_count(
             [('is_room', '=', True), ('status', '=', 'available')])
-        reservation = self.env['room.booking'].search_count(
-            [('state', '=', 'reserved')])
-        check_outs = self.env['room.booking'].search([])
-        check_out = 0
-        staff = 0
-        for rec in check_outs:
-            for room in rec.room_line_ids:
-                if room.checkout_date and fields.Date.to_date(
-                        fields.Datetime.context_timestamp(self, room.checkout_date)) == today_date:
-                    check_out += 1
-            """staff"""
-            staff = self.env['res.users'].search_count(
-                [('group_ids', 'in',
-                  [self.env.ref('hotel_management_odoo.hotel_group_admin').id,
-                   self.env.ref(
-                       'hotel_management_odoo.cleaning_team_group_head').id,
-                   self.env.ref(
-                       'hotel_management_odoo.cleaning_team_group_user').id,
-                   self.env.ref(
-                       'hotel_management_odoo.hotel_group_reception').id,
-                   self.env.ref(
-                       'hotel_management_odoo.maintenance_team_group_leader').id,
-                   self.env.ref(
-                       'hotel_management_odoo.maintenance_team_group_user').id
-                   ])])
-        total_vehicle = self.env['fleet.vehicle.model'].search_count([])
-        available_vehicle = total_vehicle - self.env[
-            'fleet.booking.line'].search_count(
-            [('state', '=', 'check_in')])
-        total_event = self.env['event.event'].search_count([])
-        pending_event = self.env['event.event'].search([])
-        pending_events = 0
-        today_events = 0
-        for pending in pending_event:
-            if pending.date_end >= fields.Datetime.now():
-                pending_events += 1
-            if fields.Date.to_date(fields.Datetime.context_timestamp(self, pending.date_end)) == today_date:
-                today_events += 1
-        food_items = self.env['lunch.product'].search_count([])
-        food_order = len(self.env['food.booking.line'].search([]).filtered(
-            lambda r: r.booking_id.state not in ['check_out', 'cancel',
-                                                 'done']))
-        """total Revenue"""
-        total_revenue = 0
-        today_revenue = 0
-        pending_payment = 0
-        for rec in self.env['account.move'].search(
-                [('payment_state', '=', 'paid')]):
-            if rec.ref:
-                if 'BOOKING' in rec.ref:
-                    total_revenue += rec.amount_total
-                    if rec.date == fields.Date.today():
-                        today_revenue += rec.amount_total
-        for rec in self.env['account.move'].search(
-                [('payment_state', '=', 'not_paid')]):
-            if rec.ref:
-                if 'BOOKING' in rec.ref:
-                    pending_payment += rec.amount_total
+        check_in = Booking.search_count([('state', '=', 'check_in')])
+        reservation = Booking.search_count([('state', '=', 'reserved')])
+        check_out = self.env['room.booking.line'].search_count([
+            ('booking_id.state', '=', 'check_in'),
+            ('booking_id.company_id', '=', company.id),
+            ('checkout_date', '>=', fields.Datetime.to_string(
+                datetime.combine(today_date,
+                                 datetime.min.time()))),
+            ('checkout_date', '<', fields.Datetime.to_string(
+                datetime.combine(today_date + timedelta(days=1),
+                                 datetime.min.time()))),
+        ])
+        staff = self.env['res.users'].search_count([
+            ('company_ids', 'in', company.id),
+            ('group_ids', 'in', [
+                self.env.ref(
+                    'hotel_management_odoo.hotel_group_admin').id,
+                self.env.ref(
+                    'hotel_management_odoo.cleaning_team_group_head').id,
+                self.env.ref(
+                    'hotel_management_odoo.cleaning_team_group_user').id,
+                self.env.ref(
+                    'hotel_management_odoo.hotel_group_reception').id,
+                self.env.ref(
+                    'hotel_management_odoo.maintenance_team_group_leader'
+                ).id,
+                self.env.ref(
+                    'hotel_management_odoo.maintenance_team_group_user'
+                ).id])])
+        revenues = Move.search_read(
+            [('hotel_booking_id', '!=', False),
+             ('state', '=', 'posted')],
+            ['amount_total', 'currency_id', 'payment_state', 'date'])
+        target_currency = company.currency_id
+        total_revenue = today_revenue = pending_payment = 0.0
+        for move in revenues:
+            amount = target_currency._convert(
+                move['amount_total'],
+                self.env['res.currency'].browse(move['currency_id'][0])
+                if move.get('currency_id') else target_currency,
+                company, move['date'] or fields.Date.today())
+            if move['payment_state'] == 'paid':
+                total_revenue += amount
+                if move['date'] and fields.Date.to_string(
+                        move['date']) == fields.Date.to_string(today_date):
+                    today_revenue += amount
+            elif move['payment_state'] == 'not_paid':
+                pending_payment += amount
         return {
             'total_room': total_room,
-            'available_room': len(available_room),
+            'available_room': available_room,
             'staff': staff,
             'check_in': check_in,
             'reservation': reservation,
             'check_out': check_out,
-            'total_vehicle': total_vehicle,
-            'available_vehicle': available_vehicle,
-            'total_event': total_event,
-            'today_events': today_events,
-            'pending_events': pending_events,
-            'food_items': food_items,
-            'food_order': food_order,
             'total_revenue': round(total_revenue, 2),
             'today_revenue': round(today_revenue, 2),
             'pending_payment': round(pending_payment, 2),
-            'currency_symbol': self.env.user.company_id.currency_id.symbol,
-            'currency_position': self.env.user.company_id.currency_id.position
+            'currency_symbol': target_currency.symbol,
+            'currency_position': target_currency.position,
         }
 
     def action_compute_bill(self):

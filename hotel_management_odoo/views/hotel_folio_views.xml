@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Folios menu (operational, NOT under Configuration) -->
+    <menuitem id="hotel_folio_menu"
+              name="Folios"
+              sequence="10"
+              parent="hotel_management_menu_root"/>
+
+    <record id="hotel_folio_view_list" model="ir.ui.view">
+        <field name="name">hotel.folio.view.list</field>
+        <field name="model">hotel.folio</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="partner_id"/>
+                <field name="booking_id"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_folio_view_form" model="ir.ui.view">
+        <field name="name">hotel.folio.view.form</field>
+        <field name="model">hotel.folio</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_settle" string="Settle"
+                            invisible="state != 'open'" type="object"
+                            class="btn-primary"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="open,settled"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="booking_id"/>
+                        <field name="move_id" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Charges">
+                            <field name="line_ids"/>
+                        </page>
+                    </notebook>
+                    <chatter/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_folio_line_view_list" model="ir.ui.view">
+        <field name="name">hotel.folio.line.view.list</field>
+        <field name="model">hotel.folio.line</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="folio_id"/>
+                <field name="product_id"/>
+                <field name="quantity"/>
+                <field name="price_unit"/>
+                <field name="routing"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_folio_action" model="ir.actions.act_window">
+        <field name="name">Folios</field>
+        <field name="res_model">hotel.folio</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_folio_menu_action"
+              name="Folios"
+              sequence="10"
+              parent="hotel_folio_menu"
+              action="hotel_folio_action"/>
+</odoo>

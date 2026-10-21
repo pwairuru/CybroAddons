@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="hotel_night_audit_view_list" model="ir.ui.view">
+        <field name="name">hotel.night.audit.view.list</field>
+        <field name="model">hotel.night.audit</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="date"/>
+                <field name="company_id"/>
+                <field name="state"/>
+                <field name="room_nights_posted"/>
+                <field name="no_show_count"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_night_audit_view_form" model="ir.ui.view">
+        <field name="name">hotel.night.audit.view.form</field>
+        <field name="model">hotel.night.audit</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_close" string="Close Day"
+                            invisible="state != 'draft'" type="object"
+                            class="btn-primary"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,done"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="date"/>
+                        <field name="company_id"/>
+                        <field name="room_nights_posted"/>
+                        <field name="no_show_count"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_business_date_view_list" model="ir.ui.view">
+        <field name="name">hotel.business.date.view.list</field>
+        <field name="model">hotel.business.date</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="date"/>
+                <field name="company_id"/>
+                <field name="is_closed"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_business_date_view_form" model="ir.ui.view">
+        <field name="name">hotel.business.date.view.form</field>
+        <field name="model">hotel.business.date</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="date"/>
+                        <field name="company_id"/>
+                        <field name="is_closed"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_night_audit_action" model="ir.actions.act_window">
+        <field name="name">Night Audits</field>
+        <field name="res_model">hotel.night.audit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_night_audit_menu"
+              name="Night Audit"
+              sequence="10"
+              parent="hotel_audit_menu"
+              action="hotel_night_audit_action"/>
+
+    <record id="hotel_business_date_action" model="ir.actions.act_window">
+        <field name="name">Business Dates</field>
+        <field name="res_model">hotel.business.date</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_business_date_menu"
+              name="Business Dates"
+              sequence="20"
+              parent="hotel_audit_menu"
+              action="hotel_business_date_action"/>
+</odoo>

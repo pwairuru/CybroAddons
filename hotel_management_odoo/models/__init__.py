@@ -19,6 +19,9 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
+from . import room_booking
+from . import room_booking_line
+from . import product_template
 from . import account_move
 from . import account_move_line
 from . import cleaning_request
@@ -28,11 +31,19 @@ from . import fleet_booking_line
 from . import fleet_vehicle_model
 from . import food_booking_line
 from . import hotel_amenity
+from . import hotel_business_date
+from . import hotel_cashier
+from . import hotel_channel
+from . import hotel_charge_service
+from . import hotel_conference
 from . import hotel_floor
+from . import hotel_folio
+from . import hotel_guest
+from . import hotel_rack
+from . import hotel_rate
+from . import hotel_rooming
 from . import hotel_service
+from . import hotel_service_ops
 from . import maintenance_request
 from . import maintenance_team
-from . import room_booking
-from . import room_booking_line
 from . import service_booking_line
-from . import product_template

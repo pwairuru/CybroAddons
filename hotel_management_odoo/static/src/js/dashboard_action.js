@@ -34,6 +34,15 @@ export class CustomDashBoard extends Component {
         this.total_revenue = '$ 0';
         this.today_revenue = '$ 0';
         this.pending_payment = '$ 0';
+        // ── Task 4: rack + tiles (extend, do not replace) ──
+        this.occupancy = '0%';
+        this.adr = '0';
+        this.revpar = '0';
+        this.arrivals = 0;
+        this.departures = 0;
+        this.dirty = 0;
+        this.rackDates = [];
+        this.rackRows = [];
 
         onWillStart(this.onWillStart.bind(this));
         onMounted(this.onMounted.bind(this));
@@ -73,6 +82,50 @@ export class CustomDashBoard extends Component {
                 this.pending_payment = result['pending_payment'] + ' ' + result['currency_symbol'];
             }
         }
+        // ── Task 4: tiles + rack (best-effort; dashboard stays up if endpoint missing) ──
+        try {
+            const tiles = await this.orm.call('hotel.daily.inventory', 'get_tiles', []);
+            if (tiles) {
+                this.occupancy = tiles['occupancy'] + '%';
+                const sym = tiles['currency_symbol'] || '';
+                this.adr = sym ? sym + ' ' + tiles['adr'] : String(tiles['adr']);
+                this.revpar = sym ? sym + ' ' + tiles['revpar'] : String(tiles['revpar']);
+                this.arrivals = tiles['arrivals'];
+                this.departures = tiles['departures'];
+                this.dirty = tiles['dirty'];
+            }
+        } catch (e) { /* tiles unavailable (module not upgraded?) — keep defaults */ }
+        try {
+            const rack = await this.orm.call('hotel.daily.inventory', 'get_rack', []);
+            if (rack && rack['cells']) {
+                const dates = [];
+                const seen = new Set();
+                for (const c of rack['cells']) {
+                    if (!seen.has(c['date'])) { seen.add(c['date']); dates.push(c['date']); }
+                }
+                dates.sort();
+                this.rackDates = dates;
+                // Group by room_id (stable); room_name is display-only.
+                const byRoom = {};
+                for (const c of rack['cells']) {
+                    const key = c['room_id'];
+                    (byRoom[key] = byRoom[key] || []).push(c);
+                }
+                this.rackRows = Object.keys(byRoom).map(Number).sort((a, b) => a - b).map((id) => ({
+                    room_id: id,
+                    room_name: (byRoom[id][0] && byRoom[id][0]['room_name']) || ('#' + id),
+                    cells: dates.map((d) => {
+                        const cell = byRoom[id].find((c) => c['date'] === d) || {};
+                        return {
+                            testid: 'rack-cell-' + id + '-' + d,
+                            display: cell['display'] || 'Available',
+                            cls: 'rack-cell rack-status-' + (cell['status'] || 'available'),
+                            booking_id: cell['booking_id'] || false,
+                        };
+                    }),
+                }));
+            }
+        } catch (e) { /* rack unavailable — keep empty */ }
     }
 
     // ── Navigation handlers ──
@@ -281,6 +334,77 @@ export class CustomDashBoard extends Component {
             view_mode: 'list,form',
             views: [[false, 'list'], [false, 'form']],
             domain: [['id', 'in', result]],
+            target: 'current',
+        }, options);
+    }
+
+    // ── Task 4: tile + rack drill-downs ──
+
+    _tileAction(e, opts) {
+        e.stopPropagation();
+        e.preventDefault();
+        var options = { on_reverse_breadcrum: this.on_reverse_breadcrum };
+        this.action.doAction(Object.assign({
+            type: 'ir.actions.act_window',
+            view_mode: 'list,form',
+            views: [[false, 'list'], [false, 'form']],
+            target: 'current',
+        }, opts), options);
+    }
+
+    openOccupancy(e) {
+        this._tileAction(e, {
+            name: _t("In-House Rooms"),
+            res_model: 'room.booking',
+            domain: [['state', '=', 'check_in']],
+        });
+    }
+
+    openArrivals(e) {
+        this._tileAction(e, {
+            name: _t("Today's Arrivals"),
+            res_model: 'room.booking',
+            domain: [
+                ['room_line_ids.checkin_date', '>=', formattedDate + ' 00:00:00'],
+                ['room_line_ids.checkin_date', '<=', formattedDate + ' 23:59:59'],
+            ],
+        });
+    }
+
+    openDepartures(e) {
+        this._tileAction(e, {
+            name: _t("Today's Departures"),
+            res_model: 'room.booking',
+            domain: [
+                ['room_line_ids.checkout_date', '>=', formattedDate + ' 00:00:00'],
+                ['room_line_ids.checkout_date', '<=', formattedDate + ' 23:59:59'],
+                ['state', '=', 'check_in'],
+            ],
+        });
+    }
+
+    openDirty(e) {
+        this._tileAction(e, {
+            name: _t("Dirty Rooms"),
+            res_model: 'cleaning.request',
+            domain: [['cleaning_type', '=', 'room'], ['state', '!=', 'done']],
+        });
+    }
+
+    openRackCell(e, booking_id) {
+        if (!booking_id) {
+            return;
+        }
+        e.stopPropagation();
+        e.preventDefault();
+        var options = { on_reverse_breadcrum: this.on_reverse_breadcrum };
+        this.action.doAction({
+            name: _t("Booking"),
+            type: 'ir.actions.act_window',
+            res_model: 'room.booking',
+            view_mode: 'form',
+            views: [[false, 'form']],
+            res_id: booking_id,
             target: 'current',
         }, options);
     }

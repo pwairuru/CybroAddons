@@ -10,6 +10,93 @@
     </t>
 
     <t t-name="HotelOrder">
+        <!-- ── Today at a Glance (Task 4: occupancy/ADR/RevPAR/arrivals/departures/dirty) ── -->
+        <div class="dash-section-title">Today at a Glance</div>
+        <div class="dash-grid dash-grid-tiles">
+            <div class="dash-card tile-occupancy" data-testid="tile-occupancy" t-on-click="(e) => this.openOccupancy(e)">
+                <div class="dash-icon-bubble icon-teal">
+                    <i class="oi" data-icon="bed"/>
+                </div>
+                <div class="dash-card-body">
+                    <div class="dash-count"><t t-out="this.occupancy"/></div>
+                    <div class="dash-label">Occupancy</div>
+                </div>
+            </div>
+            <div class="dash-card tile-adr" data-testid="tile-adr">
+                <div class="dash-icon-bubble icon-blue">
+                    <i class="oi" data-icon="payments"/>
+                </div>
+                <div class="dash-card-body">
+                    <div class="dash-count"><t t-out="this.adr"/></div>
+                    <div class="dash-label">ADR</div>
+                </div>
+            </div>
+            <div class="dash-card tile-revpar" data-testid="tile-revpar">
+                <div class="dash-icon-bubble icon-purple">
+                    <i class="oi" data-icon="monitoring"/>
+                </div>
+                <div class="dash-card-body">
+                    <div class="dash-count"><t t-out="this.revpar"/></div>
+                    <div class="dash-label">RevPAR</div>
+                </div>
+            </div>
+            <div class="dash-card tile-arrivals" data-testid="tile-arrivals" t-on-click="(e) => this.openArrivals(e)">
+                <div class="dash-icon-bubble icon-green">
+                    <i class="oi" data-icon="login"/>
+                </div>
+                <div class="dash-card-body">
+                    <div class="dash-count"><t t-out="this.arrivals"/></div>
+                    <div class="dash-label">Arrivals</div>
+                </div>
+            </div>
+            <div class="dash-card tile-departures" data-testid="tile-departures" t-on-click="(e) => this.openDepartures(e)">
+                <div class="dash-icon-bubble icon-orange">
+                    <i class="oi" data-icon="logout"/>
+                </div>
+                <div class="dash-card-body">
+                    <div class="dash-count"><t t-out="this.departures"/></div>
+                    <div class="dash-label">Departures</div>
+                </div>
+            </div>
+            <div class="dash-card tile-dirty" data-testid="tile-dirty" t-on-click="(e) => this.openDirty(e)">
+                <div class="dash-icon-bubble icon-red">
+                    <i class="oi" data-icon="warning"/>
+                </div>
+                <div class="dash-card-body">
+                    <div class="dash-count"><t t-out="this.dirty"/></div>
+                    <div class="dash-label">Dirty Rooms</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Room Rack (Task 4: 7-day availability tape chart) ── -->
+        <div class="dash-section-title">Room Rack</div>
+        <div class="rack-wrapper">
+            <table class="rack-table">
+                <thead>
+                    <tr>
+                        <th class="rack-room-col">Room</th>
+                        <t t-foreach="this.rackDates" t-as="d" t-key="d">
+                            <th><t t-out="d"/></th>
+                        </t>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="this.rackRows" t-as="row" t-key="row.room_id">
+                        <tr>
+                            <td class="rack-room-col"><t t-out="row.room_name"/></td>
+                            <t t-foreach="row.cells" t-as="cell" t-key="cell.testid">
+                                <td t-att-data-testid="cell.testid" t-att-class="cell.cls"
+                                    t-on-click="(e) => this.openRackCell(e, cell.booking_id)">
+                                    <t t-out="cell.display"/>
+                                </td>
+                            </t>
+                        </tr>
+                    </t>
+                </tbody>
+            </table>
+        </div>
+
         <!-- ── Rooms Section ── -->
         <div class="dash-section-title">Rooms</div>
         <div class="dash-grid">

@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Task 10: service-ops views. Operational under Housekeeping. -->
+    <record id="hotel_linen_type_view_list" model="ir.ui.view">
+        <field name="name">hotel.linen.type.view.list</field>
+        <field name="model">hotel.linen.type</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_linen_type_view_form" model="ir.ui.view">
+        <field name="name">hotel.linen.type.view.form</field>
+        <field name="model">hotel.linen.type</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="company_id"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="hotel_linen_move_view_list" model="ir.ui.view">
+        <field name="name">hotel.linen.move.view.list</field>
+        <field name="model">hotel.linen.move</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="linen_type_id"/>
+                <field name="room_id"/>
+                <field name="qty"/>
+                <field name="direction"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_linen_move_view_form" model="ir.ui.view">
+        <field name="name">hotel.linen.move.view.form</field>
+        <field name="model">hotel.linen.move</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_issue" string="Issue" type="object"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                    <button name="action_return" string="Return" type="object"
+                            invisible="state not in ['draft', 'done']" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="linen_type_id"/>
+                        <field name="room_id"/>
+                        <field name="qty"/>
+                        <field name="direction"/>
+                        <field name="state"/>
+                        <field name="company_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="hotel_lost_found_view_list" model="ir.ui.view">
+        <field name="name">hotel.lost.found.view.list</field>
+        <field name="model">hotel.lost.found</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="room_id"/>
+                <field name="state"/>
+                <field name="found_date"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_lost_found_view_form" model="ir.ui.view">
+        <field name="name">hotel.lost.found.view.form</field>
+        <field name="model">hotel.lost.found</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_claim" string="Claim" type="object"
+                            invisible="state != 'found'" class="btn-primary"/>
+                    <button name="action_return" string="Return to Guest" type="object"
+                            invisible="state != 'claimed'" class="btn-primary"/>
+                    <button name="action_dispose" string="Dispose" type="object"
+                            invisible="state not in ['found', 'claimed']"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="room_id"/>
+                        <field name="partner_id"/>
+                        <field name="found_date"/>
+                        <field name="state"/>
+                        <field name="company_id"/>
+                    </group>
+                    <field name="description"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="hotel_complaint_view_list" model="ir.ui.view">
+        <field name="name">hotel.complaint.view.list</field>
+        <field name="model">hotel.complaint</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="sla_breach">
+                <field name="name"/>
+                <field name="room_id"/>
+                <field name="priority"/>
+                <field name="state"/>
+                <field name="sla_breach"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_complaint_view_form" model="ir.ui.view">
+        <field name="name">hotel.complaint.view.form</field>
+        <field name="model">hotel.complaint</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_start" string="Start" type="object"
+                            invisible="state != 'open'" class="btn-primary"/>
+                    <button name="action_resolve" string="Resolve" type="object"
+                            invisible="state not in ['open', 'in_progress']" class="btn-primary"/>
+                    <button name="action_close" string="Close" type="object"
+                            invisible="state != 'resolved'"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="partner_id"/>
+                        <field name="room_id"/>
+                        <field name="priority"/>
+                        <field name="sla_deadline"/>
+                        <field name="sla_breach"/>
+                        <field name="state"/>
+                        <field name="company_id"/>
+                    </group>
+                    <field name="description"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="hotel_wakeup_view_list" model="ir.ui.view">
+        <field name="name">hotel.wakeup.call.view.list</field>
+        <field name="model">hotel.wakeup.call</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="room_id"/>
+                <field name="wake_time"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_wakeup_view_form" model="ir.ui.view">
+        <field name="name">hotel.wakeup.call.view.form</field>
+        <field name="model">hotel.wakeup.call</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_done" string="Done" type="object"
+                            invisible="state != 'scheduled'" class="btn-primary"/>
+                    <button name="action_cancel" string="Cancel" type="object"
+                            invisible="state != 'scheduled'"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="room_id"/>
+                        <field name="partner_id"/>
+                        <field name="wake_time"/>
+                        <field name="state"/>
+                        <field name="company_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="hotel_roster_view_list" model="ir.ui.view">
+        <field name="name">hotel.staff.roster.view.list</field>
+        <field name="model">hotel.staff.roster</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="roster_date"/>
+                <field name="shift"/>
+                <field name="user_id"/>
+                <field name="team_id"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_roster_view_form" model="ir.ui.view">
+        <field name="name">hotel.staff.roster.view.form</field>
+        <field name="model">hotel.staff.roster</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="roster_date"/>
+                        <field name="shift"/>
+                        <field name="user_id"/>
+                        <field name="team_id"/>
+                        <field name="company_id"/>
+                    </group>
+                    <field name="notes"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="hotel_handover_view_list" model="ir.ui.view">
+        <field name="name">hotel.shift.handover.view.list</field>
+        <field name="model">hotel.shift.handover</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="roster_id"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_handover_view_form" model="ir.ui.view">
+        <field name="name">hotel.shift.handover.view.form</field>
+        <field name="model">hotel.shift.handover</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm" string="Confirm" type="object"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="roster_id"/>
+                        <field name="state"/>
+                        <field name="company_id"/>
+                    </group>
+                    <field name="notes"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="hotel_asset_view_list" model="ir.ui.view">
+        <field name="name">hotel.asset.view.list</field>
+        <field name="model">hotel.asset</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="qr_code"/>
+                <field name="room_id"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="hotel_asset_view_form" model="ir.ui.view">
+        <field name="name">hotel.asset.view.form</field>
+        <field name="model">hotel.asset</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_send_maintenance" string="To Maintenance" type="object"
+                            invisible="state not in ['available', 'in_use']"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="qr_code"/>
+                        <field name="room_id"/>
+                        <field name="state"/>
+                        <field name="company_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Operational actions under Housekeeping parent -->
+    <record id="hotel_linen_move_action" model="ir.actions.act_window">
+        <field name="name">Linen</field>
+        <field name="res_model">hotel.linen.move</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="hotel_lost_found_action" model="ir.actions.act_window">
+        <field name="name">Lost and Found</field>
+        <field name="res_model">hotel.lost.found</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="hotel_complaint_action" model="ir.actions.act_window">
+        <field name="name">Complaints</field>
+        <field name="res_model">hotel.complaint</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="hotel_wakeup_action" model="ir.actions.act_window">
+        <field name="name">Wake-up Calls</field>
+        <field name="res_model">hotel.wakeup.call</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="hotel_roster_action" model="ir.actions.act_window">
+        <field name="name">Rosters</field>
+        <field name="res_model">hotel.staff.roster</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="hotel_asset_action" model="ir.actions.act_window">
+        <field name="name">Assets</field>
+        <field name="res_model">hotel.asset</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Task 11: operational menus under Housekeeping -->
+    <menuitem id="hotel_linen_move_menu" name="Linen" sequence="20"
+              parent="hotel_housekeeping_menu"
+              action="hotel_linen_move_action"/>
+    <menuitem id="hotel_lost_found_menu" name="Lost and Found" sequence="30"
+              parent="hotel_housekeeping_menu"
+              action="hotel_lost_found_action"/>
+    <menuitem id="hotel_complaint_menu" name="Complaints" sequence="40"
+              parent="hotel_housekeeping_menu"
+              action="hotel_complaint_action"/>
+    <menuitem id="hotel_wakeup_menu" name="Wake-up Calls" sequence="50"
+              parent="hotel_housekeeping_menu"
+              action="hotel_wakeup_action"/>
+    <menuitem id="hotel_roster_menu" name="Rosters" sequence="60"
+              parent="hotel_housekeeping_menu"
+              action="hotel_roster_action"/>
+    <menuitem id="hotel_asset_menu" name="Assets" sequence="70"
+              parent="hotel_housekeeping_menu"
+              action="hotel_asset_action"/>
+
+    <!-- Task 11: linen-type master lives under Configuration -->
+    <record id="hotel_linen_type_action" model="ir.actions.act_window">
+        <field name="name">Linen Types</field>
+        <field name="res_model">hotel.linen.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="hotel_linen_type_menu" name="Linen Types" sequence="43"
+              parent="hotel_config_menu"
+              action="hotel_linen_type_action"/>
+</odoo>

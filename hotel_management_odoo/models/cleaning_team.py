@@ -29,6 +29,10 @@ class CleaningTeam(models.Model):
     _description = "Cleaning Team"
 
     name = fields.Char(string="Team Name", help="Name of the Team")
+    company_id = fields.Many2one('res.company', string="Company",
+                                 index=True,
+                                 default=lambda self: self.env.company,
+                                 help="Property this team belongs to")
     team_head_id = fields.Many2one('res.users', string="Team Head",
                                    help="Choose the Team Head",
                                    domain=lambda self: [
@@ -44,3 +48,11 @@ class CleaningTeam(models.Model):
                                       ('group_ids', 'in', self.env.ref(
                                           'hotel_management_odoo.'
                                           'cleaning_team_group_user').id)])
+    # Task 10 glue: roster coverage + active flag. No hr.employee link.
+    area = fields.Char(string="Coverage Area",
+                       help="Floors or zones this team covers")
+    max_rooms_per_day = fields.Integer(string="Max Rooms / Day", default=12,
+                                       help="Roster capacity guard")
+    roster_ids = fields.One2many('hotel.staff.roster', 'team_id',
+                                 string="Rosters")
+    active = fields.Boolean(default=True)

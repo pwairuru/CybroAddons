@@ -5,19 +5,40 @@
               name="Hotel Management"
               web_icon="hotel_management_odoo,static/description/icon.png"
               sequence="-20"/>
-    <!--    Configuration menu-->
+    <!--    Configuration menu: managers + admins ONLY (Task 11).
+            Reception/housekeeping/cashier/auditor never see masters.-->
     <menuitem id="hotel_config_menu"
               name="Configuration"
               sequence="50"
+              groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               parent="hotel_management_menu_root"/>
-    <!--    Food menu-->
+    <!--    Operational parents (Task 11): only these sit at root next to
+            Dashboard / Reservation / Folios / Conferences.
+            Rack action is attached in room_booking_views.xml (same ID update:
+            menuitems cannot forward-reference actions on fresh install).-->
+    <menuitem id="hotel_rack_menu"
+              name="Rack"
+              sequence="2"
+              parent="hotel_management_menu_root"/>
+    <menuitem id="hotel_housekeeping_menu"
+              name="Housekeeping"
+              sequence="13"
+              parent="hotel_management_menu_root"/>
+    <menuitem id="hotel_cashier_menu"
+              name="Cashier"
+              sequence="14"
+              parent="hotel_management_menu_root"/>
+    <menuitem id="hotel_audit_menu"
+              name="Audit"
+              sequence="15"
+              parent="hotel_management_menu_root"/>
+    <!--    Food / Vehicle masters live under Configuration (Task 11)-->
     <menuitem id="food_menu"
               name="Food"
               sequence="20"
-              parent="hotel_management_menu_root"/>
-    <!--    Fleet menu-->
+              parent="hotel_config_menu"/>
     <menuitem id="fleet_vehicle_menu"
               name="Vehicle"
               sequence="30"
-              parent="hotel_management_menu_root"/>
+              parent="hotel_config_menu"/>
 </odoo>
