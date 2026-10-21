@@ -40,6 +40,7 @@ class KitchenScreenDashboard extends Component {
             order_details: [],
             shop_id: this.currentShopId,
             kitchens: [],
+            dark: localStorage.getItem('kitchen_dark') === '1',
             stages: 'draft',
             draft_count: 0,
             waiting_count: 0,
@@ -350,6 +351,11 @@ class KitchenScreenDashboard extends Component {
 
     forceRefresh() {
         this.loadOrders();
+    }
+
+    toggleDark() {
+        this.state.dark = !this.state.dark;
+        localStorage.setItem('kitchen_dark', this.state.dark ? '1' : '0');
     }
 
     goBack() {

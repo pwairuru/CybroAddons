@@ -708,3 +708,31 @@ padding-top:8px;
     background-color: #FA3E3E;
     color:white !important;
 }
+/* Dark theme (toggled per device, persisted in localStorage).
+   Scoped to #kitchen_screen so nothing leaks into the backend. */
+#kitchen_screen.kitchen-dark .body_wrapper {
+    background-color: #121417;
+    color: #e8eaed;
+}
+#kitchen_screen.kitchen-dark .top_bar {
+    background-color: #1e2126;
+}
+#kitchen_screen.kitchen-dark .top_bar ul li a span {
+    color: #e8eaed;
+}
+#kitchen_screen.kitchen-dark .screen_info .wrapper .card {
+    background-color: #1e2126;
+    color: #e8eaed;
+    border-color: #33373d;
+}
+#kitchen_screen.kitchen-dark .card .list-group .list-group-item {
+    background-color: #1e2126;
+    color: #e8eaed;
+    border-color: #33373d;
+}
+#kitchen_screen.kitchen-dark .text-muted {
+    color: #9aa0a6 !important;
+}
+#kitchen_screen.kitchen-dark .bg_grey {
+    background-color: #2a2e34 !important;
+}
