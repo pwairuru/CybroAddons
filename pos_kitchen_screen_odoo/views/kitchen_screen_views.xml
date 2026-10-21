@@ -75,9 +75,11 @@
                                 <div class="text-muted">
                                     <div>
                                         <field name="shop_number" invisible="1"/>
-                                        <button name="action_open_kitchen_screen"
-                                                type="object"
+                                        <button name="%(kitchen_custom_dashboard_action)d"
+                                                type="action"
+                                                context="{'shop_id': shop_number}"
                                                 string="Kitchen Screen"
+                                                target="new"
                                                 class="btn-primary kitchen_screen1"
                                                 help="Got To the Kitchen Screen"/>
                                         <br/>
@@ -104,8 +106,9 @@
                 <field name="ready_count"/>
                 <field name="completed_count"/>
                 <field name="shop_number" column_invisible="1"/>
-                <button name="action_open_kitchen_screen"
-                        type="object"
+                <button name="%(kitchen_custom_dashboard_action)d"
+                        type="action"
+                        context="{'shop_id': shop_number}"
                         string="Open Screen"
                         class="btn-primary"
                         help="Open the kitchen screen dashboard"/>
@@ -159,8 +162,9 @@
                                     <field name="pos_categ_ids" widget="many2many_tags"/>
                                 </div>
                                 <div class="mt-auto pt-2">
-                                    <button name="action_open_kitchen_screen"
-                                            type="object"
+                                    <button name="%(kitchen_custom_dashboard_action)d"
+                                            type="action"
+                                            context="{'shop_id': shop_number}"
                                             string="Open Screen"
                                             class="btn btn-primary"
                                             help="Open the kitchen screen dashboard"/>

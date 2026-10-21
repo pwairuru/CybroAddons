@@ -11,6 +11,15 @@
                                     t-on-click="() => this.goBack()">
                                 ← Back
                             </button>
+                            <div t-if="!this.state.shop_id" class="d-flex align-items-center gap-2 ms-2">
+                                <span class="text-muted">Select kitchen:</span>
+                                <t t-foreach="this.state.kitchens" t-as="k" t-key="k.id">
+                                    <button class="btn btn-sm btn-primary"
+                                            t-on-click="() => this.pickShop(k.pos_config_id[0])">
+                                        <t t-esc="k.pos_config_id[1]"/>
+                                    </button>
+                                </t>
+                            </div>
                         </div>
                         <div class="top_bar">
                             <ul>

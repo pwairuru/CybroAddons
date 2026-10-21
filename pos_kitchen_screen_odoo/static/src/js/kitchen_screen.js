@@ -39,6 +39,7 @@ class KitchenScreenDashboard extends Component {
         this.state = proxy({
             order_details: [],
             shop_id: this.currentShopId,
+            kitchens: [],
             stages: 'draft',
             draft_count: 0,
             waiting_count: 0,
@@ -50,9 +51,17 @@ class KitchenScreenDashboard extends Component {
         });
 
         // Component lifecycle
-        onMounted(() => {
-            this.busService.addChannel(this.channel);
-            this.busService.subscribe('notification', this.onPosOrderCreation);
+        onMounted(async () => {
+            const resolved = await this.resolveShop();
+            if (resolved) {
+                this.currentShopId = resolved;
+                this.state.shop_id = resolved;
+            }
+            if (this.currentShopId) {
+                this.channel = `pos_order_created_${this.currentShopId}`;
+                this.busService.addChannel(this.channel);
+                this.busService.subscribe('notification', this.onPosOrderCreation);
+            }
             this.loadOrders();
 
             this.autoRefreshInterval = setInterval(() => {
@@ -75,9 +84,14 @@ class KitchenScreenDashboard extends Component {
 
     getCurrentShopId() {
         let session_shop_id;
-        if (this.props?.action?.context?.default_shop_id) {
-            sessionStorage.setItem('shop_id', this.props.action.context.default_shop_id);
-            session_shop_id = this.props.action.context.default_shop_id;
+        // NOTE: read shop_id first. default_* keys are stripped by
+        // doActionButton when a type=object button returns an action,
+        // so context must travel in the button's own context instead
+        // (see the type=action buttons in the views).
+        const ctx = this.props?.action?.context || {};
+        if (ctx.shop_id || ctx.default_shop_id) {
+            session_shop_id = ctx.shop_id || ctx.default_shop_id;
+            sessionStorage.setItem('shop_id', session_shop_id);
         } else {
             session_shop_id = sessionStorage.getItem('shop_id');
         }
@@ -293,6 +307,45 @@ class KitchenScreenDashboard extends Component {
             const stageMatch = order.order_status === this.state.stages;
             return configMatch && stageMatch && order.order_status !== 'cancel';
         });
+    }
+
+    async resolveShop() {
+        // Context keys do not reliably survive the action pipeline
+        // (doActionButton strips default_*, and returned/embedded
+        // contexts get lost), so fall back to the kitchens themselves:
+        // exactly one kitchen -> use it, several -> let user pick.
+        const fromCtx = this.getCurrentShopId();
+        if (fromCtx) {
+            return fromCtx;
+        }
+        let kitchens = [];
+        try {
+            kitchens = await this.orm.searchRead('kitchen.screen', [], ['pos_config_id']) || [];
+        } catch (error) {
+            console.error('Error resolving kitchen shop:', error);
+        }
+        if (kitchens.length === 1 && kitchens[0].pos_config_id) {
+            const shopId = kitchens[0].pos_config_id[0];
+            sessionStorage.setItem('shop_id', shopId);
+            return shopId;
+        }
+        this.state.kitchens = kitchens;
+        return 0;
+    }
+
+    async pickShop(shopId) {
+        if (this.channel) {
+            this.busService.deleteChannel(this.channel);
+            this.busService.unsubscribe('notification', this.onPosOrderCreation);
+        }
+        this.currentShopId = shopId;
+        this.state.shop_id = shopId;
+        this.state.kitchens = [];
+        sessionStorage.setItem('shop_id', shopId);
+        this.channel = `pos_order_created_${shopId}`;
+        this.busService.addChannel(this.channel);
+        this.busService.subscribe('notification', this.onPosOrderCreation);
+        await this.loadOrders();
     }
 
     forceRefresh() {

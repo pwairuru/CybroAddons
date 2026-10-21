@@ -109,21 +109,6 @@ class KitchenScreen(models.Model):
             rec.completed_count = Order.search_count(
                 base + [('order_status', '=', 'ready')])
 
-    def action_open_kitchen_screen(self):
-        """Open the kitchen dashboard for this record.
-
-        Single entry point used by the kanban card, list and form
-        buttons so every view passes the right shop without fragile
-        per-view context expressions.
-        """
-        self.ensure_one()
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'kitchen_custom_dashboard_tags',
-            'target': 'fullscreen',
-            'context': {'default_shop_id': self.shop_number},
-        }
-
     @api.model_create_multi
     def create(self, vals_list):
         """Used to create sequence"""
