@@ -298,6 +298,10 @@ class KitchenScreenDashboard extends Component {
     forceRefresh() {
         this.loadOrders();
     }
+
+    goBack() {
+        this.action.doAction('pos_kitchen_screen_odoo.kitchen_screen_action');
+    }
 }
 
 KitchenScreenDashboard.template = 'KitchenCustomDashBoard';
