@@ -45,3 +45,14 @@ class ProductProduct(models.Model):
                 self.prepair_time_minutes = minutes + (seconds / 60.0)
             except (ValueError, AttributeError):
                 raise ValidationError("Invalid time format. Please use MM:SS (e.g., 20:12)")
+
+
+class ProductTemplate(models.Model):
+    _inherit = 'product.template'
+
+    prepair_time_minutes = fields.Float(
+        string='Preparation Time (MM:SS)',
+        digits=(12, 2),
+        help="Default preparation time for all variants (MM:SS, e.g. 20:12). "
+             "A value set on a variant overrides this."
+    )

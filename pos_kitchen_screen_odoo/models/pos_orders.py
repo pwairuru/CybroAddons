@@ -60,8 +60,10 @@ class PosOrder(models.Model):
 
                     if product_id:
                         product = self.env['product.product'].browse(product_id)
-                        if product.prepair_time_minutes:
-                            total_prepare_time += product.prepair_time_minutes * qty
+                        prep_time = (product.prepair_time_minutes
+                                     or product.product_tmpl_id.prepair_time_minutes)
+                        if prep_time:
+                            total_prepare_time += prep_time * qty
 
                 vals['avg_prepare_time'] = total_prepare_time
             existing_order = self.search(
