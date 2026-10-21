@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import timedelta
+from datetime import date, timedelta
 
 from odoo import fields
 from odoo.exceptions import ValidationError
@@ -32,7 +32,10 @@ class TestNightAudit(TransactionCase):
             'list_price': 10000.0,
         })
         self.room_product = self.room_template.product_variant_id
-        self.audit_date = '2026-10-19'
+        # Relative to today: fixtures span yesterday→tomorrow, so the
+        # audit date (yesterday) is always covered. A fixed date rots
+        # as soon as "now" moves past it (broke 2026-10-21).
+        self.audit_date = (date.today() - timedelta(days=1)).isoformat()
 
     def _make_booking(self, state='check_in', checkin_days=-1,
                       checkout_days=1):
