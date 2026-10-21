@@ -736,3 +736,11 @@ padding-top:8px;
 #kitchen_screen.kitchen-dark .bg_grey {
     background-color: #2a2e34 !important;
 }
+#kitchen_screen.kitchen-dark .btn-outline-secondary {
+    color: #e8eaed;
+    border-color: #6c757d;
+}
+#kitchen_screen.kitchen-dark .btn-outline-secondary:hover {
+    background-color: #343a40;
+    color: #fff;
+}
