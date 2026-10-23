@@ -1,0 +1,11 @@
+/* Two-row control buttons: the bar holds Customer + Room + Note +
+   Preset + Save + More, which compresses to unreadable width on a
+   single flex row. Wrap into two rows with even basis. */
+.product-screen .pads .control-buttons {
+    flex-wrap: wrap !important;
+}
+
+.product-screen .pads .control-buttons > button {
+    flex: 1 1 30%;
+    min-width: 30%;
+}

@@ -14,6 +14,7 @@ patch(ProductScreen.prototype, {
         this.pos = usePos();
         this.dialog = useService("dialog");
         this.orm = useService("orm");
+        this.ui = useService("ui");
     },
 
     get currentBookingName() {
