@@ -1,31 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Popup for selecting a room booking and viewing its details -->
+<!-- Room picker styled like core PartnerList (Choose Customer dialog):
+     header with search, table rows for Room / Booking / Customer,
+     footer with Discard + Confirm. -->
 <templates id="template" xml:space="preserve">
     <t t-name="hotel_pos_extension.HotelRoomPopup">
-        <!-- 20.0 port: bare `props` is not in scope in Owl 3 templates;
-             use this.props like core popups do. -->
-        <Dialog title="this.props.title" size="'md'">
-            <div class="row">
-                <span class="label">Room No</span>
-                <select class="form-control" t-on-change="onBookingChange">
-                    <t t-foreach="this.props.bookings" t-as="booking" t-key="booking.id">
-                        <option t-att-value="booking.id">
-                            <t t-esc="booking.name"/>
-                        </option>
-                    </t>
-                </select>
-            </div>
-            <div class="row mt-2">
-                <span class="label">Booking No</span>
-                <input type="text" class="form-control" t-att-value="this.state.selectedBooking ? this.state.selectedBooking.name : ''" readonly="1"/>
-            </div>
-            <div class="row mt-2">
-                <span class="label">Booking Customer</span>
-                <input type="text" class="form-control" t-att-value="this.state.selectedBooking ? this.state.selectedBooking.partner_id[1] : ''" readonly="1"/>
+        <Dialog bodyClass="'partner-list hotel-room-list'" contentClass="'h-100'">
+            <t t-set-slot="header">
+                <h4 class="modal-title fs-4" t-esc="this.props.title || 'Choose Room'"/>
+                <Input tModel="[this.state, 'query']"
+                    class="'ms-auto'"
+                    isSmall="this.ui.isSmall"
+                    placeholder.translate="Search Rooms..."
+                    icon="'search'"
+                    autofocus="true"
+                    debounceMillis="300"/>
+            </t>
+            <div class="h-100" t-att-class="{'d-flex justify-content-center align-items-center text-center': !this.filteredBookings.length}">
+                <table t-if="this.filteredBookings.length" class="table table-hover">
+                    <tbody class="h-100">
+                        <t t-foreach="this.filteredBookings" t-as="booking" t-key="booking.id">
+                            <tr class="partner-line partner-info" role="button"
+                                t-att-class="{'selected': this.state.selectedBooking and this.state.selectedBooking.id === booking.id}"
+                                t-att-data-id="booking.id"
+                                t-on-click="() => this.clickBooking(booking)">
+                                <td class="text-break w-25">
+                                    <b t-esc="booking.name or ''"/>
+                                </td>
+                                <td class="text-break w-25">
+                                    <div class="partner-line-adress" t-esc="booking.name or ''"/>
+                                </td>
+                                <td class="partner-line-email w-100">
+                                    <div t-if="booking.partner_id">
+                                        <t t-esc="booking.partner_id[1]"/>
+                                    </div>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+                <div t-else="" t-att-class="{'p-4': this.ui.isSmall}">
+                    <div class="text-muted">
+                        <i class="oi oi-filled oi-3x" data-icon="group"></i>
+                        <p class="mt-3 fs-4 text-dark">No rooms found.</p>
+                    </div>
+                </div>
             </div>
             <t t-set-slot="footer">
-                <button class="btn btn-secondary" t-on-click="cancel">Close</button>
-                <button class="btn btn-primary" t-on-click="confirm">Confirm</button>
+                <div class="d-flex flex-row gap-2 w-100">
+                    <button class="btn btn-secondary flex-fill" t-on-click="() => this.cancel()">Discard</button>
+                    <button class="btn btn-primary flex-fill" t-on-click="() => this.confirm()">Confirm</button>
+                </div>
             </t>
         </Dialog>
     </t>

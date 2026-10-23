@@ -14,6 +14,7 @@ patch(ProductScreen.prototype, {
         this.pos = usePos();
         this.dialog = useService("dialog");
         this.orm = useService("orm");
+        this.ui = useService("ui");
     },
 
     get currentBookingName() {
@@ -44,9 +45,28 @@ patch(ProductScreen.prototype, {
             const order = this.pos.getOrder();
             order?.setBooking(selectedBooking);
             if (selectedBooking.partner_id) {
-                const partner = this.pos.models["res.partner"].get(selectedBooking.partner_id[0]);
+                const partnerId = selectedBooking.partner_id[0];
+                // POS only preloads a limited partner set: the booking
+                // customer is often absent from the frontend cache, which
+                // used to skip setPartner silently and break Pay at
+                // Checkout later ("Customer Required" despite a room).
+                // Load the record on demand so room always carries customer.
+                let partner = this.pos.models["res.partner"].get(partnerId);
+                if (!partner) {
+                    try {
+                        const loaded = await this.pos.data.read("res.partner", [partnerId]);
+                        partner = loaded?.[0] || this.pos.models["res.partner"].get(partnerId);
+                    } catch {
+                        partner = null;
+                    }
+                }
                 if (partner) {
                     order.setPartner(partner);
+                } else {
+                    this.env.services.notification.add(
+                        _t("Room selected, but its customer could not be loaded. Please select the customer manually."),
+                        { type: "warning" }
+                    );
                 }
             }
         }

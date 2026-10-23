@@ -1,22 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adds a room selection button to the POS product screen -->
+<!-- Room button mirrors core SelectPartnerButton so the two sit
+     side-by-side with identical sizing, truncation and active state -->
 <templates id="template" xml:space="preserve">
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('control-buttons')]" position="inside">
-            <!-- Short "Room" label: the control-buttons bar is crowded and
-                 longer text truncates to unreadable width. Full booking
-                 name stays visible via title tooltip. -->
-            <button class="room-selection-button btn btn-secondary btn-lg lh-lg text-truncate w-auto" t-on-click="() => this.onClickAddRoom()" t-att-title="currentBookingName || 'Room'">
-                <!-- 20.0 port: no FontAwesome in POS (fa-bed renders blank);
-                     no _t() in getter (lazy string races translations and
-                     renders empty). Static template text follows the same
-                     translation path as core control buttons. -->
-                <t t-if="currentBookingName">
-                    <t t-esc="currentBookingName"/>
-                </t>
-                <t t-else="">
-                    Room
-                </t>
+            <button class="set-partner room-selection-button btn btn-lg lh-lg"
+                t-on-click="() => this.onClickAddRoom()"
+                t-att-title="currentBookingName || 'Room'"
+                t-attf-class="
+                    {{this.ui.isSmall and this.currentBookingName ? 'btn-outline-secondary active text-action' : 'btn-secondary'}}
+                    {{!this.ui.isSmall and 'text-truncate'}}
+                ">
+                <t t-if="this.ui.isSmall"><i class="oi oi-filled w-100" data-icon="person"/></t>
+                <div t-elif="currentBookingName" t-esc="currentBookingName" class="text-truncate text-action"/>
+                <t t-else="">Room</t>
             </button>
         </xpath>
     </t>
