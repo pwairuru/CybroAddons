@@ -22,4 +22,6 @@
 from . import room_booking_detail
 from . import sale_order_detail
 from . import compute_bill
+from . import hotel_post_stay
+from . import hotel_folio_split
 from . import hotel_report_pack

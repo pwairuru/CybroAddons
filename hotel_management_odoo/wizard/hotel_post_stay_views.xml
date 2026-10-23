@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hotel_post_stay_action" model="ir.actions.act_window">
+        <field name="name">Post Stay</field>
+        <field name="res_model">hotel.post.stay</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="view_hotel_post_stay_form" model="ir.ui.view">
+        <field name="name">hotel.post.stay.form</field>
+        <field name="model">hotel.post.stay</field>
+        <field name="arch" type="xml">
+            <form string="Post Stay">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="booking_id"
+                                   options="{'no_open': True, 'no_create': True}"/>
+                            <field name="booking_line_id"
+                                   options="{'no_open': True, 'no_create': True}"/>
+                            <field name="folio_id"
+                                   options="{'no_open': True, 'no_create': True}"/>
+                            <field name="room_template_id"
+                                   options="{'no_open': True, 'no_create': True}"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="plan_id"
+                                   options="{'no_open': True, 'no_create': True}"/>
+                            <field name="adults"/>
+                            <field name="children"/>
+                            <field name="toddlers"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_post" string="Post" type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

@@ -29,7 +29,12 @@ class TestCashier(TransactionCase):
         self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 3000.0})
         move = folio.action_settle()
-        assert move.amount_total == folio.total - 3000.0
+        # Folio unification: invoice posts gross (no negative revenue
+        # line); deposits reverse via liability and reduce balance due.
+        assert move.amount_total == folio.total
+        neg = move.invoice_line_ids.filtered(
+            lambda l: l.price_unit < 0)
+        assert not neg, "deposits must not post as negative revenue"
         assert folio.amount_due == 0.0, "settled folio owes nothing"
         assert folio.deposit_total == 3000.0, "consumed deposits stay applied"
 

@@ -24,6 +24,7 @@ from . import room_booking_line
 from . import product_template
 from . import account_move
 from . import account_move_line
+from . import account_payment_method
 from . import cleaning_request
 from . import cleaning_team
 from . import event_booking_line
@@ -41,9 +42,12 @@ from . import hotel_folio
 from . import hotel_guest
 from . import hotel_rack
 from . import hotel_rate
+from . import hotel_rate_occupancy
+from . import hotel_room_type
 from . import hotel_rooming
 from . import hotel_service
 from . import hotel_service_ops
 from . import maintenance_request
 from . import maintenance_team
+from . import res_company
 from . import service_booking_line

@@ -33,9 +33,10 @@ HK_TASKS = [('departure', 'Departure Clean'), ('stayover', 'Stayover'),
 class CleaningRequest(models.Model):
     """Class for creating and assigning Cleaning Request"""
     _name = "cleaning.request"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "avatar.mixin"]
     _rec_name = "sequence"
     _description = "Cleaning Request"
+    _avatar_name_field = "sequence"
 
     sequence = fields.Char(string="Sequence", readonly=True, default='New',
                            copy=False, tracking=True,

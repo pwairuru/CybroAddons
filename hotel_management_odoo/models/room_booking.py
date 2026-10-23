@@ -29,7 +29,7 @@ class RoomBooking(models.Model):
      to booking"""
     _name = "room.booking"
     _description = "Hotel Room Reservation"
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'avatar.mixin']
 
     name = fields.Char(string="Folio Number", readonly=True, index=True,
                        default="New", help="Name of Folio")
@@ -58,9 +58,10 @@ class RoomBooking(models.Model):
                                                    "once")
     checkin_date = fields.Datetime(string="Check In",
                                     help="Date of Checkin",
-                                    default=fields.Datetime.now)
+                                    default=fields.Datetime.now,
+                                    tracking=True)
     checkout_date = fields.Datetime(
-        string="Check Out", help="Date of Checkout",
+        string="Check Out", help="Date of Checkout", tracking=True,
         default=lambda self: fields.Datetime.now() + timedelta(
             hours=23, minutes=59, seconds=59))
     actual_checkout_date = fields.Datetime(
@@ -79,7 +80,7 @@ class RoomBooking(models.Model):
                                          "or check-out time.", tracking=True)
     duration = fields.Integer(string="Duration in Days",
                                compute='_compute_duration', store=True,
-                               readonly=True,
+                               readonly=True, tracking=True,
                                help="Nights between check-in and check-out.")
     invoice_button_visible = fields.Boolean(string='Invoice Button Display',
                                             help="Invoice button will be "
@@ -338,11 +339,49 @@ class RoomBooking(models.Model):
                     ['invoice', 'contact']).get('invoice')
             order.invoice_address_id = address or order.partner_id
 
+    def _folio_domain(self):
+        self.ensure_one()
+        folios = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id)])
+        return folios
+
+    def _ensure_folio(self):
+        """Find-or-create the open folio for this booking (room scope).
+
+        Copies partner, company and hotel_policy (policy_snapshot) so the
+        statement banner stays frozen even if the booking policy changes.
+        """
+        self.ensure_one()
+        folio = self.env['hotel.folio'].search([
+            ('booking_id', '=', self.id),
+            ('state', '=', 'open'),
+        ], limit=1)
+        if folio:
+            return folio
+        folio = self.env['hotel.folio'].create({
+            'partner_id': self.partner_id.id,
+            'booking_id': self.id,
+            'company_id': self.company_id.id,
+            'policy_snapshot': self.hotel_policy or False,
+        })
+        self.message_post(
+            body="Folio %s created (policy %s)."
+            % (folio.id, folio.policy_snapshot or '-'))
+        return folio
+
     def _compute_invoice_count(self):
-        """Compute the invoice count via the booking link."""
+        """Compute the invoice count via booking + folio links."""
         for record in self:
+            folio_ids = self.env['hotel.folio'].search(
+                [('booking_id', '=', record.id)]).ids
+            domain = ['|', ('hotel_booking_id', '=', record.id)]
+            if folio_ids:
+                domain = ['|', ('hotel_booking_id', '=', record.id),
+                          ('hotel_folio_id', 'in', folio_ids)]
+            else:
+                domain = [('hotel_booking_id', '=', record.id)]
             record.invoice_count = self.env['account.move'].search_count(
-                [('hotel_booking_id', '=', record.id)])
+                domain)
 
     @api.depends('partner_id', 'company_id')
     def _compute_pricelist_id(self):
@@ -670,6 +709,7 @@ class RoomBooking(models.Model):
             record._hold_rooms('reserved')
             record.with_context(hotel_allow_state_write=True).write(
                 {"state": "reserved"})
+            record._ensure_folio()
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -686,6 +726,38 @@ class RoomBooking(models.Model):
         """
         for record in self:
             record._check_transition('cancel')
+            folios = self.env['hotel.folio'].search(
+                [('booking_id', '=', record.id)])
+            open_folios = folios.filtered(lambda f: f.state == 'open')
+            if open_folios.mapped('deposit_ids').filtered(
+                    lambda d: d.state in ('draft', 'applied')):
+                raise ValidationError(
+                    _("Cannot cancel booking %s: its folio holds "
+                      "deposits; refund or settle them first.")
+                    % record.name)
+            if folio_ids := folios.ids:
+                domain = ['|', ('hotel_booking_id', '=', record.id),
+                          ('hotel_folio_id', 'in', folio_ids)]
+            else:
+                domain = [('hotel_booking_id', '=', record.id)]
+            posted = self.env['account.move'].search(
+                domain).filtered(lambda m: m.state == 'posted')
+            if posted:
+                raise ValidationError(
+                    _("Cannot cancel booking %s: posted invoices exist "
+                      "(%s).") % (record.name, ', '.join(
+                          posted.mapped(lambda m: m.name or 'Draft'))))
+            for folio in open_folios:
+                folio_posted = self.env['account.move'].search_count([
+                    ('hotel_folio_id', '=', folio.id),
+                    ('state', '=', 'posted'),
+                ])
+                if folio.state != 'open' or folio_posted:
+                    raise ValidationError(
+                        _("Cannot cancel booking %s: folio %s is not "
+                          "voidable (posted invoices exist).")
+                        % (record.name, folio.id))
+                folio.action_void()
             record._release_rooms()
             record.with_context(hotel_allow_state_write=True).write(
                 {"state": "cancel"})
@@ -730,8 +802,15 @@ class RoomBooking(models.Model):
         """Button action_confirm function"""
         for record in self:
             record._check_transition('done')
-            moves = self.env['account.move'].search(
-                [('hotel_booking_id', '=', record.id)])
+            folio_ids = self.env['hotel.folio'].search(
+                [('booking_id', '=', record.id)]).ids
+            if folio_ids:
+                moves = self.env['account.move'].search(
+                    ['|', ('hotel_booking_id', '=', record.id),
+                     ('hotel_folio_id', 'in', folio_ids)])
+            else:
+                moves = self.env['account.move'].search(
+                    [('hotel_booking_id', '=', record.id)])
             unpaid_moves = moves.filtered(
                 lambda m: m.payment_state == 'not_paid')
             if unpaid_moves:
@@ -754,97 +833,157 @@ class RoomBooking(models.Model):
         }
 
     def action_checkout(self):
-        """Check out: frees rooms, stamps the actual checkout time. The
-        booked line dates are never mutated."""
+        """Check out: clears uninvoiced future folio lines, frees rooms,
+        stamps the actual checkout time. The booked line dates are
+        never mutated."""
         for record in self:
             record._check_transition('check_out')
+            record._clear_future_folio_lines()
             record._release_rooms()
             record.with_context(hotel_allow_state_write=True).write({
                 "state": "check_out",
                 "actual_checkout_date": fields.Datetime.now(),
             })
 
-    def action_invoice(self):
-        """Create an invoice for uninvoiced booking lines, linked via
-        hotel_booking_id (never by ref string matching)."""
-        self.ensure_one()
-        if not self.room_line_ids:
-            raise ValidationError(("Please Enter Room Details"))
-        pending = self._to_invoice_lines()
-        if not pending:
-            raise ValidationError((
-                "No new items to invoice. All items appear to be already "
-                "invoiced (e.g. via POS or separate invoice)."))
+    def _clear_future_folio_lines(self):
+        """Delete open-folio lines past today not yet invoiced.
 
-        journal = self.env['account.journal'].search([
-            ('type', '=', 'sale'),
-            ('company_id', '=', self.company_id.id),
-        ], limit=1)
-        if not journal:
-            raise ValidationError(
-                _("No sales journal for company %s. Create one in "
-                  "Invoicing > Configuration > Journals, then invoice "
-                  "again.") % self.company_id.display_name)
-        account_move = self.env["account.move"].create([{
-            'move_type': 'out_invoice',
-            'invoice_date': fields.Date.today(),
-            'partner_id': self.partner_id.id,
-            'journal_id': journal.id,
-            'company_id': self.company_id.id,
-            'currency_id': self.currency_id.id,
-            'hotel_booking_id': self.id,
-            'ref': self.name,
-        }])
-        for rec in pending:
-            product = self.env['product.product'].browse(
-                rec['product_id']) if rec.get('product_id') else False
-            if product and not product.exists():
-                product = False
-            account = False
-            if product:
-                account = product.property_account_income_id \
-                    or product.categ_id.property_account_income_categ_id
-            if not account:
-                account = self.env['account.account'].search([
-                    ('company_ids', 'in', self.company_id.id),
-                    ('account_type', '=', 'income'),
-                ], limit=1)
-            if not account:
-                raise ValidationError(
-                    _("No income account available for company %s.")
-                    % self.company_id.display_name)
-            self.env['account.move.line'].create([{
-                'name': rec['name'],
-                'quantity': rec['quantity'],
-                'price_unit': rec['price_unit'],
-                'move_id': account_move.id,
-                'product_id': product.id if product else False,
-                'account_id': account.id,
-                'tax_ids': [(6, 0, rec.get('tax_ids') or [])],
-                'product_type': rec['product_type'],
-            }])
-        self.write({'invoice_status': "invoiced"})
-        self.invoice_button_visible = True
+        Early-checkout cleanup: future charges (hotel_date > today)
+        with no invoiced qty and no lock are removed; consumed nights
+        stay for invoicing. Each affected folio gets a chatter note.
+        """
+        self.ensure_one()
+        today = fields.Date.today()
+        folios = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id), ('state', '=', 'open')])
+        for folio in folios:
+            lines = self.env['hotel.folio.line'].search([
+                ('folio_id', '=', folio.id),
+                ('hotel_date', '>', today),
+                ('invoiced_qty', '=', 0),
+                ('locked', '=', False),
+            ])
+            if not lines:
+                continue
+            dates = sorted({str(line.hotel_date) for line in lines})
+            count = len(lines)
+            lines.unlink()
+            folio.message_post(
+                body="Early checkout cleared %d future uninvoiced "
+                     "line(s) (%s)." % (count, ', '.join(dates)))
+
+    def action_invoice(self):
+        """Retired parallel path: folio unification owns invoicing.
+
+        Kept as a stub for compat; raises with a redirect message instead
+        of double-billing. Use the booking folio's draft/post/settle flow.
+        """
+        self.ensure_one()
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id)], limit=1)
+        hint = ("folio %s" % folio.id) if folio else "reserve first"
+        raise ValidationError(
+            _("Booking invoices retired; use %s "
+              "action_generate_draft_invoice / action_post_invoice / "
+              "action_settle (no double-billing).") % hint)
+
+    def action_view_folio(self):
+        """Open this booking's folios (single -> form, multi -> list)."""
+        self.ensure_one()
+        folios = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id)])
+        if len(folios) == 1:
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Folio',
+                'res_model': 'hotel.folio',
+                'view_mode': 'form',
+                'res_id': folios.id,
+                'context': "{'create': False}"
+            }
         return {
             'type': 'ir.actions.act_window',
-            'name': 'Invoices',
-            'view_mode': 'form',
-            'res_model': 'account.move',
-            'view_id': self.env.ref('account.view_move_form').id,
-            'res_id': account_move.id,
+            'name': 'Folios',
+            'res_model': 'hotel.folio',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', folios.ids)],
             'context': "{'create': False}"
         }
 
-    def action_view_invoices(self):
-        """Method for Returning invoice View"""
+    def action_charge_ancillaries(self):
+        """Post unposted service/food/fleet/event lines to the open folio.
+
+        Requires check_in state and booking company == env company.
+        Idempotent: only lines with folio_line_id == False are posted.
+        Zero unposted posts a 'nothing new' chatter note and still
+        returns the folio form action (no raise).
+        """
         self.ensure_one()
+        if self.state != 'check_in':
+            raise ValidationError(
+                _("Ancillaries can only be charged in Check-In state "
+                  "(booking %s is %s).") % (self.name, self.state))
+        if self.company_id.id != self.env.company.id:
+            raise ValidationError(
+                _("Booking %s belongs to %s; charge from that company.")
+                % (self.name, self.company_id.display_name))
+        folio = self._ensure_folio()
+        today = fields.Date.today()
+        charger = self.env['hotel.charge.service']
+        pending = []
+        for field_name, source in (
+                ('service_line_ids', 'service'),
+                ('food_order_line_ids', 'food'),
+                ('vehicle_line_ids', 'fleet'),
+                ('event_line_ids', 'event')):
+            for line in self[field_name].filtered(
+                    lambda l: not l.folio_line_id):
+                pending.append((line, source))
+        count = 0
+        for line, source in pending:
+            product = line._charge_product()
+            folio_line = charger.post_charge(
+                folio.id, product.id, line.uom_qty or 1.0,
+                line.price_unit, 'to_guest',
+                hotel_date=today, source=source)
+            if line.tax_ids:
+                folio_line.write(
+                    {'tax_ids': [(6, 0, line.tax_ids.ids)]})
+            line.write({'folio_line_id': folio_line.id})
+            count += 1
+        if count:
+            self.message_post(
+                body="Charged %d ancillary line(s) to folio %s."
+                % (count, folio.id))
+        else:
+            self.message_post(
+                body="Charge Ancillaries: nothing new to post "
+                     "to folio %s." % folio.id)
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Folio',
+            'res_model': 'hotel.folio',
+            'view_mode': 'form',
+            'res_id': folio.id,
+        }
+
+    def action_view_invoices(self):
+        """Method for Returning invoice View (booking + folio invoices)."""
+        self.ensure_one()
+        folio_ids = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id)]).ids
+        if folio_ids:
+            domain = ['|', ('hotel_booking_id', '=', self.id),
+                      ('hotel_folio_id', 'in', folio_ids)]
+        else:
+            domain = [('hotel_booking_id', '=', self.id)]
         return {
             'type': 'ir.actions.act_window',
             'name': 'Invoices',
             'view_mode': 'list,form',
             'view_type': 'list,form',
             'res_model': 'account.move',
-            'domain': [('hotel_booking_id', '=', self.id)],
+            'domain': domain,
             'context': "{'create': False}"
         }
 

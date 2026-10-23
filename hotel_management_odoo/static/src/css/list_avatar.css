@@ -1,0 +1,22 @@
+/* Kanban letter-avatar sizing (avatar.mixin fallback when no image) */
+.o_kanban_avatar,
+.o_kanban_avatar img {
+    width: 64px !important;
+    height: 64px !important;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* Uploaded card images match avatar size; details take remaining row */
+.oe_kanban_global_click .oe_avatar,
+.oe_kanban_global_click .oe_avatar img {
+    width: 64px !important;
+    height: 64px !important;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.oe_kanban_global_click .oe_kanban_details {
+    min-width: 0;
+}

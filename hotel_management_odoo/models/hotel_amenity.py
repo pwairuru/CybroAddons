@@ -26,7 +26,7 @@ class HotelAmenity(models.Model):
     """Model that handles all amenities of the hotel"""
     _name = 'hotel.amenity'
     _description = "Hotel Amenity"
-    _inherit = 'mail.thread'
+    _inherit = ['mail.thread', 'avatar.mixin']
     _order = 'id desc'
 
     name = fields.Char(string='Name', help="Name of the amenity")

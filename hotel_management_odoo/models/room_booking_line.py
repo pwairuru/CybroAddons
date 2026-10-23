@@ -91,14 +91,24 @@ class RoomBookingLine(models.Model):
                              string="Order Status",
                              help=" Status of the Order",
                              copy=False)
-    booking_line_visible = fields.Boolean(default=False,
-                                          string="Booking Line Visible",
-                                          help="If True, then Booking Line "
-                                               "will be visible")
     company_id = fields.Many2one('res.company', string="Company",
                                  help="Choose the Company",
                                  required=True, index=True,
                                  default=lambda self: self.env.company)
+    adults = fields.Integer(string="Adults", default=1,
+                            help="Adult guests occupying this room line.")
+    children = fields.Integer(string="Children", default=0,
+                              help="Child guests occupying this room line.")
+    toddlers = fields.Integer(string="Toddlers", default=0,
+                              help="Toddler guests occupying this room line.")
+
+    @api.constrains('adults', 'children', 'toddlers')
+    def _check_pax(self):
+        for line in self:
+            if line.adults < 0 or line.children < 0 \
+                    or line.toddlers < 0:
+                raise ValidationError(
+                    _("Guest counts cannot be negative."))
 
 
     @api.depends('checkin_date', 'checkout_date')

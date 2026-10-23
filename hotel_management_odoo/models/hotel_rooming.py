@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
+from datetime import timedelta
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+from .hotel_business_date import _to_date
 
 USE_TYPES = ('overnight', 'dayuse', 'hourly')
 MEAL_PLANS = ('RO', 'BB', 'HB', 'FB')
@@ -160,17 +164,60 @@ class RoomBookingFamily(models.Model):
                 "Bad meal supplement for %s: %r."
                 % (self.meal_plan, raw))
 
-    def post_meal_supplement(self, folio_id, product_id, nights=1):
-        """Post the meal-plan supplement to an open folio; hook for HB/FB.
+    def _meal_rooms(self, room_template_id=None):
+        """Rooms this meal supplement belongs to (dedup key source)."""
+        self.ensure_one()
+        if room_template_id:
+            room = self.env['product.template'].browse(room_template_id)
+            if not room.exists() or not room.is_room:
+                raise ValidationError(
+                    "Room %s does not exist." % room_template_id)
+            return room
+        rooms = self.room_line_ids.mapped('room_id')
+        rooms = rooms.filtered(lambda r: r and r.is_room)
+        if rooms:
+            return rooms
+        return self.env['product.template']
 
-        Returns the created folio line, or False when the plan is RO
-        (zero supplement). Company-safe: folio company must match the
-        booking company. Night-audit guard stays inside post_charge.
+    def _meal_pax(self, rooms, pax=None):
+        """Total persons per night: explicit pax wins, else sum of
+        room capacities (num_person, min 1 each)."""
+        if pax is not None:
+            if pax < 1:
+                raise ValidationError("Pax must be at least 1.")
+            return int(pax)
+        total = 0
+        for room in rooms:
+            total += room.num_person or 1
+        return total or 1
+
+    def _meal_start_day(self, hotel_date=None):
+        self.ensure_one()
+        if hotel_date:
+            return _to_date(hotel_date)
+        if self.checkin_date:
+            return _to_date(self.checkin_date)
+        if self.room_line_ids and self.room_line_ids[0].checkin_date:
+            return _to_date(self.room_line_ids[0].checkin_date)
+        return _to_date(None)
+
+    def post_meal_supplement(self, folio_id, product_id, nights=1,
+                             pax=None, hotel_date=None,
+                             room_template_id=None, plan_id=None):
+        """Post the meal-plan supplement per night; hook for HB/FB.
+
+        qty = nights x pax (pax explicit, else sum of room
+        capacities; single-room postings carry the full pax each
+        night, multi-room postings split per room capacity). Posts one
+        line per room per night with hotel_date + room_template_id so
+        the stay-night dedup key holds, at the board-rule supplement
+        for that night/room when a rule matches (else the
+        config-param fallback). Returns the posted lines recordset,
+        or False when the plan is RO with no board rule.
+        Company-safe: folio company must match the booking company.
+        Night-audit guard stays inside post_charge.
         """
         self.ensure_one()
-        supplement = self.meal_plan_supplement()
-        if not supplement:
-            return False
         if nights < 1:
             raise ValidationError("Nights must be at least 1.")
         folio = self.env['hotel.folio'].browse(folio_id)
@@ -181,9 +228,50 @@ class RoomBookingFamily(models.Model):
                 "Folio belongs to %s; booking belongs to %s."
                 % (folio.company_id.display_name,
                    self.company_id.display_name))
-        line = self.env['hotel.charge.service'].post_charge(
-            folio.id, product_id, nights, supplement, 'to_guest')
-        return line
+        product = self.env['product.product'].browse(product_id)
+        if not product.exists():
+            raise ValidationError("Product %s does not exist." % product_id)
+        rooms = self._meal_rooms(room_template_id)
+        if not rooms:
+            raise ValidationError(
+                "Meal supplement needs a room: add a room line or "
+                "pass room_template_id.")
+        board_rules = self.env['hotel.board.rule']
+        start = self._meal_start_day(hotel_date)
+        charge = self.env['hotel.charge.service']
+        folio_company = folio.company_id or self.env.company
+        for offset in range(nights):
+            charge._check_open_day(
+                start + timedelta(days=offset), folio_company)
+        total_pax = self._meal_pax(rooms, pax)
+        single = len(rooms) == 1
+        lines = self.env['hotel.folio.line']
+        for offset in range(nights):
+            day = start + timedelta(days=offset)
+            for room in rooms:
+                per_pax = total_pax if single else (room.num_person or 1)
+                rule = board_rules._match(
+                    room.room_type_id.id if room.room_type_id else False,
+                    self.meal_plan, day, plan_id)
+                unit = float(rule.supplement) if rule \
+                    else self.meal_plan_supplement()
+                if not unit:
+                    continue
+                dup = self.env['hotel.folio.line'].search([
+                    ('folio_id', '=', folio.id),
+                    ('product_id', '=', product.id),
+                    ('hotel_date', '=', day),
+                    ('room_template_id', '=', room.id),
+                ], limit=1)
+                if dup:
+                    lines |= dup
+                    continue
+                lines |= charge.post_charge(
+                    folio.id, product.id, per_pax, unit, 'to_guest',
+                    hotel_date=day, room_template_id=room.id)
+        if not lines:
+            return False
+        return lines
 
     def _open_children(self):
         self.ensure_one()

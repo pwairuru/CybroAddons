@@ -27,14 +27,17 @@ class CleaningTeam(models.Model):
     each team"""
     _name = "cleaning.team"
     _description = "Cleaning Team"
+    _inherit = ['mail.thread', 'mail.activity.mixin', 'avatar.mixin']
 
     name = fields.Char(string="Team Name", help="Name of the Team")
     company_id = fields.Many2one('res.company', string="Company",
                                  index=True,
                                  default=lambda self: self.env.company,
-                                 help="Property this team belongs to")
+                                 help="Property this team belongs to",
+                                 tracking=True)
     team_head_id = fields.Many2one('res.users', string="Team Head",
                                    help="Choose the Team Head",
+                                   tracking=True,
                                    domain=lambda self: [
                                        ('group_ids', 'in', self.env.ref(
                                            'hotel_management_odoo.'
@@ -44,13 +47,15 @@ class CleaningTeam(models.Model):
                                   column1='team_id', column2='user_id',
                                   string="Member",
                                   help="Team Members",
+                                  tracking=True,
                                   domain=lambda self: [
                                       ('group_ids', 'in', self.env.ref(
                                           'hotel_management_odoo.'
                                           'cleaning_team_group_user').id)])
     # Task 10 glue: roster coverage + active flag. No hr.employee link.
     area = fields.Char(string="Coverage Area",
-                       help="Floors or zones this team covers")
+                       help="Floors or zones this team covers",
+                       tracking=True)
     max_rooms_per_day = fields.Integer(string="Max Rooms / Day", default=12,
                                        help="Roster capacity guard")
     roster_ids = fields.One2many('hotel.staff.roster', 'team_id',

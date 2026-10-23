@@ -3,9 +3,16 @@
     <data noupdate="1">
         <!-- Room Booking Sequence-->
         <record id="seq_hotel_folio" model="ir.sequence">
-            <field name="name">Hotel Folio</field>
+            <field name="name">Room Booking</field>
             <field name="code">room.booking</field>
             <field name="prefix">BOOKING/</field>
+            <field name="padding">5</field>
+        </record>
+        <!-- Folio Sequence -->
+        <record id="seq_hotel_folio_number" model="ir.sequence">
+            <field name="name">Hotel Folio</field>
+            <field name="code">hotel.folio</field>
+            <field name="prefix">FOLIO/</field>
             <field name="padding">5</field>
         </record>
         <!-- Cleaning Request sequence-->

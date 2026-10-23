@@ -42,6 +42,7 @@
                         <field name="closed_at"/>
                     </group>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>

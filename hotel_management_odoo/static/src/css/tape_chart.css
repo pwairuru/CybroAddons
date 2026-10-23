@@ -1,0 +1,22 @@
+.o_ahb_tape_chart { height: 100%; display: flex; flex-direction: column; background: #fff; }
+.o_ahb_toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+.o_ahb_toolbar h4 { margin: 0 8px 0 0; }
+.o_ahb_legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 12px; align-items: center; font-size: 12px; }
+.o_ahb_corner { font-weight: 700; }
+.o_ahb_days { width: auto; font-size: 12px; padding: 2px 6px; }
+.o_ahb_floor_row { grid-column: 1 / -1; font-weight: 700; background: #f8fafc; padding: 6px 8px; position: sticky; left: 0; z-index: 2; }
+.o_ahb_dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.o_ahb_st_confirmed { background: #4371DB; color: #fff; }
+.o_ahb_st_checked_in { background: #218838; color: #fff; }
+.o_ahb_st_block { background: #4A4A55; color: #fff; }
+.o_ahb_scroll { flex-grow: 1; overflow: auto; }
+.o_ahb_grid { display: grid; min-width: max-content; }
+.o_ahb_corner, .o_ahb_room_cell, .o_ahb_occ_label { position: sticky; left: 0; background: #fff; z-index: 2; }
+.o_ahb_date_head { text-align: center; padding: 6px 4px; border-bottom: 1px solid #e2e8f0; }
+.o_ahb_occ_cell { text-align: center; padding: 4px; border-bottom: 1px solid #e2e8f0; }
+.o_ahb_occ_bar { height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; }
+.o_ahb_occ_fill { height: 100%; background: #14b8a6; }
+.o_ahb_room_cell { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+.o_ahb_hk_pill { font-size: 10px; background: #f1f5f9; border-radius: 8px; padding: 1px 6px; color: #64748b; }
+.o_ahb_seg { border-radius: 6px; padding: 4px 8px; margin: 3px 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; cursor: pointer; min-height: 24px; }
+.o_ahb_seg_label { overflow: hidden; text-overflow: ellipsis; }

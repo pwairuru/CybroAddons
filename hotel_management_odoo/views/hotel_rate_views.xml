@@ -35,6 +35,7 @@
                         </page>
                     </notebook>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -45,12 +46,44 @@
         <field name="arch" type="xml">
             <list>
                 <field name="plan_id"/>
+                <field name="room_type_id"/>
                 <field name="room_template_id"/>
+                <field name="rate_type"/>
+                <field name="fixed_price"/>
                 <field name="date_from"/>
                 <field name="date_to"/>
                 <field name="adjustment_pct"/>
                 <field name="min_stay"/>
+                <field name="priority"/>
             </list>
+        </field>
+    </record>
+
+    <record id="hotel_rate_rule_view_form" model="ir.ui.view">
+        <field name="name">hotel.rate.rule.view.form</field>
+        <field name="model">hotel.rate.rule</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="plan_id"/>
+                            <field name="room_type_id"/>
+                            <field name="room_template_id"/>
+                            <field name="priority"/>
+                        </group>
+                        <group>
+                            <field name="rate_type"/>
+                            <field name="fixed_price"/>
+                            <field name="adjustment_pct"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="min_stay"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
         </field>
     </record>
 
@@ -69,15 +102,155 @@
         </field>
     </record>
 
+    <record id="hotel_rate_restriction_view_form" model="ir.ui.view">
+        <field name="name">hotel.rate.restriction.view.form</field>
+        <field name="model">hotel.rate.restriction</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="plan_id"/>
+                        <field name="room_template_id"/>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                        <field name="closed"/>
+                        <field name="min_stay"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_rate_occupancy_view_list" model="ir.ui.view">
+        <field name="name">hotel.rate.occupancy.view.list</field>
+        <field name="model">hotel.rate.occupancy</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="room_type_id"/>
+                <field name="band"/>
+                <field name="plan_id"/>
+                <field name="included_count"/>
+                <field name="max_count"/>
+                <field name="mode"/>
+                <field name="value"/>
+                <field name="basis"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_rate_occupancy_view_form" model="ir.ui.view">
+        <field name="name">hotel.rate.occupancy.view.form</field>
+        <field name="model">hotel.rate.occupancy</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="room_type_id"/>
+                            <field name="band"/>
+                            <field name="plan_id"/>
+                        </group>
+                        <group>
+                            <field name="included_count"/>
+                            <field name="max_count"/>
+                            <field name="mode"/>
+                            <field name="value"/>
+                            <field name="basis"/>
+                            <field name="service_product_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_board_rule_view_list" model="ir.ui.view">
+        <field name="name">hotel.board.rule.view.list</field>
+        <field name="model">hotel.board.rule</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="board"/>
+                <field name="room_type_id"/>
+                <field name="plan_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="supplement"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_board_rule_view_form" model="ir.ui.view">
+        <field name="name">hotel.board.rule.view.form</field>
+        <field name="model">hotel.board.rule</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="board"/>
+                            <field name="room_type_id"/>
+                            <field name="plan_id"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="supplement"/>
+                            <field name="company_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
     <record id="hotel_rate_plan_action" model="ir.actions.act_window">
         <field name="name">Rate Plans</field>
         <field name="res_model">hotel.rate.plan</field>
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="hotel_rate_rule_action" model="ir.actions.act_window">
+        <field name="name">Rate Rules</field>
+        <field name="res_model">hotel.rate.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="hotel_rate_occupancy_action" model="ir.actions.act_window">
+        <field name="name">Occupancy</field>
+        <field name="res_model">hotel.rate.occupancy</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="hotel_board_rule_action" model="ir.actions.act_window">
+        <field name="name">Boards</field>
+        <field name="res_model">hotel.board.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="hotel_rate_plan_menu"
               name="Rate Plans"
-              sequence="30"
-              parent="hotel_config_menu"
+              sequence="10"
+              parent="hotel_menu_pricing"
               action="hotel_rate_plan_action"/>
+
+    <menuitem id="hotel_rate_rule_menu"
+              name="Rate Rules"
+              sequence="20"
+              parent="hotel_menu_pricing"
+              action="hotel_rate_rule_action"/>
+
+    <menuitem id="hotel_rate_occupancy_menu"
+              name="Occupancy"
+              sequence="30"
+              parent="hotel_menu_pricing"
+              action="hotel_rate_occupancy_action"/>
+
+    <menuitem id="hotel_board_rule_menu"
+              name="Boards"
+              sequence="40"
+              parent="hotel_config_menu"
+              action="hotel_board_rule_action"/>
 </odoo>

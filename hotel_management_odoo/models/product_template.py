@@ -20,6 +20,7 @@
 #
 #############################################################################
 from odoo import api, fields, models,_
+from odoo.addons.base.models.avatar_mixin import generate_text_avatar_svg
 from odoo.exceptions import ValidationError
 class ProductTemplate(models.Model):
     _inherit = "product.template"
@@ -31,7 +32,7 @@ class ProductTemplate(models.Model):
         return self.env.ref('uom.product_uom_unit',
                             raise_if_not_found=False)
 
-    is_room = fields.Boolean(string="Room",help="is room")
+    is_room = fields.Boolean(string="Room", help="is room", tracking=True)
     status = fields.Selection([("available", "Available"),
                                ("reserved", "Reserved"),
                                ("occupied", "Occupied")],
@@ -39,7 +40,8 @@ class ProductTemplate(models.Model):
                               help="Status of The Room",
                               tracking=True)
     is_room_avail = fields.Boolean(default=True, string="Available",
-                                   help="Check if the room is available")
+                                   help="Check if the room is available",
+                                   tracking=True)
     room_amenities_ids = fields.Many2many("hotel.amenity",
                                           string="Room Amenities",
                                           help="List of room amenities.")
@@ -51,16 +53,39 @@ class ProductTemplate(models.Model):
                               help="Automatically selects the manager",
                               tracking=True)
     room_type = fields.Selection([('single', 'Single'),
-                                  ('double', 'Double'),
-                                  ('dormitory', 'Dormitory')],
-                                 required=True, string="Room Type",
-                                 help="Automatically selects the Room Type",
-                                 tracking=True,
-                                 default="single")
+                                   ('double', 'Double'),
+                                   ('dormitory', 'Dormitory')],
+                                  required=True, string="Room Type",
+                                  help="Automatically selects the Room Type",
+                                  tracking=True,
+                                  default="single")
+    room_type_id = fields.Many2one('hotel.room.type', string="Room Type",
+                                   index=True, tracking=True)
+    website_published = fields.Boolean(
+        string="Website Published",
+        related='room_type_id.website_published',
+        store=True, readonly=True,
+        help="Published on the website (from the room type). "
+             "Availability is separate: Status / Available.")
     num_person = fields.Integer(string='Number Of Persons',
                                 required=True, default=1,
                                 help="Automatically chooses the No. of Persons",
                                 tracking=True)
+    avatar_128 = fields.Image(string='Avatar 128',
+                              compute='_compute_avatar_128_hotel',
+                              help="Uploaded room image, else a colored "
+                              "first-letter tile for kanban.")
+
+    @api.depends('name', 'image_128')
+    def _compute_avatar_128_hotel(self):
+        for room in self:
+            if room.image_128:
+                room.avatar_128 = room.image_128
+            elif room.name:
+                room.avatar_128 = generate_text_avatar_svg(
+                    room.name[:1].upper(), room.name)
+            else:
+                room.avatar_128 = False
 
     @api.constrains("num_person")
     def _check_capacity(self):

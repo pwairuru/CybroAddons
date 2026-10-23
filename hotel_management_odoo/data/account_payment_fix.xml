@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <!-- C1: pay-wizard payments posted with move_id=False (no journal
+         entry) because the Manual/Checks method lines on bank/cash
+         journals had no outstanding (payment) account. Fills only
+         missing accounts; never overwrites configured ones. Runs on
+         every upgrade by design: <function> inside a noupdate="1"
+         block is skipped on upgrade (convert.py _tag_function), and
+         existing databases need this fix applied. -->
+    <function model="account.payment.method.line"
+              name="_fill_missing_payment_accounts"/>
+</odoo>

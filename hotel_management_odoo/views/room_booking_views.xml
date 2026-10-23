@@ -13,6 +13,10 @@
                     <button name="action_compute_bill" string="COMPUTE BILL"
                             invisible="state not in ['check_in', 'check_out', 'done']"
                             type="object" class="btn-primary"/>
+                    <button name="hotel_management_odoo.hotel_post_stay_action" string="Post Stay"
+                            invisible="state not in ['reserved', 'check_in']"
+                            type="action" class="btn-primary"
+                            context="{'default_booking_id': id}"/>
                     <button name="action_checkin" string="Check-In"
                             class="btn-primary"
                             invisible="state not in ['draft', 'reserved']"
@@ -24,12 +28,16 @@
                     <button name="action_checkout" string="Check-Out"
                             class="btn-primary" invisible="state != 'check_in'"
                             type="object"/>
+                    <button name="action_charge_ancillaries"
+                            string="Charge Ancillaries" type="object"
+                            class="btn-primary"
+                            invisible="state != 'check_in'"/>
                     <button name="action_done" string="Set as Done"
                             class="btn-primary"
                             invisible="state != 'check_out'" type="object"/>
                     <button name="action_invoice" string="Create Invoice"
                             type="object" class="btn-primary"
-                            invisible="state not in ['reserved', 'check_in', 'check_out'] or invoice_button_visible == True"/>
+                            invisible="1"/>
                     <button name="action_cancel" string="Cancel"
                             invisible="state not in ['draft','reserved']"
                             type="object" class="btn-secondary"/>
@@ -46,6 +54,11 @@
                                 icon="fa-edit">
                             <field string="Invoices" name="invoice_count"
                                    widget="statinfo"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_folio"
+                                icon="fa-bed">
+                            Folio
                         </button>
                     </div>
                     <div>
@@ -79,13 +92,13 @@
                             <field name="pricelist_id"/>
                             <field name="hotel_policy"/>
                             <field name="need_service"
-                                    invisible=" state not in ['check_in']"/>
+                                    invisible=" state not in ('draft','reserved','check_in')"/>
                             <field name="need_fleet"
-                                   invisible=" state not in ['check_in']"/>
+                                   invisible=" state not in ('draft','reserved','check_in')"/>
                             <field name="need_food"
-                                   invisible=" state not in ['check_in']"/>
+                                   invisible=" state not in ('draft','reserved','check_in')"/>
                             <field name="need_event"
-                                   invisible=" state not in ['check_in']"/>
+                                   invisible=" state not in ('draft','reserved','check_in')"/>
                         </group>
                     </group>
                     <notebook>
@@ -105,6 +118,9 @@
                                     <field name="checkout_date"/>
                                     <field name="uom_qty" string="Duration"
                                             readonly="1" force_save="1"/>
+                                    <field name="adults" string="Adults"/>
+                                    <field name="children" string="Children"/>
+                                    <field name="toddlers" string="Toddlers"/>
                                     <field name="uom_id"
                                             readonly="1"
                                             string="Unit of Measure"
@@ -149,7 +165,8 @@
                                 <field name="amount_tax" widget="monetary"/>
                                 <label for="amount_total"/>
                                 <field name="amount_total" nolabel="1"
-                                       sum="Total amount" widget="monetary"/>
+                                       sum="Total amount" widget="monetary"
+                                       help="Quote before folio posting"/>
                             </group>
                             <div class="oe_clear"/>
                         </page>
@@ -309,6 +326,7 @@
                         </page>
                     </notebook>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -321,8 +339,60 @@
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="date_order"/>
-                <field name="state"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <field name="amount_total" widget="monetary"/>
+                <field name="state" widget="badge"/>
             </list>
+        </field>
+    </record>
+    <record id="room_booking_view_kanban" model="ir.ui.view">
+        <field name="name">room.booking.view.kanban</field>
+        <field name="model">room.booking</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <field name="name"/>
+                <field name="avatar_128"/>
+                <field name="partner_id"/>
+                <field name="date_order"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <field name="amount_total"/>
+                <field name="state"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click d-flex">
+                            <field name="avatar_128" widget="image"
+                                   class="o_kanban_avatar me-2"
+                                   style="width:64px;height:64px;"/>
+                            <div class="oe_kanban_details flex-grow-1">
+                                <div class="oe_kanban_record_heading">
+                                    <strong>
+                                        <field name="name"/>
+                                    </strong>
+                                    <span class="text-muted">
+                                        <field name="state"/>
+                                    </span>
+                                </div>
+                                <div>
+                                    <field name="partner_id"/>
+                                </div>
+                                <div>
+                                    <field name="checkin_date"/>
+                                    →
+                                    <field name="checkout_date"/>
+                                </div>
+                                <div>
+                                    <strong>
+                                        <field name="amount_total"
+                                               widget="monetary"/>
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
         </field>
     </record>
     <!--     Room Booking Menu action -->
@@ -330,7 +400,7 @@
         <field name="name">Room Booking</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">room.booking</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="help" type="html">
             <p class="oe_view_nocontent_create">
                 Book your rooms here!
@@ -339,11 +409,6 @@
     </record>
     <!--     Reservation menu -->
     <menuitem id="room_booking_menu" name="Reservation" sequence="10"
-              parent="hotel_management_menu_root"
-              action="room_booking_action"/>
-    <!--     Rack menu action binding (menu shell lives in hotel_menu_views.xml;
-            same-ID update attaches the action where it is defined). -->
-    <menuitem id="hotel_rack_menu" name="Rack" sequence="2"
               parent="hotel_management_menu_root"
               action="room_booking_action"/>
 </odoo>

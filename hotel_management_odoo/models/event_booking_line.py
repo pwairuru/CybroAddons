@@ -19,7 +19,8 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import ValidationError
 
 
 class EventBookingLine(models.Model):
@@ -77,6 +78,18 @@ class EventBookingLine(models.Model):
     state = fields.Selection(related='booking_id.state',
                              string="Order Status",
                              help="State of Room Booking", copy=False)
+    folio_line_id = fields.Many2one('hotel.folio.line', string="Folio Line",
+                                    readonly=True, copy=False,
+                                    ondelete='set null',
+                                    help="Folio charge posted for this line.")
+
+    def _charge_product(self):
+        """Sellable product for folio charges (the event ticket)."""
+        self.ensure_one()
+        if not self.ticket_id:
+            raise ValidationError(
+                _("Event line %s has no ticket.") % self.id)
+        return self.ticket_id
 
     @api.depends('ticket_id', 'booking_id.company_id')
     def _compute_tax_ids(self):

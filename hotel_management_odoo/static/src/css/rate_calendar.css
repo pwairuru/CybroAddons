@@ -1,0 +1,29 @@
+.o_rc_calendar { height: 100%; display: flex; flex-direction: column; background: #fff; }
+.o_rc_toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+.o_rc_toolbar h4 { margin: 0 8px 0 0; }
+.o_rc_legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 12px; align-items: center; font-size: 12px; }
+.o_rc_legend_caption { font-weight: 700; }
+.o_rc_corner { font-weight: 700; }
+.o_rc_plan, .o_rc_board, .o_rc_days { width: auto; font-size: 12px; padding: 2px 6px; }
+.o_rc_dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.o_rc_up { background: #b45309; color: #fff; }
+.o_rc_down { background: #15803d; color: #fff; }
+.o_rc_flat { background: #f1f5f9; }
+.o_rc_closed { background: #4A4A55; color: #fff; }
+.o_rc_soldout { background: #fecaca; }
+.o_rc_scroll { flex-grow: 1; overflow: auto; }
+.o_rc_grid { display: grid; min-width: max-content; }
+.o_rc_corner, .o_rc_room_cell { position: sticky; left: 0; background: #fff; z-index: 2; }
+.o_rc_date_head { text-align: center; padding: 6px 4px; border-bottom: 1px solid #e2e8f0; }
+.o_rc_room_cell { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+.o_rc_cell { border-radius: 6px; padding: 4px 6px; margin: 3px 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; cursor: pointer; min-height: 40px; border-bottom: 1px solid #f1f5f9; }
+.o_rc_cell.o_rc_closed { cursor: not-allowed; }
+.o_rc_sel { outline: 2px solid #0d6efd; outline-offset: -2px; }
+.o_rc_price { font-weight: 700; display: block; }
+.o_rc_delta, .o_rc_avail { display: block; font-size: 10px; color: #64748b; }
+.o_rc_cell.o_rc_closed .o_rc_delta, .o_rc_cell.o_rc_closed .o_rc_avail { color: #e2e8f0; }
+.o_rc_bulkbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #eff6ff; border-bottom: 1px solid #bfdbfe; font-size: 12px; flex-wrap: wrap; }
+.o_rc_bulkbar select, .o_rc_bulkbar input { width: auto; }
+.o_rc_value { max-width: 110px; }
+.o_rc_warn { color: #b45309; font-weight: 700; }
+.o_rc_notice { color: #15803d; }
