@@ -160,3 +160,30 @@ class TestHotelPosFolio(TransactionCase):
         self.assertTrue(link)
         self.assertTrue(link.is_pay_at_checkout)
         self.assertTrue(link.due_until_settle)
+
+    def test_grouped_bill_lines_itemized_with_counter(self):
+        guest = self.env['res.partner'].create({'name': 'Grouped Guest'})
+        room = self._available_room()
+        bk = self.env['room.booking'].create({
+            'partner_id': guest.id,
+            'room_line_ids': [(0, 0, {'room_id': room.id,
+                                      'checkin_date': '2026-11-01 14:00:00',
+                                      'checkout_date': '2026-11-02 11:00:00'})],
+        })
+        self._settle_hotel_charge_order(bk, amount=10.0)
+        bk.invalidate_recordset()
+        groups = bk.get_bill_grouped_lines()
+        labels = [g['label'] for g in groups]
+        self.assertIn('Rooms', labels)
+        self.assertIn('POS Orders', labels)
+        self.assertNotIn('Events', labels)
+        rooms = next(g for g in groups if g['label'] == 'Rooms')
+        self.assertEqual(len(rooms['rows']), 1)
+        self.assertAlmostEqual(rooms['subtotal'],
+                               sum(bk.room_line_ids.mapped('price_total')))
+        pos = next(g for g in groups if g['label'] == 'POS Orders')
+        self.assertEqual(len(pos['rows']), 1)
+        self.assertTrue(pos['rows'][0]['counter'])
+        self.assertAlmostEqual(
+            sum(g['subtotal'] for g in groups),
+            bk.get_bill_summary_total())

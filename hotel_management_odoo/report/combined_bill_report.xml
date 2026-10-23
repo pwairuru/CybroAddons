@@ -54,38 +54,50 @@
                             </div>
                         </div>
 
-                        <!-- Combined Bill Summary (Unified Table) -->
+                        <!-- Combined Bill: itemized groups (Rooms / Food / Services / Fleet / Events / POS Orders) -->
                         <t t-if="o.bill_type == 'combined'">
-                            <div style="margin-bottom: 30px;">
-                                <table class="table table-sm mt32" style="border: 1px solid #000;">
-                                    <thead>
-                                        <tr style="border-bottom: 2px solid #000;">
-                                            <th style="border-right: 1px solid #000;">Reference No</th>
-                                            <th style="border-right: 1px solid #000;">Order No</th>
-                                            <th style="border-right: 1px solid #000;">Order Date</th>
-                                            <th class="text-right">Total Price</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <t t-foreach="o.booking_id.get_bill_summary_lines()" t-as="l">
+                            <t t-set="bill_groups" t-value="o.booking_id.get_bill_grouped_lines()"/>
+                            <t t-foreach="bill_groups" t-as="g">
+                                <h3 style="color: #666; margin-top: 20px; margin-bottom: 10px;"><span t-out="g['label']"/></h3>
+                                <div style="margin-bottom: 10px;">
+                                    <table class="table table-sm" style="border: 1px solid #000;">
+                                        <thead>
+                                            <tr style="border-bottom: 2px solid #000;">
+                                                <th style="border-right: 1px solid #000;">Description</th>
+                                                <th style="border-right: 1px solid #000;">Detail / Counter</th>
+                                                <th style="border-right: 1px solid #000;">Date</th>
+                                                <th class="text-right" style="border-right: 1px solid #000;">Qty</th>
+                                                <th class="text-right" style="border-right: 1px solid #000;">Unit Price</th>
+                                                <th class="text-right">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="g['rows']" t-as="r">
+                                                <tr>
+                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['description']"/></td>
+                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['detail']"/></td>
+                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['date']" t-options='{"widget": "datetime"}'/></td>
+                                                    <td class="text-right" style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['qty']"/></td>
+                                                    <td class="text-right" style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['unit']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
+                                                    <td class="text-right" style="border-bottom: 1px solid #000;"><span t-out="r['total']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
+                                                </tr>
+                                            </t>
                                             <tr>
-                                                <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="l['reference']"/></td>
-                                                <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="l['order_no']"/></td>
-                                                <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="l['date']" t-options='{"widget": "datetime"}'/></td>
-                                                <td class="text-right" style="border-bottom: 1px solid #000;">
-                                                    <span t-out="l['total']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/>
+                                                <td colspan="5" class="text-right" style="border-top: 2px solid #000;"><strong><span t-out="g['label']"/> Subtotal</strong></td>
+                                                <td class="text-right" style="border-top: 2px solid #000;">
+                                                    <strong><span t-out="g['subtotal']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></strong>
                                                 </td>
                                             </tr>
-                                        </t>
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
 
                             <div class="row justify-content-end mt16">
                                 <div class="col-4">
                                     <table class="table table-sm">
                                         <tr class="border-black">
-                                            <td style="font-size: 18px;"><strong>Subtotal</strong></td>
+                                            <td style="font-size: 18px;"><strong>Grand Total</strong></td>
                                             <td class="text-right" style="font-size: 18px;">
                                                 <strong><span t-out="o.booking_id.get_bill_summary_total()" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></strong>
                                             </td>
@@ -95,38 +107,52 @@
                             </div>
                         </t>
 
-                        <!-- Isolated Bill Summary -->
+                        <!-- Isolated Bill -->
                         <t t-else="">
-                            <!-- Folio Page -->
+                            <!-- Folio Page: itemized non-POS groups -->
                             <h3 style="color: #666; margin-bottom: 20px;">Isolated Bill - Folio</h3>
-                            <div style="margin-bottom: 30px;">
-                                <table class="table table-sm mt32" style="border: 1px solid #000;">
-                                    <thead>
-                                        <tr style="border-bottom: 2px solid #000;">
-                                            <th style="border-right: 1px solid #000;">Reference No</th>
-                                            <th style="border-right: 1px solid #000;">Order No</th>
-                                            <th style="border-right: 1px solid #000;">Order Date</th>
-                                            <th class="text-right">Total Price</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-field="o.booking_id.name"/></td>
-                                            <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-field="o.booking_id.name"/></td>
-                                            <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-field="o.booking_id.date_order" t-options='{"widget": "datetime"}'/></td>
-                                            <td class="text-right" style="border-bottom: 1px solid #000;">
-                                                <t t-set="folio_only_total" t-value="sum(o.booking_id.room_line_ids.mapped('price_total')) + sum(o.booking_id.food_order_line_ids.mapped('price_total')) + sum(o.booking_id.service_line_ids.mapped('price_total')) + sum(o.booking_id.vehicle_line_ids.mapped('price_total')) + sum(o.booking_id.event_line_ids.mapped('price_total'))"/>
-                                                <span t-out="folio_only_total" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                            <t t-set="folio_groups" t-value="[g for g in o.booking_id.get_bill_grouped_lines() if g['label'] != 'POS Orders']"/>
+                            <t t-set="folio_only_total" t-value="sum(g['subtotal'] for g in folio_groups)"/>
+                            <t t-foreach="folio_groups" t-as="g">
+                                <h4 style="color: #666; margin-top: 16px; margin-bottom: 8px;"><span t-out="g['label']"/></h4>
+                                <div style="margin-bottom: 10px;">
+                                    <table class="table table-sm" style="border: 1px solid #000;">
+                                        <thead>
+                                            <tr style="border-bottom: 2px solid #000;">
+                                                <th style="border-right: 1px solid #000;">Description</th>
+                                                <th style="border-right: 1px solid #000;">Detail</th>
+                                                <th style="border-right: 1px solid #000;">Date</th>
+                                                <th class="text-right" style="border-right: 1px solid #000;">Qty</th>
+                                                <th class="text-right" style="border-right: 1px solid #000;">Unit Price</th>
+                                                <th class="text-right">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="g['rows']" t-as="r">
+                                                <tr>
+                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['description']"/></td>
+                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['detail']"/></td>
+                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['date']" t-options='{"widget": "datetime"}'/></td>
+                                                    <td class="text-right" style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['qty']"/></td>
+                                                    <td class="text-right" style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="r['unit']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
+                                                    <td class="text-right" style="border-bottom: 1px solid #000;"><span t-out="r['total']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
+                                                </tr>
+                                            </t>
+                                            <tr>
+                                                <td colspan="5" class="text-right" style="border-top: 2px solid #000;"><strong><span t-out="g['label']"/> Subtotal</strong></td>
+                                                <td class="text-right" style="border-top: 2px solid #000;">
+                                                    <strong><span t-out="g['subtotal']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></strong>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
                             <div class="row justify-content-end mt16">
                                 <div class="col-4">
                                     <table class="table table-sm">
                                         <tr class="border-black">
-                                            <td style="font-size: 18px;"><strong>Subtotal</strong></td>
+                                            <td style="font-size: 18px;"><strong>Folio Subtotal</strong></td>
                                             <td class="text-right" style="font-size: 18px;">
                                                 <strong><span t-out="folio_only_total" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></strong>
                                             </td>
@@ -143,8 +169,8 @@
                                     <table class="table table-sm mt32" style="border: 1px solid #000;">
                                         <thead>
                                             <tr style="border-bottom: 2px solid #000;">
-                                                <th style="border-right: 1px solid #000;">Reference No</th>
-                                                <th style="border-right: 1px solid #000;">Order No</th>
+                                                <th style="border-right: 1px solid #000;">Receipt</th>
+                                                <th style="border-right: 1px solid #000;">Counter</th>
                                                 <th style="border-right: 1px solid #000;">Order Date</th>
                                                 <th class="text-right">Total Price</th>
                                             </tr>
@@ -152,8 +178,8 @@
                                         <tbody>
                                             <t t-foreach="o.pos_order_ids" t-as="line">
                                                 <tr>
-                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-field="line.name"/></td>
                                                     <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-field="line.pos_reference"/></td>
+                                                    <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-out="line.session_id.config_id.name or line.session_id.name or 'POS'"/></td>
                                                     <td style="border-right: 1px solid #000; border-bottom: 1px solid #000;"><span t-field="line.date_order" t-options='{"widget": "datetime"}'/></td>
                                                     <td class="text-right" style="border-bottom: 1px solid #000;"><span t-field="line.amount_total"/></td>
                                                 </tr>
@@ -165,7 +191,7 @@
                                     <div class="col-4">
                                         <table class="table table-sm">
                                             <tr class="border-black">
-                                                <td style="font-size: 18px;"><strong>Subtotal</strong></td>
+                                                <td style="font-size: 18px;"><strong>POS Subtotal</strong></td>
                                                 <td class="text-right" style="font-size: 18px;">
                                                     <strong><span t-out="sum(o.pos_order_ids.mapped('amount_total'))" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></strong>
                                                 </td>

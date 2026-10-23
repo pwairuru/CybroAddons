@@ -42,6 +42,31 @@ class ComputeBillWizard(models.TransientModel):
     event_line_ids = fields.Many2many('event.booking.line', string='Event Lines', compute='_compute_folio_lines')
     
     pos_order_ids = fields.Many2many('pos.order', string='POS Orders', compute='_compute_orders', store=True, readonly=False)
+    amount_total_booking = fields.Monetary(
+        string='Booking Total', compute='_compute_bill_totals',
+        help='Rooms, food, services, fleet and events incl. tax (no POS).')
+    amount_total_pos = fields.Monetary(
+        string='POS Total', compute='_compute_bill_totals',
+        help='Settled POS orders charged to this booking.')
+    amount_total_combined = fields.Monetary(
+        string='Combined Total', compute='_compute_bill_totals',
+        help='Booking total plus POS total: the guest pays this.')
+
+    @api.depends('booking_id')
+    def _compute_bill_totals(self):
+        """Runtime read (not related): the POS totals live on
+        hotel_pos_extension, which loads after this module; a related
+        field would fail incremental registry setup."""
+        for wizard in self:
+            booking = wizard.booking_id
+            wizard.amount_total_booking = booking.amount_total if booking else 0.0
+            wizard.amount_total_pos = (
+                booking.amount_total_pos
+                if booking and hasattr(booking, 'amount_total_pos') else 0.0)
+            wizard.amount_total_combined = (
+                booking.amount_total_combined
+                if booking and hasattr(booking, 'amount_total_combined')
+                else wizard.amount_total_booking)
     bill_type = fields.Selection([
         ('combined', 'Combined Bill'),
         ('isolate', 'Isolate Bill')

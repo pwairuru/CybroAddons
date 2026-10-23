@@ -154,6 +154,87 @@ class RoomBooking(models.Model):
         self.ensure_one()
         return sum(l['total'] for l in self.get_bill_summary_lines())
 
+    def get_bill_grouped_lines(self):
+        """Itemized bill groups for the printed bill:
+        [{'label', 'rows': [{'description', 'detail', 'date', 'qty',
+        'total'}], 'subtotal'}]. Only non-empty groups, in guest-facing
+        order. POS rows carry the counter name so the guest can tell
+        restaurant/bar charges apart from room and service charges.
+        Group subtotals sum to get_bill_summary_total().
+        """
+        self.ensure_one()
+        groups = []
+
+        def _add(label, rows):
+            rows = list(rows)
+            if rows:
+                groups.append({
+                    'label': label,
+                    'rows': rows,
+                    'subtotal': sum(r['total'] for r in rows),
+                })
+
+        _add('Rooms', [{
+            'description': l.room_id.display_name or l.room_id.name,
+            'detail': '%d night(s)' % int(l.uom_qty),
+            'date': l.checkin_date,
+            'qty': l.uom_qty,
+            'unit': l.price_unit,
+            'total': l.price_total,
+        } for l in self.room_line_ids])
+        _add('Food', [{
+            'description': l.food_id.display_name,
+            'detail': '',
+            'date': self.date_order,
+            'qty': l.uom_qty,
+            'unit': l.price_unit,
+            'total': l.price_total,
+        } for l in self.food_order_line_ids])
+        _add('Services', [{
+            'description': l.service_id.display_name,
+            'detail': '',
+            'date': self.date_order,
+            'qty': l.uom_qty,
+            'unit': l.price_unit,
+            'total': l.price_total,
+        } for l in self.service_line_ids])
+        _add('Fleet', [{
+            'description': l.fleet_id.display_name,
+            'detail': '',
+            'date': self.date_order,
+            'qty': l.uom_qty,
+            'unit': l.price_unit,
+            'total': l.price_total,
+        } for l in self.vehicle_line_ids])
+        _add('Events', [{
+            'description': l.event_id.display_name,
+            'detail': '',
+            'date': self.date_order,
+            'qty': l.uom_qty,
+            'unit': l.price_unit,
+            'total': l.price_total,
+        } for l in self.event_line_ids])
+
+        pos_rows = []
+        for link in self.pos_order_line_ids.filtered(
+                lambda l: l.state in ('paid', 'done', 'invoiced')):
+            order = link.pos_order_id
+            session = order.session_id
+            config = session.config_id if session else False
+            counter = (config.name if config else False) \
+                or (session.name if session else False) or 'POS'
+            pos_rows.append({
+                'description': order.pos_reference or order.name,
+                'detail': counter,
+                'date': order.date_order,
+                'qty': 1,
+                'unit': order.amount_total,
+                'total': order.amount_total,
+                'counter': counter,
+            })
+        _add('POS Orders', pos_rows)
+        return groups
+
     pos_invoice_count = fields.Integer(compute='_compute_pos_invoice_count', string='POS Invoice Count')
 
     def _compute_pos_invoice_count(self):
