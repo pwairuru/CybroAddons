@@ -21,6 +21,11 @@
 #############################################################################
 from odoo import api, fields, models
 
+import logging
+
+_logger = logging.getLogger(__name__)
+
+
 class PosOrder(models.Model):
     """Extend POS order to link with hotel bookings."""
     _inherit = 'pos.order'
@@ -104,6 +109,64 @@ class PosOrder(models.Model):
             pos_order.write({'booking_id': booking_id})
         pos_order._ensure_hotel_pos_line()
         return order_id
+
+    def _post_hotel_folio_lines(self):
+        """Post this order's lines to the booking folio as source='pos'.
+
+        Returns the created hotel.folio.line recordset (empty when
+        nothing to post). Skips orders without a booking, bookings
+        outside reserved/check_in, and orders with no hotel-charge
+        payment. Per-line dedup on (folio, pos_order_id, product_id)
+        makes re-runs idempotent.
+        """
+        self.ensure_one()
+        FolioLine = self.env['hotel.folio.line']
+        if not self.booking_id:
+            return FolioLine.browse()
+        if self.booking_id.state not in ('reserved', 'check_in'):
+            return FolioLine.browse()
+        if not any(p.payment_method_id.is_hotel_charge
+                   for p in self.payment_ids):
+            return FolioLine.browse()
+        folio = self.booking_id._ensure_folio()
+        posted = FolioLine.browse()
+        for line in self.lines:
+            existing = FolioLine.search([
+                ('folio_id', '=', folio.id),
+                ('pos_order_id', '=', self.id),
+                ('product_id', '=', line.product_id.id),
+            ], limit=1)
+            if existing:
+                continue
+            newline = self.env['hotel.charge.service'].post_charge(
+                folio.id, line.product_id.id, line.qty, line.price_unit,
+                'to_guest', hotel_date=fields.Date.today(),
+                source='pos', pos_order_id=self.id)
+            if line.tax_ids:
+                newline.write(
+                    {'tax_ids': [(6, 0, line.tax_ids.ids)]})
+            posted |= newline
+        if posted:
+            folio.message_post(
+                body="POS %s posted: %d line(s)."
+                % (self.pos_reference or self.name, len(posted)))
+        return posted
+
+    def action_pos_order_paid(self):
+        """Pay the order, then post hotel-charge lines to the folio.
+
+        One bad order never blocks the others: per-order poster
+        failures are logged and swallowed (no new exceptions).
+        """
+        res = super().action_pos_order_paid()
+        for order in self:
+            try:
+                order._post_hotel_folio_lines()
+            except Exception:
+                _logger.exception(
+                    "Hotel folio posting failed for POS order %s",
+                    order.name)
+        return res
 
     def _generate_pos_order_invoice(self):
         """Override to forcefully keep the invoice 'Not Paid' for hotel charges.
