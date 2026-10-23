@@ -100,3 +100,63 @@ class TestHotelPosFolio(TransactionCase):
                               'price_subtotal_incl': 99.0})]})
         bk.invalidate_recordset()
         self.assertEqual(bk.amount_total_pos, before)
+
+    def _settle_hotel_charge_order(self, bk, amount=10.0):
+        """Reserve+checkin booking, pay a hotel-charge POS order for it."""
+        bk.action_reserve()
+        bk.action_checkin()
+        pm = self.env['pos.payment.method'].search(
+            [('is_hotel_charge', '=', True)], limit=1)
+        sess = self.env['pos.session'].search(
+            [('state', '=', 'opened')], limit=1)
+        prod = self.env['product.product'].search(
+            [('available_in_pos', '=', True)], limit=1)
+        order = self._create_pos_order({
+            'session_id': sess.id, 'partner_id': bk.partner_id.id,
+            'booking_id': bk.id, 'company_id': self.env.company.id,
+            'amount_tax': 0.0, 'amount_total': amount,
+            'amount_paid': 0.0, 'amount_return': 0.0,
+            'lines': [(0, 0, {'product_id': prod.id, 'qty': 1,
+                              'price_unit': amount,
+                              'price_subtotal': amount,
+                              'price_subtotal_incl': amount})]})
+        order.add_payment({'pos_order_id': order.id,
+                           'payment_method_id': pm.id, 'amount': amount})
+        order.action_pos_order_paid()
+        return order
+
+    def test_combined_total_matches_summary_lines(self):
+        guest = self.env['res.partner'].create({'name': 'Combined Guest'})
+        room = self._available_room()
+        bk = self.env['room.booking'].create({
+            'partner_id': guest.id,
+            'room_line_ids': [(0, 0, {'room_id': room.id,
+                                      'checkin_date': '2026-11-01 14:00:00',
+                                      'checkout_date': '2026-11-02 11:00:00'})],
+        })
+        self._settle_hotel_charge_order(bk, amount=10.0)
+        bk.invalidate_recordset()
+        lines = bk.get_bill_summary_lines()
+        self.assertEqual(bk.amount_total_pos, 10.0)
+        self.assertEqual(bk.amount_total_combined,
+                         bk.amount_total + 10.0)
+        self.assertAlmostEqual(bk.get_bill_summary_total(),
+                               sum(l['total'] for l in lines))
+        self.assertAlmostEqual(bk.get_bill_summary_total(),
+                               bk.amount_total + bk.amount_total_pos)
+
+    def test_pay_at_checkout_stays_due_until_folio_settle(self):
+        guest = self.env['res.partner'].create({'name': 'Due Guest'})
+        room = self._available_room()
+        bk = self.env['room.booking'].create({
+            'partner_id': guest.id,
+            'room_line_ids': [(0, 0, {'room_id': room.id,
+                                      'checkin_date': '2026-11-01 14:00:00',
+                                      'checkout_date': '2026-11-02 11:00:00'})],
+        })
+        order = self._settle_hotel_charge_order(bk, amount=10.0)
+        link = self.env['hotel.pos.line'].search(
+            [('pos_order_id', '=', order.id)], limit=1)
+        self.assertTrue(link)
+        self.assertTrue(link.is_pay_at_checkout)
+        self.assertTrue(link.due_until_settle)

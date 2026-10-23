@@ -17,6 +17,8 @@
             </xpath>
             <xpath expr="//notebook" position="inside">
                 <field name="has_pos_orders" invisible="1"/>
+                <field name="amount_total_pos" invisible="1"/>
+                <field name="amount_total_combined" invisible="1"/>
                 <page string="POS Orders" name="pos_orders" invisible="not has_pos_orders">
                     <field name="pos_order_line_ids" readonly="1">
                         <list>
@@ -28,13 +30,20 @@
                             <field name="user_id" widget="many2one_avatar_user"/>
                             <field name="amount_total" sum="Total POS Amount"/>
                             <field name="currency_id" invisible="1"/>
-                            <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state in ('paid', 'invoiced', 'done')" decoration-warning="state == 'cancel'"/>
+                            <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state in ('paid', 'invoiced', 'done') and not due_until_settle" decoration-warning="due_until_settle" decoration-muted="state == 'cancel'"/>
+                            <field name="due_until_settle" string="Due At Checkout" widget="boolean_toggle"/>
                         </list>
                     </field>
                     <group class="oe_subtotal_footer oe_right">
                         <field name="amount_total_pos" widget="monetary"/>
                     </group>
                 </page>
+            </xpath>
+            <xpath expr="//group[field[@name='amount_total']]" position="inside">
+                <field name="amount_total_pos" widget="monetary"
+                       string="POS Total" invisible="not has_pos_orders"/>
+                <field name="amount_total_combined" widget="monetary"
+                       string="Combined Total" invisible="not has_pos_orders"/>
             </xpath>
         </field>
     </record>

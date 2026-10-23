@@ -27,7 +27,9 @@
                                     <field name="checkout_date"/>
                                     <field name="uom_qty" string="Duration"/>
                                     <field name="price_unit"/>
-                                    <field name="price_subtotal" sum="Total"/>
+                                    <field name="price_subtotal" sum="Untaxed"/>
+                                    <field name="price_tax" sum="Tax"/>
+                                    <field name="price_total" sum="Total"/>
                                 </list>
                             </field>
                         </page>
@@ -37,7 +39,9 @@
                                     <field name="food_id"/>
                                     <field name="uom_qty"/>
                                     <field name="price_unit"/>
-                                    <field name="price_subtotal" sum="Total"/>
+                                    <field name="price_subtotal" sum="Untaxed"/>
+                                    <field name="price_tax" sum="Tax"/>
+                                    <field name="price_total" sum="Total"/>
                                 </list>
                             </field>
                         </page>
@@ -48,7 +52,9 @@
                                         <field name="service_id"/>
                                         <field name="uom_qty"/>
                                         <field name="price_unit"/>
-                                        <field name="price_subtotal" sum="Total"/>
+                                        <field name="price_subtotal" sum="Untaxed"/>
+                                        <field name="price_tax" sum="Tax"/>
+                                        <field name="price_total" sum="Total"/>
                                     </list>
                                 </field>
                             </group>
@@ -58,7 +64,9 @@
                                         <field name="fleet_id"/>
                                         <field name="uom_qty"/>
                                         <field name="price_unit"/>
-                                        <field name="price_subtotal" sum="Total"/>
+                                        <field name="price_subtotal" sum="Untaxed"/>
+                                        <field name="price_tax" sum="Tax"/>
+                                        <field name="price_total" sum="Total"/>
                                     </list>
                                 </field>
                             </group>
@@ -68,7 +76,9 @@
                                         <field name="event_id"/>
                                         <field name="uom_qty"/>
                                         <field name="price_unit"/>
-                                        <field name="price_subtotal" sum="Total"/>
+                                        <field name="price_subtotal" sum="Untaxed"/>
+                                        <field name="price_tax" sum="Tax"/>
+                                        <field name="price_total" sum="Total"/>
                                     </list>
                                 </field>
                             </group>

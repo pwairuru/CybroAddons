@@ -87,7 +87,7 @@
                                         <tr class="border-black">
                                             <td style="font-size: 18px;"><strong>Subtotal</strong></td>
                                             <td class="text-right" style="font-size: 18px;">
-                                                <strong><span t-field="o.booking_id.amount_total" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></strong>
+                                                <strong><span t-out="o.booking_id.get_bill_summary_total()" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></strong>
                                             </td>
                                         </tr>
                                     </table>

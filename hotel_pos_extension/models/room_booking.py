@@ -27,6 +27,11 @@ class RoomBooking(models.Model):
 
     pos_order_line_ids = fields.One2many('hotel.pos.line', 'booking_id', string='POS Orders')
     amount_total_pos = fields.Monetary(string="Total POS Amount", compute='_compute_amount_total_pos', store=False)
+    amount_total_combined = fields.Monetary(
+        string="Combined Total (Rooms + Services + POS)",
+        compute='_compute_amount_total_combined', store=False,
+        help="Room/food/service/fleet/event total plus settled POS orders. "
+             "The stored Total stays room-and-services only.")
 
     @api.depends('pos_order_line_ids')
     def _compute_has_pos_orders(self):
@@ -92,11 +97,20 @@ class RoomBooking(models.Model):
             
         return final_res[0] if is_single else final_res
 
+    @api.depends('pos_order_line_ids.pos_order_id.amount_total',
+                 'pos_order_line_ids.pos_order_id.state')
     def _compute_amount_total_pos(self):
         """Compute POS amount total from calculated values."""
         for record in self:
             vals, _ = record._calculate_amounts()
             record.amount_total_pos = vals.get('amount_total_pos', 0.0)
+
+    @api.depends('amount_total', 'amount_total_pos')
+    def _compute_amount_total_combined(self):
+        for record in self:
+            record.amount_total_combined = (
+                (record.amount_total or 0.0)
+                + (record.amount_total_pos or 0.0))
 
     def get_bill_summary_lines(self):
         """Returns a list of summary lines for the bill report:
@@ -130,8 +144,15 @@ class RoomBooking(models.Model):
                 'date': pos_link.pos_order_id.date_order,
                 'total': pos_link.pos_order_id.amount_total,
             })
-            
+
         return lines
+
+    def get_bill_summary_total(self):
+        """Grand total matching get_bill_summary_lines (folio incl. tax
+        plus settled POS). Used by the combined bill so its subtotal can
+        never drift from the rows above it."""
+        self.ensure_one()
+        return sum(l['total'] for l in self.get_bill_summary_lines())
 
     pos_invoice_count = fields.Integer(compute='_compute_pos_invoice_count', string='POS Invoice Count')
 
