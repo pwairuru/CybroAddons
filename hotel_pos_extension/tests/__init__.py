@@ -20,3 +20,4 @@
 #
 #############################################################################
 from . import test_hotel_pos_extension
+from . import test_hotel_pos_folio

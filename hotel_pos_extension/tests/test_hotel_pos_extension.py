@@ -32,6 +32,7 @@ class TestHotelPosExtension(TransactionCase):
         cls.payment_method = cls.env['pos.payment.method'].create({
             'name': 'Hotel Charge',
             'is_hotel_charge': True,
+            'type': 'bank',
         })
 
     def test_load_pos_data_fields(self):
