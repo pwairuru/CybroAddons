@@ -69,14 +69,18 @@ class RoomBooking(models.Model):
         
         final_res = []
         for rec, (vals, booking_list) in zip(self, res_list):
-            amount_total_pos = sum(rec.pos_order_line_ids.mapped('amount_total'))
+            # Only settled POS orders count: draft/cancelled ghost links
+            # (created at order-draft time) must not inflate totals.
+            valid_pos_lines = rec.pos_order_line_ids.filtered(
+                lambda l: l.state in ('paid', 'done', 'invoiced'))
+            amount_total_pos = sum(valid_pos_lines.mapped('amount_total'))
             
             vals['amount_total_pos'] = amount_total_pos
             vals['amount_total'] += amount_total_pos
             vals['amount_untaxed'] += amount_total_pos 
             
             if flag:
-                for line in rec.pos_order_line_ids:
+                for line in valid_pos_lines:
                     for pos_line in line.pos_order_id.lines:
                         booking_list.append({
                             'name': f"POS: {pos_line.full_product_name or pos_line.product_id.name} (Ref: {line.pos_reference or ''})",
@@ -118,7 +122,8 @@ class RoomBooking(models.Model):
             'total': folio_total,
         })
         
-        for pos_link in self.pos_order_line_ids:
+        for pos_link in self.pos_order_line_ids.filtered(
+                lambda l: l.state in ('paid', 'done', 'invoiced')):
             lines.append({
                 'reference': pos_link.pos_order_id.name,
                 'order_no': pos_link.pos_order_id.pos_reference,
