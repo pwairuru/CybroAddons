@@ -47,8 +47,8 @@
             </div>
             <t t-set-slot="footer">
                 <div class="d-flex flex-row gap-2 w-100">
-                    <button class="btn btn-secondary flex-fill" t-on-click="cancel">Discard</button>
-                    <button class="btn btn-primary flex-fill" t-on-click="confirm">Confirm</button>
+                    <button class="btn btn-secondary flex-fill" t-on-click="() => this.cancel()">Discard</button>
+                    <button class="btn btn-primary flex-fill" t-on-click="() => this.confirm()">Confirm</button>
                 </div>
             </t>
         </Dialog>
