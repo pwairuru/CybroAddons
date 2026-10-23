@@ -19,7 +19,8 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import ValidationError
 
 
 class HotelService(models.Model):
@@ -42,3 +43,67 @@ class HotelService(models.Model):
                                  domain=[('type_tax_use', '=', 'sale')],
                                  default=lambda self:
                                  self.env.company.account_sale_tax_id)
+    product_id = fields.Many2one('product.product', string="Service Product",
+                                 ondelete='restrict', copy=False,
+                                 tracking=True,
+                                 help="Sellable service product for folios.")
+
+    def _prepare_service_product_vals(self):
+        """Product vals mirroring this service (company same)."""
+        self.ensure_one()
+        return {
+            'name': self.name,
+            'type': 'service',
+            'list_price': self.unit_price or 0.0,
+            'taxes_id': [(6, 0, self.taxes_ids.ids)],
+            'sale_ok': True,
+            'purchase_ok': False,
+            'company_id': self.env.company.id,
+        }
+
+    def _ensure_product(self):
+        """Create linked product when missing; raise if creation fails."""
+        for svc in self:
+            if svc.product_id:
+                continue
+            product = self.env['product.product'].create(
+                svc._prepare_service_product_vals())
+            if not product:
+                raise ValidationError(
+                    _("Failed to create service product for %s.") % svc.name)
+            svc.product_id = product.id
+            if not svc.product_id:
+                raise ValidationError(
+                    _("Service %s requires a product.") % svc.name)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._ensure_product()
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        if any(f in vals for f in ('name', 'unit_price', 'taxes_ids')):
+            for svc in self:
+                if not svc.product_id:
+                    svc._ensure_product()
+                    continue
+                prod_vals = {}
+                if 'name' in vals:
+                    prod_vals['name'] = svc.name
+                if 'unit_price' in vals:
+                    prod_vals['list_price'] = svc.unit_price
+                if 'taxes_ids' in vals:
+                    prod_vals['taxes_id'] = [(6, 0, svc.taxes_ids.ids)]
+                if prod_vals:
+                    svc.product_id.write(prod_vals)
+        return res
+
+    def _charge_product(self):
+        """Sellable product for folio charges (symmetry helper for T2)."""
+        self.ensure_one()
+        if not self.product_id:
+            raise ValidationError(
+                _("Service %s has no product.") % self.name)
+        return self.product_id

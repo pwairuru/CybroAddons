@@ -5,15 +5,66 @@
         <field name="name">cleaning.request.view.tree</field>
         <field name="model">cleaning.request</field>
         <field name="arch" type="xml">
-                <list>
+                <list decoration-danger="sla_breach">
                     <field name="sequence"/>
                     <field name="cleaning_type"/>
                     <field name="task_type"/>
+                    <field name="room_id"/>
                     <field name="room_status"/>
                     <field name="team_id"/>
-                    <field name="state"/>
+                    <field name="state" widget="badge"/>
                     <field name="sla_breach"/>
                 </list>
+        </field>
+    </record>
+    <record id="cleaning_request_view_kanban" model="ir.ui.view">
+        <field name="name">cleaning.request.view.kanban</field>
+        <field name="model">cleaning.request</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <field name="sequence"/>
+                <field name="avatar_128"/>
+                <field name="cleaning_type"/>
+                <field name="task_type"/>
+                <field name="room_id"/>
+                <field name="room_status"/>
+                <field name="team_id"/>
+                <field name="state"/>
+                <field name="sla_breach"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click d-flex">
+                            <field name="avatar_128" widget="image"
+                                   class="o_kanban_avatar me-2"
+                                   style="width:64px;height:64px;"/>
+                            <div class="oe_kanban_details flex-grow-1">
+                                <div class="oe_kanban_record_heading">
+                                    <strong>
+                                        <field name="sequence"/>
+                                    </strong>
+                                    <span class="text-muted">
+                                        <field name="state"/>
+                                    </span>
+                                </div>
+                                <div>
+                                    <field name="cleaning_type"/>
+                                    ·
+                                    <field name="task_type"/>
+                                </div>
+                                <div>
+                                    Room:
+                                    <field name="room_id"/>
+                                    (<field name="room_status"/>)
+                                </div>
+                                <div>
+                                    Team:
+                                    <field name="team_id"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
         </field>
     </record>
     <!--        Cleaning Request Form view-->
@@ -104,23 +155,12 @@
             </form>
         </field>
     </record>
-    <!--        Cleaning Team Tree view-->
-    <record id="cleaning_team_view_tree" model="ir.ui.view">
-        <field name="name">cleaning.team.view.tree</field>
-        <field name="model">cleaning.team</field>
-        <field name="arch" type="xml">
-            <list>
-                <field name="name"/>
-                <field name="team_head_id"/>
-            </list>
-        </field>
-    </record>
     <!--    Cleaning Request menu action-->
     <record id="cleaning_request_action" model="ir.actions.act_window">
         <field name="name">Cleaning Request</field>
         <field name="res_model">cleaning.request</field>
         <field name="type">ir.actions.act_window</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="context">{}</field>
     </record>
     <!--Menu Cleaning Request (operational, Task 11)-->

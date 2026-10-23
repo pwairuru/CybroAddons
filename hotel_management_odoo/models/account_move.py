@@ -32,3 +32,16 @@ class AccountMove(models.Model):
                                        string="Booking Reference",
                                        readonly=True, help="Choose the Booking"
                                                            "Reference")
+    hotel_folio_id = fields.Many2one('hotel.folio', string="Folio",
+                                     index=True, ondelete="set null",
+                                     help="Folio this invoice was generated "
+                                     "from (folio unification).")
+
+
+class AccountPayment(models.Model):
+    """Folio link for payments tab (folio unification)."""
+    _inherit = "account.payment"
+
+    hotel_folio_id = fields.Many2one('hotel.folio', string="Folio",
+                                     index=True, ondelete="set null",
+                                     help="Folio this payment applies to.")

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hotel_folio_split_action" model="ir.actions.act_window">
+        <field name="name">Split Bill</field>
+        <field name="res_model">hotel.folio.split</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="view_hotel_folio_split_form" model="ir.ui.view">
+        <field name="name">hotel.folio.split.form</field>
+        <field name="model">hotel.folio.split</field>
+        <field name="arch" type="xml">
+            <form string="Split Bill">
+                <sheet>
+                    <group>
+                        <field name="folio_id"
+                               options="{'no_open': True, 'no_create': True}"/>
+                        <field name="company_id" invisible="1"/>
+                        <field name="line_ids"
+                               domain="[('folio_id', '=', folio_id)]"/>
+                        <field name="target_mode"/>
+                        <field name="target_folio_id"
+                               invisible="target_mode != 'existing'"
+                               required="target_mode == 'existing'"
+                               options="{'no_open': True, 'no_create': True}"/>
+                        <field name="new_partner_id"
+                               invisible="target_mode != 'new'"
+                               required="target_mode == 'new'"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_split" string="Split" type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

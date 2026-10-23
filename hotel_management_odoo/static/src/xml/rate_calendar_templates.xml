@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<template>
+    <t t-name="HotelRateCalendar">
+        <div class="o_rc_calendar">
+            <div class="o_rc_toolbar">
+                <h4>Rate Calendar</h4>
+                <button class="btn btn-secondary btn-sm" t-on-click="() => this.shift(-1)" title="Back">‹</button>
+                <button class="btn btn-secondary btn-sm" t-on-click="() => this.goToday()">Today</button>
+                <button class="btn btn-secondary btn-sm" t-on-click="() => this.shift(1)" title="Forward">›</button>
+                <select class="form-select form-select-sm o_rc_plan" t-on-change="(e) => this.onPlanChange(e)" title="Rate plan">
+                    <t t-foreach="this.state.plans" t-as="p" t-key="p.id">
+                        <option t-att-value="p.id" t-att-selected="this.state.planId === p.id ? 'selected' : false"><t t-out="p.name"/></option>
+                    </t>
+                </select>
+                <select class="form-select form-select-sm o_rc_board" t-on-change="(e) => this.onBoardChange(e)" title="Board basis">
+                    <option value="RO" t-att-selected="this.state.board === 'RO' ? 'selected' : false">Room Only</option>
+                    <option value="BB" t-att-selected="this.state.board === 'BB' ? 'selected' : false">Bed &amp; Breakfast</option>
+                    <option value="HB" t-att-selected="this.state.board === 'HB' ? 'selected' : false">Half Board</option>
+                    <option value="FB" t-att-selected="this.state.board === 'FB' ? 'selected' : false">Full Board</option>
+                </select>
+                <button t-att-class="'btn btn-sm ' + (this.state.bulk ? 'btn-primary' : 'btn-outline-primary')" t-on-click="() => this.toggleBulk()" title="Select a date range, then apply one rule to all of it">Bulk</button>
+                <button class="btn btn-secondary btn-sm" t-on-click="() => this.reload()" title="Refresh">⟳</button>
+                <ul class="o_rc_legend" aria-label="Colour key">
+                    <li class="o_rc_legend_caption">Key</li>
+                    <li><i class="o_rc_dot o_rc_up"/> Above BAR</li>
+                    <li><i class="o_rc_dot o_rc_down"/> Below BAR</li>
+                    <li><i class="o_rc_dot o_rc_closed"/> Closed</li>
+                    <li><i class="o_rc_dot o_rc_soldout"/> Sold out</li>
+                </ul>
+                <select class="form-select form-select-sm o_rc_days ms-auto" t-on-change="(e) => this.onDaysChange(e)">
+                    <option value="7" t-att-selected="this.state.days === 7 ? 'selected' : false">7 days</option>
+                    <option value="14" t-att-selected="this.state.days === 14 ? 'selected' : false">14 days</option>
+                    <option value="28" t-att-selected="this.state.days === 28 ? 'selected' : false">28 days</option>
+                    <option value="42" t-att-selected="this.state.days === 42 ? 'selected' : false">42 days</option>
+                </select>
+            </div>
+            <div class="o_rc_bulkbar" t-if="this.state.bulk">
+                <span class="fw-bold">Bulk mode:</span>
+                <span t-if="!this.state.sel">click a first cell, then a last cell, to pick a range.</span>
+                <span t-if="this.state.sel"><t t-out="this.state.sel.from"/> → <t t-out="this.state.sel.to"/></span>
+                <select class="form-select form-select-sm" t-att-value="this.state.bulkForm.mode" t-on-change="(e) => this.onBulkField(e, 'mode')">
+                    <option value="percent">Percent %</option>
+                    <option value="fixed">Fixed price</option>
+                </select>
+                <input class="form-control form-control-sm o_rc_value" type="number" step="any" t-att-value="this.state.bulkForm.value" t-on-change="(e) => this.onBulkField(e, 'value')" title="Adjustment % or fixed price"/>
+                <label>Priority <input class="form-control form-control-sm o_rc_value" type="number" t-att-value="this.state.bulkForm.priority" t-on-change="(e) => this.onBulkField(e, 'priority')"/></label>
+                <button class="btn btn-primary btn-sm" t-on-click="() => this.applyBulk()" t-att-disabled="!this.state.sel ? 'disabled' : false">Apply</button>
+                <span class="o_rc_warn" t-if="this.state.overlapWarning">Overlaps a same-priority rule with a different rate — save will be rejected.</span>
+                <span class="o_rc_notice" t-if="this.state.notice"><t t-out="this.state.notice"/></span>
+            </div>
+            <div class="o_rc_scroll">
+                <div class="o_rc_grid" t-att-style="'grid-template-columns: 190px repeat(' + this.state.dates.length + ', minmax(74px, 1fr));'">
+                    <div class="o_rc_corner fw-bold" style="grid-row: 1; grid-column: 1;"><span>Room type</span></div>
+                    <t t-foreach="this.state.dates" t-as="d" t-key="d">
+                        <div class="o_rc_date_head" t-att-style="'grid-row: 1; grid-column: ' + this.colFor(d) + ';'">
+                            <div class="small text-muted"><t t-out="this.headFor(d).dow"/></div><div class="fw-bold"><t t-out="this.headFor(d).day"/><small class="text-muted"> <t t-out="this.headFor(d).mon"/></small></div>
+                        </div>
+                    </t>
+                    <t t-foreach="this.state.rows" t-as="row" t-key="row.type_id">
+                        <div class="o_rc_room_cell" t-att-style="'grid-row: ' + (row_index + 2) + '; grid-column: 1;'" t-att-title="row.name">
+                            <span class="fw-bold"><t t-out="row.name"/></span>
+                        </div>
+                        <t t-foreach="row.cells" t-as="cell" t-key="cell.date">
+                            <div t-att-class="(this.clsFor(cell) + (this.inSel(row.type_id, cell.date) ? ' o_rc_sel' : ''))"
+                                 t-att-style="'grid-row: ' + (row_index + 2) + '; grid-column: ' + this.colFor(cell.date) + ';'"
+                                 t-on-click="() => this.onCell(row, cell)"
+                                 t-att-data-testid="'rc-' + row.type_id + '-' + cell.date"
+                                 t-att-title="this.tipFor(row, cell)">
+                                <span class="o_rc_price"><t t-out="this.state.board !== 'RO' ? cell.total : cell.price"/></span>
+                                <small class="o_rc_delta" t-att-data-testid="'rc-delta-' + row.type_id + '-' + cell.date"><t t-out="cell.delta_pct + '%'"/></small>
+                                <small class="o_rc_avail"><t t-out="cell.available + ' free'"/></small>
+                            </div>
+                        </t>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+</template>

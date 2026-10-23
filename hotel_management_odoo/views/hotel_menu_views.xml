@@ -12,14 +12,29 @@
               sequence="50"
               groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               parent="hotel_management_menu_root"/>
-    <!--    Operational parents (Task 11): only these sit at root next to
-            Dashboard / Reservation / Folios / Conferences.
-            Rack action is attached in room_booking_views.xml (same ID update:
-            menuitems cannot forward-reference actions on fresh install).-->
-    <menuitem id="hotel_rack_menu"
-              name="Rack"
-              sequence="2"
+    <delete model="ir.ui.menu" id="hotel_rack_menu"/>
+    <!--    Task 5 groupings: Rooms / Pricing / Folio. Operational menus
+         live here, never under Settings. Config stays as the existing
+         Configuration menu (Boards/Amenities/Floors). -->
+    <menuitem id="hotel_menu_rooms"
+              name="Rooms"
+              sequence="10"
               parent="hotel_management_menu_root"/>
+    <menuitem id="hotel_menu_pricing"
+              name="Pricing"
+              sequence="11"
+              parent="hotel_management_menu_root"/>
+    <menuitem id="hotel_menu_folio"
+              name="Folio"
+              sequence="12"
+              parent="hotel_management_menu_root"/>
+    <!--    Rate Calendar placeholder: Task 5 reserved the slot; Task 6
+          wires it to the calendar client action. -->
+    <menuitem id="hotel_rate_calendar_menu"
+              name="Rate Calendar"
+              sequence="30"
+              parent="hotel_menu_rooms"
+              action="hotel_rate_calendar_action"/>
     <menuitem id="hotel_housekeeping_menu"
               name="Housekeeping"
               sequence="13"

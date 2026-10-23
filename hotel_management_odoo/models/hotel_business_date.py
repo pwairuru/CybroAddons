@@ -73,17 +73,20 @@ class HotelNightAudit(models.Model):
     """Night audit: posts room nights, clears no-shows, locks the day."""
     _name = 'hotel.night.audit'
     _description = "Hotel Night Audit"
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'date desc'
 
     company_id = fields.Many2one('res.company', string="Company",
                                  required=True, index=True,
                                  default=lambda self: self.env.company)
     date = fields.Date(string="Audit Date", required=True, index=True,
-                       default=fields.Date.today)
+                       default=fields.Date.today, tracking=True)
     state = fields.Selection([('draft', 'Draft'), ('done', 'Done')],
-                             default='draft', required=True)
-    room_nights_posted = fields.Integer(string="Room Nights", default=0)
-    no_show_count = fields.Integer(string="No-Shows", default=0)
+                             default='draft', required=True, tracking=True)
+    room_nights_posted = fields.Integer(string="Room Nights", default=0,
+                                        tracking=True)
+    no_show_count = fields.Integer(string="No-Shows", default=0,
+                                   tracking=True)
 
     _one_audit_per_day = models.Constraint(
         'unique(company_id, date)',
@@ -171,14 +174,22 @@ class HotelNightAudit(models.Model):
     def _post_room_nights(self, day):
         """Post one room-night charge per in-house booking line.
 
-        Pre-validates the day is open before the first post_charge (no
-        partial audit), and dedups on folio + product + hotel date +
-        room so two lines sharing one product never collapse.
+        Nights are priced through the rate engine
+        (``price_detailed`` net, with the line's pax) under the
+        company's first rate plan; without any plan the booking
+        line rent is used. Pre-validates the day is open before the
+        first post_charge (no partial audit), and dedups on folio +
+        product + hotel date + room so two lines sharing one
+        product never collapse.
         """
         charge = self.env['hotel.charge.service']
-        charge._check_open_day(day, self.company_id)
+        company = self.company_id or self.env.company
+        charge._check_open_day(day, company)
+        plan = self.env['hotel.rate.plan'].search(
+            [('company_id', '=', company.id)], order='id', limit=1)
+        engine = self.env['hotel.rate.engine']
         bookings = self.env['room.booking'].search(
-            [('company_id', '=', self.company_id.id),
+            [('company_id', '=', company.id),
              ('state', '=', 'check_in')])
         posted = 0
         for booking in bookings:
@@ -191,6 +202,7 @@ class HotelNightAudit(models.Model):
                 folio = self.env['hotel.folio'].create({
                     'partner_id': booking.partner_id.id,
                     'booking_id': booking.id,
+                    'policy_snapshot': booking.hotel_policy or False,
                 })
             for line in booking.room_line_ids:
                 product = line.room_id.product_variant_id
@@ -204,8 +216,15 @@ class HotelNightAudit(models.Model):
                 ])
                 if dup:
                     continue
+                if plan:
+                    price = engine.price_detailed(
+                        line.room_id.id, day, plan.id,
+                        adults=line.adults, children=line.children,
+                        toddlers=line.toddlers)['net']
+                else:
+                    price = line.price_unit or 0.0
                 charge.post_charge(folio.id, product.id, 1,
-                                   line.price_unit or 0.0, 'to_guest',
+                                   price, 'to_guest',
                                    hotel_date=day,
                                    room_template_id=line.room_id.id,
                                    booking_line_id=line.id)

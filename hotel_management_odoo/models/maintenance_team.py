@@ -24,7 +24,8 @@ from odoo import fields, models
 
 class MaintenanceTeam(models.Model):
     """Model that handles the maintenance team """
-    _inherit = "maintenance.team"
+    _inherit = ["maintenance.team", "mail.thread", "mail.activity.mixin",
+                "avatar.mixin"]
     _description = "Maintenance Team"
 
     is_hotel = fields.Boolean(string="Is Hotel Maintenance", default=False)
@@ -32,7 +33,7 @@ class MaintenanceTeam(models.Model):
     name = fields.Char(string='Maintenance Team',
                        help='Name of the maintenance team')
     user_id = fields.Many2one('res.users', string='Team Leader',
-                              help="Leader of Team",
+                              help="Leader of Team", tracking=True,
                               domain=lambda self: [
                                   ('group_ids', 'in', self.env.ref(
                                       'hotel_management_odoo.'
@@ -41,6 +42,7 @@ class MaintenanceTeam(models.Model):
     member_ids = fields.Many2many('res.users',
                                   string='Members',
                                   help="Members of the Team",
+                                  tracking=True,
                                   domain=lambda self: [
                                       ('group_ids', 'in', self.env.ref(
                                           'hotel_management_odoo.'

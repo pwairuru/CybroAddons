@@ -245,11 +245,17 @@ class HotelChannelMessage(models.Model):
             'uom_qty': norm['nights'],
         })
         booking.action_reserve()
-        self.env['hotel.folio'].create({
-            'partner_id': partner.id,
-            'booking_id': booking.id,
-            'company_id': company.id,
-        })
+        # action_reserve already find-or-creates the booking folio;
+        # reuse it instead of double-creating.
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', booking.id)], limit=1)
+        if not folio:
+            self.env['hotel.folio'].create({
+                'partner_id': partner.id,
+                'booking_id': booking.id,
+                'company_id': company.id,
+                'policy_snapshot': booking.hotel_policy or False,
+            })
         self.write({'state': 'done', 'error': False,
                     'booking_id': booking.id})
         return self

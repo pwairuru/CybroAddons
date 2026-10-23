@@ -18,14 +18,17 @@ class HotelVenue(models.Model):
     """Bookable conference/venue space. Master under Configuration."""
     _name = 'hotel.venue'
     _description = "Hotel Venue"
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string="Name", required=True)
     company_id = fields.Many2one('res.company', string="Company",
                                  required=True, index=True,
                                  default=lambda self: self.env.company)
-    capacity = fields.Integer(string="Capacity", default=0)
-    flat_price = fields.Float(string="Venue Flat Price", default=0.0)
-    pax_price = fields.Float(string="Price per Pax", default=0.0)
+    capacity = fields.Integer(string="Capacity", default=0, tracking=True)
+    flat_price = fields.Float(string="Venue Flat Price", default=0.0,
+                              tracking=True)
+    pax_price = fields.Float(string="Price per Pax", default=0.0,
+                             tracking=True)
     venue_product_id = fields.Many2one('product.product',
                                        string="Venue Product")
     pax_product_id = fields.Many2one('product.product',
@@ -49,6 +52,7 @@ class HotelConference(models.Model):
     """
     _name = 'hotel.conference'
     _description = "Hotel Conference"
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'date desc, id desc'
 
     name = fields.Char(string="Reference", default="New", index=True)
@@ -56,22 +60,25 @@ class HotelConference(models.Model):
                                  required=True, index=True,
                                  default=lambda self: self.env.company)
     venue_id = fields.Many2one('hotel.venue', string="Venue",
-                               required=True, index=True, ondelete="restrict")
+                               required=True, index=True, ondelete="restrict",
+                               tracking=True)
     date = fields.Date(string="Date", required=True, index=True,
-                       default=fields.Date.today)
+                       default=fields.Date.today, tracking=True)
     slot = fields.Selection(SLOTS, string="Slot", required=True,
-                            default='full')
+                            default='full', tracking=True)
     partner_id = fields.Many2one('res.partner', string="Master Bill-To",
                                  help="Company customer paying the master "
                                  "bill (venue + package).",
-                                 index=True)
-    pax = fields.Integer(string="Pax", default=0)
-    venue_price = fields.Float(string="Venue Price", default=0.0)
-    pax_price = fields.Float(string="Pax Unit Price", default=0.0)
+                                 index=True, tracking=True)
+    pax = fields.Integer(string="Pax", default=0, tracking=True)
+    venue_price = fields.Float(string="Venue Price", default=0.0,
+                               tracking=True)
+    pax_price = fields.Float(string="Pax Unit Price", default=0.0,
+                             tracking=True)
     state = fields.Selection(
         [('draft', 'Draft'), ('confirmed', 'Confirmed'),
          ('done', 'Done'), ('cancel', 'Cancelled')],
-        default='draft', required=True)
+        default='draft', required=True, tracking=True)
     master_folio_id = fields.Many2one('hotel.folio', string="Master Folio",
                                       readonly=True, ondelete="set null")
     attendee_ids = fields.One2many('hotel.conference.attendee',

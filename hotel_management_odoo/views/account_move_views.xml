@@ -10,6 +10,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='ref']" position="before">
                 <field name="hotel_booking_id"/>
+                <field name="hotel_folio_id"/>
             </xpath>
         </field>
     </record>

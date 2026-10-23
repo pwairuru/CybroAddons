@@ -142,8 +142,8 @@
 
     <menuitem id="hotel_document_menu"
               name="Guest Documents"
-              sequence="20"
-              parent="hotel_folio_menu"
+              sequence="40"
+              parent="hotel_menu_folio"
               action="hotel_document_action"/>
 
     <record id="hotel_loyalty_program_action" model="ir.actions.act_window">

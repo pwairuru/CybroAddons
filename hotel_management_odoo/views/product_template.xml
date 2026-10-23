@@ -14,19 +14,48 @@
                         <label for="is_room" string="Room"/>
                     </span>
                 </xpath>
+                <!--    Simplified room UX: core Sales Price is display-only
+                     for rooms (authority = room type base_rate); room
+                     archiving stays available on the room page. Core
+                     product form already ships <chatter/>, so none added
+                     here (avoids duplicate chatter). -->
+                <xpath expr="//group[@name='group_standard_price']//field[@name='list_price']"
+                       position="attributes">
+                    <attribute name="readonly">is_room == True</attribute>
+                </xpath>
+                <!--    Hide inventory/accounting pages for rooms. Inventory
+                     keeps its core expression, extended with is_room;
+                     Accounting (account module, page name invoicing) hides
+                     fully for rooms. -->
+                <xpath expr="//page[@name='inventory']" position="attributes">
+                    <attribute name="invisible">type in ['service', 'combo'] or is_room == True</attribute>
+                </xpath>
+                <xpath expr="//page[@name='invoicing']" position="attributes">
+                    <attribute name="invisible">is_room == True</attribute>
+                </xpath>
                 <notebook>
                     <page string="Information" invisible="is_room != True">
+                        <div class="alert alert-info" role="alert"
+                             invisible="is_room != True">
+                            Nightly rate authority is the Room Type base
+                            rate. Sales Price below is display-only.
+                        </div>
                         <group>
                             <group>
+                                <field name="room_type_id"/>
                                 <field name="floor_id" string="Floor"/>
                                 <field name="user_id" select="2"
                                            string="Room Manager"/>
+                                <field name="website_published" readonly="1"/>
+                                <field name="active"/>
                             </group>
                             <group>
                                     <field name="room_type"/>
                                     <field name="list_price" widget="monetary"
-                                           string="Rent"/>
+                                           string="Rent" readonly="is_room == True"/>
                                     <field name="num_person"/>
+                                    <field name="status" readonly="1"/>
+                                    <field name="is_room_avail" readonly="1"/>
                             </group>
                         </group>
                     </page>
@@ -43,16 +72,121 @@
             </field>
           </record>
 
+    <!--    Rooms search: website flag via related (stored) + availability
+         via status. is_room_avail stays a booking-flow mirror, never a
+         website filter. -->
+    <record id="product_template_search_rooms" model="ir.ui.view">
+        <field name="name">product.template.search.rooms</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="room_type_id"/>
+                <separator/>
+                <filter name="rooms" string="Rooms"
+                        domain="[('is_room', '=', True)]"/>
+                <filter name="website_published" string="Website Published"
+                        domain="[('website_published', '=', True)]"/>
+                <filter name="available" string="Available"
+                        domain="[('status', '=', 'available')]"/>
+            </search>
+        </field>
+    </record>
+
+    <!--    Rooms list + kanban: occupancy first, image everywhere.
+         Kanban is default so ops see status at a glance. -->
+    <record id="product_template_view_list_rooms" model="ir.ui.view">
+        <field name="name">product.template.view.list.rooms</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="image_1920" widget="image" class="oe_avatar"/>
+                <field name="name"/>
+                <field name="status" widget="badge"
+                       decoration-success="status == 'available'"
+                       decoration-warning="status == 'reserved'"
+                       decoration-danger="status == 'occupied'"/>
+                <field name="is_room_avail" widget="boolean_toggle"/>
+                <field name="floor_id"/>
+                <field name="room_type_id"/>
+                <field name="num_person"/>
+                <field name="list_price" widget="monetary"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="product_template_view_kanban_rooms" model="ir.ui.view">
+        <field name="name">product.template.view.kanban.rooms</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <field name="name"/>
+                <field name="image_1920"/>
+                <field name="avatar_128"/>
+                <field name="status"/>
+                <field name="is_room_avail"/>
+                <field name="floor_id"/>
+                <field name="room_type_id"/>
+                <field name="num_person"/>
+                <field name="list_price"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click d-flex">
+                            <div class="flex-shrink-0 me-2">
+                                <field name="avatar_128" widget="image"
+                                       class="o_kanban_avatar"
+                                       style="width:64px;height:64px;"/>
+                            </div>
+                            <div class="oe_kanban_details flex-grow-1">
+                                <div class="oe_kanban_record_heading">
+                                    <strong>
+                                        <field name="name"/>
+                                    </strong>
+                                </div>
+                                <div>
+                                    <field name="status"/>
+                                    ·
+                                    <field name="floor_id"/>
+                                </div>
+                                <div>
+                                    <field name="room_type_id"/>
+                                    ·
+                                    <field name="num_person"/>
+                                    pers
+                                </div>
+                                <div>
+                                    <strong>
+                                        <field name="list_price"
+                                               widget="monetary"/>
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
     <!--    Rooms Action: Lists only product.template records flagged as a Room-->
     <record id="action_room_products" model="ir.actions.act_window">
         <field name="name">Rooms</field>
         <field name="res_model">product.template</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="domain">[('is_room','=',True)]</field>
         <field name="context">{'default_is_room': True}</field>
+        <field name="search_view_id" ref="product_template_search_rooms"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban',
+                    'view_id': ref('product_template_view_kanban_rooms')}),
+            (0, 0, {'view_mode': 'list',
+                    'view_id': ref('product_template_view_list_rooms')}),
+            (0, 0, {'view_mode': 'form'})]"/>
     </record>
 
-    <!--    Rooms Menu-->
-    <menuitem id="menu_product_template" parent="hotel_config_menu" action="action_room_products"/>
+    <!--    Rooms Menu (operational, under Rooms grouping, NOT Settings)-->
+    <menuitem id="menu_product_template" name="Rooms"
+              parent="hotel_menu_rooms" sequence="20"
+              action="action_room_products"/>
 
 </odoo>

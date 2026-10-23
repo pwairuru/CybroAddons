@@ -3,6 +3,7 @@ import { registry } from '@web/core/registry';
 import { useService } from "@web/core/utils/hooks";
 import { Component, onWillStart, onMounted } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
+import { HotelTapeChart } from "./tape_chart";
 
 const today = new Date();
 const day = String(today.getDate()).padStart(2, '0');
@@ -11,6 +12,7 @@ const year = today.getFullYear();
 const formattedDate = `${year}-${month}-${day}`;
 
 export class CustomDashBoard extends Component {
+    static components = { HotelTapeChart };
     /**
      * Setup method to initialize required services and register event handlers.
      */
@@ -34,15 +36,13 @@ export class CustomDashBoard extends Component {
         this.total_revenue = '$ 0';
         this.today_revenue = '$ 0';
         this.pending_payment = '$ 0';
-        // ── Task 4: rack + tiles (extend, do not replace) ──
+        // ── Task 4: tiles (extend, do not replace) ──
         this.occupancy = '0%';
         this.adr = '0';
         this.revpar = '0';
         this.arrivals = 0;
         this.departures = 0;
         this.dirty = 0;
-        this.rackDates = [];
-        this.rackRows = [];
 
         onWillStart(this.onWillStart.bind(this));
         onMounted(this.onMounted.bind(this));
@@ -82,7 +82,7 @@ export class CustomDashBoard extends Component {
                 this.pending_payment = result['pending_payment'] + ' ' + result['currency_symbol'];
             }
         }
-        // ── Task 4: tiles + rack (best-effort; dashboard stays up if endpoint missing) ──
+        // ── Task 4: tiles (best-effort; dashboard stays up if endpoint missing) ──
         try {
             const tiles = await this.orm.call('hotel.daily.inventory', 'get_tiles', []);
             if (tiles) {
@@ -95,37 +95,6 @@ export class CustomDashBoard extends Component {
                 this.dirty = tiles['dirty'];
             }
         } catch (e) { /* tiles unavailable (module not upgraded?) — keep defaults */ }
-        try {
-            const rack = await this.orm.call('hotel.daily.inventory', 'get_rack', []);
-            if (rack && rack['cells']) {
-                const dates = [];
-                const seen = new Set();
-                for (const c of rack['cells']) {
-                    if (!seen.has(c['date'])) { seen.add(c['date']); dates.push(c['date']); }
-                }
-                dates.sort();
-                this.rackDates = dates;
-                // Group by room_id (stable); room_name is display-only.
-                const byRoom = {};
-                for (const c of rack['cells']) {
-                    const key = c['room_id'];
-                    (byRoom[key] = byRoom[key] || []).push(c);
-                }
-                this.rackRows = Object.keys(byRoom).map(Number).sort((a, b) => a - b).map((id) => ({
-                    room_id: id,
-                    room_name: (byRoom[id][0] && byRoom[id][0]['room_name']) || ('#' + id),
-                    cells: dates.map((d) => {
-                        const cell = byRoom[id].find((c) => c['date'] === d) || {};
-                        return {
-                            testid: 'rack-cell-' + id + '-' + d,
-                            display: cell['display'] || 'Available',
-                            cls: 'rack-cell rack-status-' + (cell['status'] || 'available'),
-                            booking_id: cell['booking_id'] || false,
-                        };
-                    }),
-                }));
-            }
-        } catch (e) { /* rack unavailable — keep empty */ }
     }
 
     // ── Navigation handlers ──
@@ -338,7 +307,7 @@ export class CustomDashBoard extends Component {
         }, options);
     }
 
-    // ── Task 4: tile + rack drill-downs ──
+    // ── Task 4: tile drill-downs ──
 
     _tileAction(e, opts) {
         e.stopPropagation();
@@ -389,24 +358,6 @@ export class CustomDashBoard extends Component {
             res_model: 'cleaning.request',
             domain: [['cleaning_type', '=', 'room'], ['state', '!=', 'done']],
         });
-    }
-
-    openRackCell(e, booking_id) {
-        if (!booking_id) {
-            return;
-        }
-        e.stopPropagation();
-        e.preventDefault();
-        var options = { on_reverse_breadcrum: this.on_reverse_breadcrum };
-        this.action.doAction({
-            name: _t("Booking"),
-            type: 'ir.actions.act_window',
-            res_model: 'room.booking',
-            view_mode: 'form',
-            views: [[false, 'form']],
-            res_id: booking_id,
-            target: 'current',
-        }, options);
     }
 }
 

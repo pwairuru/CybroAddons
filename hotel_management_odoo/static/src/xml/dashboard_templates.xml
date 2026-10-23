@@ -18,8 +18,8 @@
                     <i class="oi" data-icon="bed"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.occupancy"/></div>
                     <div class="dash-label">Occupancy</div>
+                    <div class="dash-count"><t t-out="this.occupancy"/></div>
                 </div>
             </div>
             <div class="dash-card tile-adr" data-testid="tile-adr">
@@ -27,8 +27,8 @@
                     <i class="oi" data-icon="payments"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.adr"/></div>
                     <div class="dash-label">ADR</div>
+                    <div class="dash-count"><t t-out="this.adr"/></div>
                 </div>
             </div>
             <div class="dash-card tile-revpar" data-testid="tile-revpar">
@@ -36,8 +36,8 @@
                     <i class="oi" data-icon="monitoring"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.revpar"/></div>
                     <div class="dash-label">RevPAR</div>
+                    <div class="dash-count"><t t-out="this.revpar"/></div>
                 </div>
             </div>
             <div class="dash-card tile-arrivals" data-testid="tile-arrivals" t-on-click="(e) => this.openArrivals(e)">
@@ -45,8 +45,8 @@
                     <i class="oi" data-icon="login"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.arrivals"/></div>
                     <div class="dash-label">Arrivals</div>
+                    <div class="dash-count"><t t-out="this.arrivals"/></div>
                 </div>
             </div>
             <div class="dash-card tile-departures" data-testid="tile-departures" t-on-click="(e) => this.openDepartures(e)">
@@ -54,8 +54,8 @@
                     <i class="oi" data-icon="logout"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.departures"/></div>
                     <div class="dash-label">Departures</div>
+                    <div class="dash-count"><t t-out="this.departures"/></div>
                 </div>
             </div>
             <div class="dash-card tile-dirty" data-testid="tile-dirty" t-on-click="(e) => this.openDirty(e)">
@@ -63,38 +63,10 @@
                     <i class="oi" data-icon="warning"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.dirty"/></div>
                     <div class="dash-label">Dirty Rooms</div>
+                    <div class="dash-count"><t t-out="this.dirty"/></div>
                 </div>
             </div>
-        </div>
-
-        <!-- ── Room Rack (Task 4: 7-day availability tape chart) ── -->
-        <div class="dash-section-title">Room Rack</div>
-        <div class="rack-wrapper">
-            <table class="rack-table">
-                <thead>
-                    <tr>
-                        <th class="rack-room-col">Room</th>
-                        <t t-foreach="this.rackDates" t-as="d" t-key="d">
-                            <th><t t-out="d"/></th>
-                        </t>
-                    </tr>
-                </thead>
-                <tbody>
-                    <t t-foreach="this.rackRows" t-as="row" t-key="row.room_id">
-                        <tr>
-                            <td class="rack-room-col"><t t-out="row.room_name"/></td>
-                            <t t-foreach="row.cells" t-as="cell" t-key="cell.testid">
-                                <td t-att-data-testid="cell.testid" t-att-class="cell.cls"
-                                    t-on-click="(e) => this.openRackCell(e, cell.booking_id)">
-                                    <t t-out="cell.display"/>
-                                </td>
-                            </t>
-                        </tr>
-                    </t>
-                </tbody>
-            </table>
         </div>
 
         <!-- ── Rooms Section ── -->
@@ -107,8 +79,8 @@
                     <i class="oi" data-icon="bed"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.total_room"/></div>
                     <div class="dash-label">Total Rooms</div>
+                    <div class="dash-count"><t t-out="this.total_room"/></div>
                 </div>
             </div>
 
@@ -118,8 +90,8 @@
                     <i class="oi" data-icon="check_circle"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.available_room"/></div>
                     <div class="dash-label">Available Rooms</div>
+                    <div class="dash-count"><t t-out="this.available_room"/></div>
                 </div>
             </div>
 
@@ -129,8 +101,8 @@
                     <i class="oi" data-icon="login"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.check_in"/></div>
                     <div class="dash-label">Check In</div>
+                    <div class="dash-count"><t t-out="this.check_in"/></div>
                 </div>
             </div>
 
@@ -140,8 +112,8 @@
                     <i class="oi" data-icon="logout"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.check_out"/></div>
                     <div class="dash-label">Today's Check Out</div>
+                    <div class="dash-count"><t t-out="this.check_out"/></div>
                 </div>
             </div>
 
@@ -151,18 +123,21 @@
                     <i class="oi" data-icon="bookmark"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.reservation"/></div>
                     <div class="dash-label">Total Reservations</div>
+                    <div class="dash-count"><t t-out="this.reservation"/></div>
                 </div>
             </div>
 
         </div>
 
-        <!-- ── Staff and Fleet Section ── -->
+        <div class="dash-section-title">Tape Chart</div>
+        <div class="tape-embed"><HotelTapeChart/></div>
+
+        <!--
         <div class="dash-section-title">Staff &amp; Fleet</div>
         <div class="dash-grid">
 
-            <!-- Total Staff -->
+            ── Total Staff ──
             <div class="dash-card" t-on-click="(e) => this.fetch_total_staff(e)">
                 <div class="dash-icon-bubble icon-indigo">
                     <i class="oi" data-icon="group"/>
@@ -173,7 +148,7 @@
                 </div>
             </div>
 
-            <!-- Total Vehicles -->
+            ── Total Vehicles ──
             <div class="dash-card" t-on-click="(e) => this.fetch_total_vehicle(e)">
                 <div class="dash-icon-bubble icon-slate">
                     <i class="oi" data-icon="directions_car"/>
@@ -184,7 +159,7 @@
                 </div>
             </div>
 
-            <!-- Available Vehicles -->
+            ── Available Vehicles ──
             <div class="dash-card" t-on-click="(e) => this.fetch_available_vehicle(e)">
                 <div class="dash-icon-bubble icon-lime">
                     <i class="oi" data-icon="directions_car"/>
@@ -196,12 +171,13 @@
             </div>
 
         </div>
+        -->
 
-        <!-- ── Events Section ── -->
+        <!--
         <div class="dash-section-title">Events</div>
         <div class="dash-grid">
 
-            <!-- Total Events -->
+            ── Total Events ──
             <div class="dash-card" t-on-click="(e) => this.view_total_events(e)">
                 <div class="dash-icon-bubble icon-cyan">
                     <i class="oi" data-icon="event_available"/>
@@ -212,7 +188,7 @@
                 </div>
             </div>
 
-            <!-- Today's Events -->
+            ── Today's Events ──
             <div class="dash-card" t-on-click="(e) => this.fetch_today_events(e)">
                 <div class="dash-icon-bubble icon-yellow">
                     <i class="oi" data-icon="event_available"/>
@@ -223,7 +199,7 @@
                 </div>
             </div>
 
-            <!-- Pending Events -->
+            ── Pending Events ──
             <div class="dash-card" t-on-click="(e) => this.fetch_pending_events(e)">
                 <div class="dash-icon-bubble icon-red">
                     <i class="oi" data-icon="warning"/>
@@ -235,6 +211,7 @@
             </div>
 
         </div>
+        -->
 
         <!-- ── Food Section ── -->
         <div class="dash-section-title">Food</div>
@@ -246,8 +223,8 @@
                     <i class="oi" data-icon="restaurant"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.food_items"/></div>
                     <div class="dash-label">Food Items</div>
+                    <div class="dash-count"><t t-out="this.food_items"/></div>
                 </div>
             </div>
 
@@ -257,18 +234,18 @@
                     <i class="oi" data-icon="shopping_cart"/>
                 </div>
                 <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.food_order"/></div>
                     <div class="dash-label">Food Orders</div>
+                    <div class="dash-count"><t t-out="this.food_order"/></div>
                 </div>
             </div>
 
         </div>
 
-        <!-- ── Revenue Section ── -->
+        <!--
         <div class="dash-section-title">Revenue</div>
         <div class="dash-grid">
 
-            <!-- Total Revenue -->
+            ── Total Revenue ──
             <div class="dash-card">
                 <div class="dash-icon-bubble icon-green">
                     <i class="oi" data-icon="monitoring"/>
@@ -279,7 +256,7 @@
                 </div>
             </div>
 
-            <!-- Today's Revenue -->
+            ── Today's Revenue ──
             <div class="dash-card">
                 <div class="dash-icon-bubble icon-teal">
                     <i class="oi" data-icon="payments"/>
@@ -290,7 +267,7 @@
                 </div>
             </div>
 
-            <!-- Pending Payment -->
+            ── Pending Payment ──
             <div class="dash-card">
                 <div class="dash-icon-bubble icon-pink">
                     <i class="oi" data-icon="credit_card"/>
@@ -302,5 +279,6 @@
             </div>
 
         </div>
+        -->
     </t>
 </template>

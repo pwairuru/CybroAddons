@@ -245,3 +245,91 @@ class HotelDailyInventory(models.AbstractModel):
             'room_revenue': round(revenue, 2),
             'currency_symbol': self.env.company.currency_id.symbol,
         }
+
+    @api.model
+    def get_tape(self, date_from=None, days=14):
+        """Tape-chart payload for [start, start+days). Read-only."""
+        days = min(max(int(days or 14), 1), 28)
+        today = fields.Date.context_today(self)
+        start = fields.Date.from_string(date_from) if date_from else today
+        end = start + timedelta(days=days)
+        rooms = self._rooms()
+        ooo_ids = self._ooo_room_ids()
+        dirty_ids = self._dirty_room_ids()
+        floor_names = {f.id: f.name for f in self.env['hotel.floor'].search([])}
+        type_labels = dict(
+            self.env['product.template'].fields_get(['room_type'])['room_type']['selection'])
+        room_rows = [{
+            'id': r.id, 'name': r.name,
+            'floor_id': r.floor_id.id or False,
+            'floor_name': r.floor_id.name or 'No Floor',
+            'floor_seq': r.floor_id.id and 0 or 1,
+            'room_type': r.room_type or False,
+            'room_type_label': type_labels.get(r.room_type, r.room_type or ''),
+            'hk_status': 'ooo' if r.id in ooo_ids else (
+                'dirty' if r.id in dirty_ids else 'clean'),
+            'is_ooo': r.id in ooo_ids,
+        } for r in rooms]
+        room_rows.sort(key=lambda x: (x['floor_id'] or 9999, x['name']))
+        if floor_names:
+            seq = {fid: i for i, fid in
+                   enumerate(self.env['hotel.floor'].search([], order='id').ids)}
+            for row in room_rows:
+                row['floor_seq'] = seq.get(row['floor_id'], 9999)
+            room_rows.sort(key=lambda x: (x['floor_seq'], x['name']))
+        window_start = fields.Datetime.to_string(
+            datetime.combine(start, datetime.min.time()))
+        window_end = fields.Datetime.to_string(
+            datetime.combine(end, datetime.min.time()))
+        lines = self.env['room.booking.line'].search([
+            ('booking_id.company_id', '=', self.env.company.id),
+            ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('checkin_date', '<', window_end),
+            ('checkout_date', '>', window_start),
+        ])
+        segments = []
+        for line in lines:
+            ci = _to_date(line.checkin_date)
+            co = _to_date(line.checkout_date)
+            if not (ci and co):
+                continue
+            seg_from = max(ci, start)
+            seg_to = min(co, end)
+            if seg_from >= seg_to:
+                continue
+            bk = line.booking_id
+            segments.append({
+                'id': line.id, 'booking_id': bk.id,
+                'booking_name': bk.name,
+                'room_id': line.room_id.id,
+                'date_from': fields.Date.to_string(seg_from),
+                'date_to': fields.Date.to_string(seg_to),
+                'state': bk.state,
+                'guest_name': bk.partner_id.name or '',
+                'is_arrival': ci == start or (start <= ci < end),
+                'is_departure': co == end or (start < co <= end),
+            })
+        dates = [fields.Date.to_string(start + timedelta(days=i))
+                 for i in range(days)]
+        in_house = {}
+        for line in lines:
+            if line.booking_id.state != 'check_in':
+                continue
+            ci = _to_date(line.checkin_date)
+            co = _to_date(line.checkout_date)
+            if not (ci and co):
+                continue
+            for i in range(days):
+                day = start + timedelta(days=i)
+                if ci <= day < co:
+                    in_house.setdefault(fields.Date.to_string(day),
+                                        set()).add(line.room_id.id)
+        sellable = max(len(rooms) - len(ooo_ids & set(rooms.ids)), 0)
+        occupancy = {}
+        for d in dates:
+            sold = len(in_house.get(d, set()))
+            pct = round(100.0 * sold / sellable, 1) if sellable else 0.0
+            occupancy[d] = {'sold': sold, 'sellable': sellable, 'pct': pct}
+        return {'date_from': fields.Date.to_string(start), 'days': days,
+                'dates': dates, 'rooms': room_rows, 'segments': segments,
+                'occupancy': occupancy}

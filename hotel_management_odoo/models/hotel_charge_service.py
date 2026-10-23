@@ -47,6 +47,16 @@ class HotelFolioLine(models.Model):
         'room.booking.line', string="Booking Line", index=True,
         ondelete="set null",
         help="Source stay line when this charge is a room night.")
+    source = fields.Char(string="Source", default='rate', index=True,
+                         help="Charge origin: rate/meal/pos/service/manual. "
+                         "Room scope only; POS/services attach later.")
+    pos_order_id = fields.Many2one(
+        'pos.order', string="POS Order", index=True, ondelete="set null",
+        help="POS order this charge came from (source='pos').")
+    invoiced_qty = fields.Float(string="Invoiced Qty", default=0.0,
+                                help="Qty already covered by a folio invoice.")
+    locked = fields.Boolean(string="Locked", default=False,
+                            help="Set once a folio invoice covers the line.")
     price_subtotal = fields.Float(string="Subtotal",
                                   compute='_compute_price_subtotal',
                                   store=True)
@@ -142,7 +152,8 @@ class HotelChargeService(models.AbstractModel):
     @api.model
     def post_charge(self, folio_id, product_id, qty, price_unit,
                     routing='to_guest', hotel_date=None,
-                    room_template_id=None, booking_line_id=None):
+                    room_template_id=None, booking_line_id=None,
+                    source='rate', pos_order_id=None):
         day = _to_date(hotel_date)
         if routing not in ROUTINGS:
             raise ValidationError("Unknown routing %s." % routing)
@@ -172,5 +183,7 @@ class HotelChargeService(models.AbstractModel):
             'tax_ids': [(6, 0, product.taxes_id.ids)],
             'room_template_id': room_template_id or False,
             'booking_line_id': booking_line_id or False,
+            'source': source or 'rate',
+            'pos_order_id': pos_order_id or False,
         })
         return line

@@ -19,7 +19,8 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import api, fields, models, tools
+from odoo import api, fields, models, tools, _
+from odoo.exceptions import ValidationError
 
 
 class FleetBookingLine(models.Model):
@@ -80,6 +81,42 @@ class FleetBookingLine(models.Model):
                              string="Order Status",
                              help=" Status of the Order",
                              copy=False)
+    folio_line_id = fields.Many2one('hotel.folio.line', string="Folio Line",
+                                    readonly=True, copy=False,
+                                    ondelete='set null',
+                                    help="Folio charge posted for this line.")
+
+    def _charge_product(self):
+        """Sellable product for folio charges.
+
+        Search-first-or-create a service-type product
+        ``Hotel: <vehicle display name>`` (company-filtered).
+        """
+        self.ensure_one()
+        vehicle = self.fleet_id
+        if not vehicle:
+            raise ValidationError(
+                _("Fleet line %s has no vehicle selected.") % self.id)
+        company = self.booking_id.company_id or self.env.company
+        name = "Hotel: %s" % (vehicle.display_name or vehicle.name or '-')
+        product = self.env['product.product'].search([
+            ('name', '=', name),
+            ('company_id', 'in', (False, company.id)),
+            ('type', '=', 'service'),
+        ], limit=1)
+        if not product:
+            product = self.env['product.product'].create({
+                'name': name,
+                'type': 'service',
+                'list_price': self.price_unit or 0.0,
+                'sale_ok': True,
+                'purchase_ok': False,
+                'company_id': company.id,
+            })
+        if not product:
+            raise ValidationError(
+                _("Fleet line %s has no product.") % self.id)
+        return product
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):

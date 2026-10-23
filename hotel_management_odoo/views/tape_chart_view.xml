@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="hotel_tape_chart_action" model="ir.actions.client">
+        <field name="name">Tape Chart</field>
+        <field name="tag">hotel_tape_chart</field>
+    </record>
+    <menuitem name="Tape Chart" id="hotel_tape_chart_menu"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_housekeeping,hotel_management_odoo.hotel_group_cashier,hotel_management_odoo.hotel_group_auditor,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
+              parent="hotel_management_menu_root"
+              sequence="3"
+              action="hotel_tape_chart_action"/>
+</odoo>

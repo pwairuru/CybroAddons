@@ -7,22 +7,106 @@ class HotelDeposit(models.Model):
     """Advance payment linked to a folio, deducted at settle time."""
     _name = 'hotel.deposit'
     _description = "Hotel Deposit"
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'id desc'
 
     folio_id = fields.Many2one('hotel.folio', string="Folio",
-                               required=True, ondelete="cascade", index=True)
-    amount = fields.Float(string="Amount", required=True)
+                               required=True, ondelete="cascade", index=True,
+                               tracking=True)
+    amount = fields.Float(string="Amount", required=True, tracking=True)
     state = fields.Selection([('draft', 'Draft'), ('applied', 'Applied')],
-                             default='draft', required=True)
+                             default='draft', required=True, tracking=True)
     company_id = fields.Many2one('res.company', string="Company",
                                  required=True, index=True,
                                  default=lambda self: self.env.company)
+    account_id = fields.Many2one('account.account',
+                                 string="Liability Account",
+                                 ondelete="restrict",
+                                 tracking=True,
+                                 help="Customer-deposit liability account "
+                                 "(interim: liability, reversed at settle).")
+    move_id = fields.Many2one('account.move', string="Liability Entry",
+                              readonly=True, ondelete="set null",
+                              help="Liability reversal entry posted at "
+                              "settle time.")
+    payment_move_id = fields.Many2one('account.move', string="Payment Entry",
+                                      readonly=True, ondelete="set null",
+                                      copy=False,
+                                      tracking=True,
+                                      help="Cash receipt posted at collect "
+                                      "time (Dr cash / Cr liability).")
 
     @api.constrains('amount')
     def _check_amount(self):
         for rec in self:
             if rec.amount <= 0:
                 raise ValidationError("Deposit amount must be positive.")
+
+    def action_collect(self):
+        """Post the cash receipt for this deposit (Dr cash / Cr liability).
+
+        Requires draft state, no prior collection, and an open folio in
+        the current company. Resolves the cash account from the first
+        bank/cash journal default account and the liability account via
+        the folio (same lookup as settle). Returns the posted move.
+        """
+        self.ensure_one()
+        if self.state != 'draft':
+            raise ValidationError("Only draft deposits can be collected.")
+        if self.payment_move_id:
+            raise ValidationError(
+                "Deposit already collected (move %s)."
+                % (self.payment_move_id.name or self.payment_move_id.id))
+        folio = self.folio_id
+        if folio.company_id.id != self.env.company.id:
+            raise ValidationError(
+                "Deposit belongs to %s; collect from that company."
+                % folio.company_id.display_name)
+        if folio.state != 'open':
+            raise ValidationError(
+                "Can only collect deposits for an open folio.")
+        company = folio.company_id
+        journal = self.env['account.journal'].search(
+            [('type', 'in', ('bank', 'cash')),
+             ('company_id', '=', company.id)], limit=1)
+        cash_account = journal.default_account_id if journal else False
+        if not cash_account:
+            raise ValidationError(
+                "No cash/bank journal with a default account for "
+                "company %s; configure one to collect deposits."
+                % company.display_name)
+        liability = folio._ensure_liability_account()
+        ref = 'Deposit folio %s' % folio.id
+        move = self.env['account.move'].create({
+            'move_type': 'entry',
+            'journal_id': journal.id,
+            'company_id': company.id,
+            'currency_id': company.currency_id.id,
+            'partner_id': folio.partner_id.id,
+            'ref': ref,
+            'line_ids': [
+                (0, 0, {
+                    'name': ref,
+                    'account_id': cash_account.id,
+                    'partner_id': folio.partner_id.id,
+                    'debit': self.amount,
+                    'credit': 0.0,
+                }),
+                (0, 0, {
+                    'name': ref,
+                    'account_id': liability.id,
+                    'partner_id': folio.partner_id.id,
+                    'debit': 0.0,
+                    'credit': self.amount,
+                }),
+            ],
+        })
+        move.action_post()
+        self.write({'payment_move_id': move.id})
+        folio.message_post(
+            body="Deposit collected: %.2f (move %s)."
+            % (self.amount, move.name or move.id))
+        return move
 
     def apply(self):
         """Mark this deposit applied against its folio."""
@@ -44,18 +128,20 @@ class HotelCityLedger(models.Model):
     """City-ledger (direct-bill AR) entry a folio balance is transferred to."""
     _name = 'hotel.city.ledger'
     _description = "Hotel City Ledger"
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'id desc'
 
     partner_id = fields.Many2one('res.partner', string="Customer",
-                                 required=True, index=True)
+                                 required=True, index=True, tracking=True)
     folio_id = fields.Many2one('hotel.folio', string="Folio",
-                               required=True, ondelete="restrict", index=True)
-    amount = fields.Float(string="Amount", required=True)
+                               required=True, ondelete="restrict", index=True,
+                               tracking=True)
+    amount = fields.Float(string="Amount", required=True, tracking=True)
     state = fields.Selection([('open', 'Open'), ('paid', 'Paid')],
-                             default='open', required=True)
+                             default='open', required=True, tracking=True)
     transfer_date = fields.Date(string="Transfer Date", required=True,
-                                default=fields.Date.today)
-    due_date = fields.Date(string="Due Date")
+                                default=fields.Date.today, tracking=True)
+    due_date = fields.Date(string="Due Date", tracking=True)
     age_days = fields.Integer(string="Age (days)",
                               compute='_compute_age_days', store=True)
     company_id = fields.Many2one('res.company', string="Company",
@@ -124,24 +210,31 @@ class HotelCashierShift(models.Model):
     """Cashier shift with open/close and cash variance tracking."""
     _name = 'hotel.cashier.shift'
     _description = "Hotel Cashier Shift"
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'id desc'
 
     user_id = fields.Many2one('res.users', string="Cashier",
                               default=lambda self: self.env.user,
-                              required=True, index=True)
+                              required=True, index=True, tracking=True)
     company_id = fields.Many2one('res.company', string="Company",
                                  required=True, index=True,
                                  default=lambda self: self.env.company)
     state = fields.Selection([('draft', 'Draft'), ('open', 'Open'),
                               ('closed', 'Closed')],
-                             default='draft', required=True)
-    opening_cash = fields.Float(string="Opening Cash", default=0.0)
-    expected_cash = fields.Float(string="Expected Cash", default=0.0)
-    closing_cash = fields.Float(string="Closing Cash", default=0.0)
+                             default='draft', required=True, tracking=True)
+    opening_cash = fields.Float(string="Opening Cash", default=0.0,
+                                tracking=True)
+    expected_cash = fields.Float(string="Expected Cash", default=0.0,
+                                 tracking=True)
+    closing_cash = fields.Float(string="Closing Cash", default=0.0,
+                                tracking=True)
     variance = fields.Float(string="Variance",
-                            compute='_compute_variance', store=True)
-    opened_at = fields.Datetime(string="Opened At", readonly=True)
-    closed_at = fields.Datetime(string="Closed At", readonly=True)
+                            compute='_compute_variance', store=True,
+                            tracking=True)
+    opened_at = fields.Datetime(string="Opened At", readonly=True,
+                                tracking=True)
+    closed_at = fields.Datetime(string="Closed At", readonly=True,
+                                tracking=True)
 
     @api.constrains('opening_cash', 'expected_cash', 'closing_cash')
     def _check_cash(self):

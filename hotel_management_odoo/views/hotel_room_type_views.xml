@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="hotel_room_type_view_search" model="ir.ui.view">
+        <field name="name">hotel.room.type.view.search</field>
+        <field name="model">hotel.room.type</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="code"/>
+                <separator/>
+                <filter name="website_published" string="Website Published"
+                        domain="[('website_published', '=', True)]"/>
+                <filter name="unpublished" string="Unpublished"
+                        domain="[('website_published', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="hotel_room_type_view_list" model="ir.ui.view">
+        <field name="name">hotel.room.type.view.list</field>
+        <field name="model">hotel.room.type</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="image" widget="image" class="oe_avatar"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="adult_capacity"/>
+                <field name="child_capacity"/>
+                <field name="max_occupants"/>
+                <field name="base_rate"/>
+                <field name="default_board"/>
+                <field name="website_published" widget="boolean_toggle"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_room_type_view_kanban" model="ir.ui.view">
+        <field name="name">hotel.room.type.view.kanban</field>
+        <field name="model">hotel.room.type</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="image"/>
+                <field name="avatar_128"/>
+                <field name="adult_capacity"/>
+                <field name="child_capacity"/>
+                <field name="max_occupants"/>
+                <field name="base_rate"/>
+                <field name="default_board"/>
+                <field name="website_published"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click d-flex">
+                            <div class="flex-shrink-0 me-2">
+                                <t t-if="record.image.raw_value">
+                                    <field name="image" widget="image"
+                                           class="oe_avatar"/>
+                                </t>
+                                <t t-else="">
+                                    <field name="avatar_128" widget="image"
+                                           class="o_kanban_avatar"
+                                           style="width:64px;height:64px;"/>
+                                </t>
+                            </div>
+                            <div class="oe_kanban_details flex-grow-1">
+                                <div class="oe_kanban_record_heading">
+                                    <strong>
+                                        <field name="name"/>
+                                    </strong>
+                                    <span class="text-muted">
+                                        <field name="code"/>
+                                    </span>
+                                </div>
+                                <div>
+                                    <span>
+                                        <field name="adult_capacity"/>
+                                        Adults,
+                                        <field name="child_capacity"/>
+                                        Children,
+                                        max
+                                        <field name="max_occupants"/>
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong>
+                                        <field name="base_rate"/>
+                                    </strong>
+                                    <span class="text-muted">
+                                        <field name="default_board"/>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="hotel_room_type_view_form" model="ir.ui.view">
+        <field name="name">hotel.room.type.view.form</field>
+        <field name="model">hotel.room.type</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_button_box" name="button_box"/>
+                    <field name="image" widget="image" class="oe_avatar"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="e.g. Deluxe"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="General">
+                            <field name="code"/>
+                            <field name="company_id"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Capacity">
+                            <field name="adult_capacity"/>
+                            <field name="child_capacity"/>
+                            <field name="max_occupants"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Rate Authority">
+                            <field name="base_rate"/>
+                            <field name="default_board"/>
+                        </group>
+                        <group string="Website">
+                            <field name="website_published"/>
+                        </group>
+                    </group>
+                    <group string="Amenities">
+                        <field name="amenity_ids" widget="many2many_tags"
+                               nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_room_type_action" model="ir.actions.act_window">
+        <field name="name">Room Types</field>
+        <field name="res_model">hotel.room.type</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="hotel_room_type_view_search"/>
+        <field name="help" type="html">
+            <p class="oe_view_nocontent_create">
+                Create a room type (Deluxe, Standard...). Rate authority
+                lives here via Base Rate.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="hotel_room_type_menu"
+              name="Room Types"
+              sequence="10"
+              parent="hotel_menu_rooms"
+              action="hotel_room_type_action"/>
+</odoo>

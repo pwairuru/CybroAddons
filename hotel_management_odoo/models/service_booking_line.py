@@ -19,7 +19,8 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import api, fields, models, tools
+from odoo import api, fields, models, tools, _
+from odoo.exceptions import ValidationError
 
 
 class ServiceBookingLine(models.Model):
@@ -79,6 +80,20 @@ class ServiceBookingLine(models.Model):
                                           string="Booking Line Visible",
                                           help="If true, Booking line will be"
                                                " visible")
+    folio_line_id = fields.Many2one('hotel.folio.line', string="Folio Line",
+                                    readonly=True, copy=False,
+                                    ondelete='set null',
+                                    help="Folio charge posted for this line.")
+
+    def _charge_product(self):
+        """Sellable product for folio charges."""
+        self.ensure_one()
+        product = self.service_id.product_id
+        if not product:
+            raise ValidationError(
+                _("Service line %s has no product (service %s).")
+                % (self.id, self.service_id.display_name or '-'))
+        return product
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):

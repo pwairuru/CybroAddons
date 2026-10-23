@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="action_report_hotel_folio_statement" model="ir.actions.report">
+        <field name="name">Folio Statement</field>
+        <field name="model">hotel.folio</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hotel_management_odoo.report_hotel_folio_statement</field>
+        <field name="binding_model_id" ref="model_hotel_folio"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_hotel_folio_statement">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Folio Statement — <t t-out="doc.partner_id.display_name"/></h2>
+                        <p>Folio <t t-out="doc.id"/> —
+                           Booking <t t-out="doc.booking_id.display_name or '-'"/> —
+                           Policy <t t-out="doc.policy_snapshot or '-'"/></p>
+                        <t t-if="doc.policy_snapshot == 'picking'">
+                            <div class="alert alert-warning">
+                                <strong>Pay on Checkout</strong> —
+                                balance due at departure.
+                            </div>
+                        </t>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Qty</th>
+                                    <th>Unit</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="doc.line_ids.sorted(key=lambda l: (l.hotel_date or False, l.id))" t-as="line">
+                                    <tr>
+                                        <td><t t-out="line.hotel_date"/></td>
+                                        <td><t t-out="line.product_id.categ_id.display_name or '-'"/></td>
+                                        <td><t t-out="line.product_id.display_name"/></td>
+                                        <td><t t-out="line.quantity"/></td>
+                                        <td><t t-out="line.price_unit"/></td>
+                                        <td><t t-out="line.price_total"/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                        <p>Untaxed: <t t-out="doc.amount_untaxed"/> —
+                           Tax: <t t-out="doc.amount_tax"/> —
+                           Total: <t t-out="doc.amount_total"/> —
+                           Deposits: <t t-out="doc.deposit_total"/> —
+                           Due: <t t-out="doc.amount_due"/></p>
+                        <p t-if="doc.notes"><t t-out="doc.notes"/></p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

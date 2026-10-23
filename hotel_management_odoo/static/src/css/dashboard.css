@@ -51,57 +51,60 @@ html .o_web_client > .o_action_manager {
 /* ---- Individual card ---- */
 .dash-card {
     background: #ffffff;
-    border-radius: 16px;
-    padding: 24px 20px 20px;
+    border-radius: 10px;
+    padding: 14px;
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 12px;
     cursor: pointer;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
-    min-height: 100px;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.22s ease;
+    min-height: 0;
     width: 100%;
 }
 
 .dash-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* ---- Icon bubble ---- */
 .dash-icon-bubble {
     flex-shrink: 0;
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 18px;
 }
 
 /* ---- Card text ---- */
 .dash-card-body {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .dash-count {
-    font-size: 30px;
-    font-weight: 700;
+    font-size: 22px;
+    font-weight: 600;
     line-height: 1.1;
-    color: #1a202c;
+    color: #4A4A55;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .dash-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: #718096;
-    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #5D718D;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-top: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -123,73 +126,12 @@ html .o_web_client > .o_action_manager {
 .icon-rose   { background: #fff1f2; color: #f43f5e; }
 .icon-slate  { background: #f1f5f9; color: #64748b; }
 
-/* ---- Task 4: glance tiles accent ---- */
-.dash-grid-tiles .dash-card {
-    border-left: 4px solid transparent;
-}
-.tile-occupancy { border-left-color: #14b8a6 !important; }
-.tile-adr { border-left-color: #3b82f6 !important; }
-.tile-revpar { border-left-color: #a855f7 !important; }
-.tile-arrivals { border-left-color: #22c55e !important; }
-.tile-departures { border-left-color: #f97316 !important; }
-.tile-dirty { border-left-color: #ef4444 !important; }
-
-/* ---- Task 4: room rack tape chart ---- */
-.rack-wrapper {
-    overflow-x: auto;
-    background: #ffffff;
-    border-radius: 16px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+/* ---- Tape chart embed ---- */
+.tape-embed {
+    background: #fff;
+    border: 1px solid #f1f5f9;
+    border-radius: 10px;
+    padding: 8px;
     margin-bottom: 8px;
-}
-
-.rack-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    min-width: 640px;
-}
-
-.rack-table th,
-.rack-table td {
-    padding: 10px 12px;
-    text-align: center;
-    border-bottom: 1px solid #edf2f7;
-    white-space: nowrap;
-}
-
-.rack-table thead th {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: #8492a6;
-    background: #f8fafc;
-}
-
-.rack-room-col {
-    text-align: left !important;
-    font-weight: 700;
-    color: #1a202c;
-    position: sticky;
-    left: 0;
-    background: #ffffff;
-}
-
-.rack-cell {
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.rack-status-available { background: #e6f9f0; color: #15803d; }
-.rack-status-reserved { background: #fffbeb; color: #b45309; }
-.rack-status-occupied { background: #ebf4ff; color: #1d4ed8; }
-.rack-status-dirty { background: #fff0f0; color: #b91c1c; }
-.rack-status-ooo { background: #f1f5f9; color: #475569; }
-
-@media (max-width: 576px) {
-    .rack-table { min-width: 520px; font-size: 12px; }
-    .rack-table th,
-    .rack-table td { padding: 8px; }
+    min-height: 300px;
 }

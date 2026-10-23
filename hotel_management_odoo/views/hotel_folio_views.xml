@@ -1,20 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!-- Folios menu (operational, NOT under Configuration) -->
-    <menuitem id="hotel_folio_menu"
-              name="Folios"
-              sequence="10"
-              parent="hotel_management_menu_root"/>
+    <!-- Task 5 grouping lives under hotel_menu_folio (see
+         hotel_menu_views.xml); the Task-4 intermediate menu is removed
+         at the end of this file, after its action menu moves. -->
 
     <record id="hotel_folio_view_list" model="ir.ui.view">
         <field name="name">hotel.folio.view.list</field>
         <field name="model">hotel.folio</field>
         <field name="arch" type="xml">
             <list>
+                <field name="name"/>
                 <field name="partner_id"/>
                 <field name="booking_id"/>
-                <field name="state"/>
+                <field name="policy_snapshot"/>
+                <field name="amount_total"/>
+                <field name="amount_due"/>
+                <field name="state" widget="badge"/>
             </list>
+        </field>
+    </record>
+
+    <record id="hotel_folio_view_kanban" model="ir.ui.view">
+        <field name="name">hotel.folio.view.kanban</field>
+        <field name="model">hotel.folio</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <field name="name"/>
+                <field name="avatar_128"/>
+                <field name="partner_id"/>
+                <field name="booking_id"/>
+                <field name="amount_total"/>
+                <field name="amount_due"/>
+                <field name="state"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click d-flex">
+                            <field name="avatar_128" widget="image"
+                                   class="o_kanban_avatar me-2"
+                                   style="width:64px;height:64px;"/>
+                            <div class="oe_kanban_details flex-grow-1">
+                                <div class="oe_kanban_record_heading">
+                                    <strong>
+                                        <field name="name"/>
+                                    </strong>
+                                    <span class="text-muted">
+                                        <field name="state"/>
+                                    </span>
+                                </div>
+                                <div>
+                                    <field name="partner_id"/>
+                                </div>
+                                <div>
+                                    <field name="booking_id"/>
+                                </div>
+                                <div>
+                                    Total:
+                                    <strong>
+                                        <field name="amount_total"/>
+                                    </strong>
+                                    Due:
+                                    <strong>
+                                        <field name="amount_due"/>
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
         </field>
     </record>
 
@@ -24,25 +77,78 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_generate_draft_invoice"
+                            string="Generate Draft"
+                            invisible="state != 'open'" type="object"/>
+                    <button name="action_post_invoice" string="Post"
+                            invisible="state != 'open'" type="object"/>
+                    <button name="action_apply_deposit"
+                            string="Apply Deposit"
+                            invisible="state != 'open'" type="object"/>
                     <button name="action_settle" string="Settle"
-                            invisible="state != 'open'" type="object"
-                            class="btn-primary"/>
+                             invisible="state != 'open'" type="object"
+                             class="btn-primary"/>
+                    <button name="hotel_management_odoo.hotel_folio_split_action"
+                            string="Split Bill"
+                            invisible="state != 'open'"
+                            type="action" class="btn-primary"
+                            context="{'default_folio_id': id}"/>
+                    <button name="action_void" string="Void"
+                            invisible="state != 'open'" type="object"/>
                     <field name="state" widget="statusbar"
-                           statusbar_visible="open,settled"/>
+                           statusbar_visible="open,settled,void"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="object"
+                                name="action_generate_draft_invoice"
+                                icon="fa-file-text-o">
+                            <field string="Invoices" name="invoice_ids"
+                                   widget="statinfo"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_settle"
+                                icon="fa-money">
+                            <field string="Due" name="amount_due"
+                                   widget="statinfo"/>
+                        </button>
+                    </div>
                     <group>
-                        <field name="partner_id"/>
-                        <field name="booking_id"/>
-                        <field name="move_id" readonly="1"/>
+                        <group>
+                            <field name="name"/>
+                            <field name="partner_id"/>
+                            <field name="booking_id"/>
+                            <field name="policy_snapshot"/>
+                        </group>
+                        <group>
+                            <field name="amount_total"/>
+                            <field name="deposit_total"/>
+                            <field name="amount_due"/>
+                            <field name="move_id" readonly="1"/>
+                        </group>
                     </group>
                     <notebook>
                         <page string="Charges">
                             <field name="line_ids"/>
                         </page>
+                        <page string="POS">
+                            <field name="line_ids"
+                                   domain="[('source', '=', 'pos')]"/>
+                        </page>
+                        <page string="Payments">
+                            <field name="payment_ids"/>
+                        </page>
+                        <page string="Invoices">
+                            <field name="invoice_ids"/>
+                        </page>
+                        <page string="Notes">
+                            <group>
+                                <field name="notes"/>
+                            </group>
+                        </page>
                     </notebook>
-                    <chatter/>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -57,6 +163,10 @@
                 <field name="quantity"/>
                 <field name="price_unit"/>
                 <field name="routing"/>
+                <field name="source"/>
+                <field name="pos_order_id"/>
+                <field name="invoiced_qty"/>
+                <field name="locked"/>
             </list>
         </field>
     </record>
@@ -64,12 +174,119 @@
     <record id="hotel_folio_action" model="ir.actions.act_window">
         <field name="name">Folios</field>
         <field name="res_model">hotel.folio</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
     </record>
 
     <menuitem id="hotel_folio_menu_action"
               name="Folios"
               sequence="10"
-              parent="hotel_folio_menu"
+              parent="hotel_menu_folio"
               action="hotel_folio_action"/>
+
+    <record id="hotel_deposit_view_list" model="ir.ui.view">
+        <field name="name">hotel.deposit.view.list</field>
+        <field name="model">hotel.deposit</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="folio_id"/>
+                <field name="amount"/>
+                <field name="state"/>
+                <field name="account_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_deposit_view_form" model="ir.ui.view">
+        <field name="name">hotel.deposit.view.form</field>
+        <field name="model">hotel.deposit</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_collect" string="Collect"
+                            type="object" invisible="state != 'draft'"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="folio_id"/>
+                        <field name="amount"/>
+                        <field name="state"/>
+                        <field name="payment_move_id" readonly="1"/>
+                        <field name="company_id"/>
+                        <field name="account_id"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_deposit_action" model="ir.actions.act_window">
+        <field name="name">Deposits</field>
+        <field name="res_model">hotel.deposit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_deposit_menu"
+              name="Deposits"
+              sequence="20"
+              parent="hotel_menu_folio"
+              action="hotel_deposit_action"/>
+
+    <record id="hotel_city_ledger_view_list" model="ir.ui.view">
+        <field name="name">hotel.city.ledger.view.list</field>
+        <field name="model">hotel.city.ledger</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="partner_id"/>
+                <field name="folio_id"/>
+                <field name="amount"/>
+                <field name="state"/>
+                <field name="transfer_date"/>
+                <field name="due_date"/>
+                <field name="age_days"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_city_ledger_view_form" model="ir.ui.view">
+        <field name="name">hotel.city.ledger.view.form</field>
+        <field name="model">hotel.city.ledger</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="folio_id"/>
+                            <field name="amount"/>
+                            <field name="state"/>
+                        </group>
+                        <group>
+                            <field name="transfer_date"/>
+                            <field name="due_date"/>
+                            <field name="age_days"/>
+                            <field name="company_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_city_ledger_action" model="ir.actions.act_window">
+        <field name="name">City Ledger</field>
+        <field name="res_model">hotel.city.ledger</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="hotel_city_ledger_menu"
+              name="City Ledger"
+              sequence="30"
+              parent="hotel_menu_folio"
+              action="hotel_city_ledger_action"/>
+
+    <!-- Task-4 intermediate menu, now empty (action moved above). No-op
+         on fresh installs (Odoo logs a warning for missing deletes). -->
+    <delete model="ir.ui.menu" id="hotel_folio_menu"/>
 </odoo>
