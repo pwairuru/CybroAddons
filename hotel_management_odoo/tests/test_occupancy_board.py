@@ -271,3 +271,68 @@ class TestOccupancyItemizedData(TransactionCase):
                 'mode': 'fixed', 'value': 1000.0, 'basis': 'board',
                 'per': 'per_unit', 'unit_capacity': 0,
             })
+
+
+class TestOccupancyItemizedEngine(TransactionCase):
+    def setUp(self):
+        super().setUp()
+        self.company = self.env.company
+        self.dtype = self.env['hotel.room.type'].create({
+            'name': 'EngDeluxe', 'base_rate': 10000.0,
+            'max_occupants': 8,
+        })
+        self.plan = self.env['hotel.rate.plan'].create({
+            'name': 'EngRack', 'company_id': self.company.id})
+        self.env['hotel.rate.rule'].create({
+            'plan_id': self.plan.id, 'room_type_id': self.dtype.id,
+            'rate_type': 'percent', 'adjustment_pct': 30.0,
+            'priority': 50, 'date_from': '2026-12-20',
+            'date_to': '2026-12-31'})
+        self.room = self.env['product.template'].create({
+            'name': 'ENG101', 'is_room': True, 'room_type': 'double',
+            'num_person': 8, 'list_price': 10000.0,
+            'room_type_id': self.dtype.id})
+        self.env['hotel.board.rule'].create({
+            'company_id': self.company.id, 'room_type_id': self.dtype.id,
+            'plan_id': self.plan.id, 'board': 'BB',
+            'date_from': '2026-12-20', 'date_to': '2026-12-31',
+            'supplement': 3500.0})
+        self.env['hotel.rate.occupancy'].create({
+            'room_type_id': self.dtype.id, 'plan_id': self.plan.id,
+            'band': 'child', 'included_count': 0, 'mode': 'percent',
+            'value': 50.0, 'basis': 'board'})
+        self.engine = self.env['hotel.rate.engine']
+
+    def test_board_percent_uses_nightly_supplement(self):
+        # resolved 13000; child 50% of BB 3500 = 1750; net 14750.
+        breakdown = self.engine.price_detailed(
+            self.room.id, '2026-12-24', self.plan.id,
+            adults=2, children=1, board='BB')
+        self.assertEqual(breakdown['net'], 14750.0)
+        line = breakdown['lines'][1]
+        self.assertEqual(line['band'], 'child')
+        self.assertEqual(line['qty'], 1)
+        self.assertEqual(line['supplement'], 3500.0)
+        self.assertFalse(line['reason'])
+
+    def test_ro_board_basis_zero_with_reason(self):
+        breakdown = self.engine.price_detailed(
+            self.room.id, '2026-12-24', self.plan.id,
+            adults=2, children=1, board='RO')
+        self.assertEqual(breakdown['net'], 13000.0)
+        line = breakdown['lines'][1]
+        self.assertEqual(line['total'], 0.0)
+        self.assertEqual(line['reason'], 'no-board-price')
+
+    def test_per_unit_steps_with_capacity(self):
+        self.env['hotel.rate.occupancy'].create({
+            'room_type_id': self.dtype.id, 'plan_id': self.plan.id,
+            'band': 'adult', 'included_count': 0, 'mode': 'fixed',
+            'value': 2000.0, 'basis': 'resolved_rate',
+            'per': 'per_unit', 'unit_capacity': 4})
+        breakdown = self.engine.price_detailed(
+            self.room.id, '2026-12-24', self.plan.id,
+            adults=5, children=0, board='RO')
+        line = [l for l in breakdown['lines'] if l['band'] == 'adult'][0]
+        self.assertEqual(line['qty'], 2)
+        self.assertEqual(line['total'], 4000.0)

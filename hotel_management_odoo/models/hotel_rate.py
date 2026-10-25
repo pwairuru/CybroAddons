@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import timedelta
+from math import ceil
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
@@ -448,8 +449,28 @@ class HotelRateEngine(models.AbstractModel):
         return None
 
     @api.model
+    def _board_supplement(self, room_type, plan, board, day, booking=None):
+        """Nightly per-person board supplement or (0.0, reason)."""
+        if board and board != 'RO':
+            rule = self.env['hotel.board.rule']._match(
+                room_type.id if room_type else False, board, day,
+                plan.id if plan else None,
+                company_id=self.env.company.id)
+            if rule:
+                return float(rule.supplement or 0.0), False
+        if booking and hasattr(booking, 'meal_plan_supplement'):
+            try:
+                fallback = float(booking.meal_plan_supplement() or 0.0)
+            except Exception:
+                fallback = 0.0
+            if fallback:
+                return fallback, False
+        return 0.0, 'no-board-price'
+
+    @api.model
     def price_detailed(self, room_template_id, date, plan_id, pax=1,
-                       adults=None, children=0, toddlers=0):
+                       adults=None, children=0, toddlers=0,
+                       board='RO', booking=None):
         """Full nightly breakdown: {net, base, resolved, adjustment,
         occupancy, board, rule_id, lines[], basis}.
 
@@ -518,18 +539,31 @@ class HotelRateEngine(models.AbstractModel):
             extra = max(0, requested - (rec.included_count or 0))
             if not extra:
                 continue
+            qty = extra if (rec.per or 'per_guest') == 'per_guest' \
+                else ceil(extra / (rec.unit_capacity or 1))
+            supplement, reason = self._board_supplement(
+                room_type, plan, board, day, booking)
             if rec.mode == 'fixed':
                 unit = float(rec.value or 0.0)
             else:
-                ref = resolved if rec.basis == 'resolved_rate' \
-                    else type_bar
+                if rec.basis == 'bar':
+                    ref = type_bar
+                elif rec.basis == 'board':
+                    ref = supplement
+                else:
+                    ref = resolved
                 unit = float(ref * (rec.value or 0.0) / 100.0)
+            if rec.basis == 'board' and not supplement:
+                reason = 'no-board-price'
+                unit = 0.0
             lines.append({
-                'band': band, 'qty': extra, 'amount': unit,
-                'total': float(unit * extra), 'basis': rec.basis,
+                'band': band, 'qty': qty, 'amount': unit,
+                'total': float(unit * qty), 'basis': rec.basis,
                 'mode': rec.mode, 'value': rec.value,
+                'supplement': supplement, 'reason': reason,
+                'occupancy_id': rec.id,
             })
-            occupancy_total += unit * extra
+            occupancy_total += unit * qty
         net = float(resolved + occupancy_total)
         return {
             'net': net, 'base': float(base),
