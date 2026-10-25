@@ -477,8 +477,13 @@ class HotelRateEngine(models.AbstractModel):
         lines[0] is the resolved stay line; following lines are one
         per extra-occupant band beyond included. Percent extras use
         ``basis``: resolved_rate => % of resolved, bar => % of the
-        type BAR (type base_rate). board is 0.0 here — board
-        supplements post separately via post_meal_supplement.
+        type BAR (type base_rate), board => % of the nightly
+        per-person board supplement for the passed ``board`` (0.0
+        with reason 'no-board-price' when no board rule matches).
+        Each band line carries ``supplement`` (the nightly board
+        supplement used as reference, 0.0 for non-board bases) and
+        ``reason`` (False when priced, e.g. 'no-board-price' when the
+        band prices at zero).
         """
         day, room, plan = self._validate_price_inputs(
             room_template_id, date, plan_id)
@@ -704,6 +709,8 @@ class HotelRateEngine(models.AbstractModel):
                    folio_company.display_name))
         charge = self.env['hotel.charge.service']
         snapshots = self.env['hotel.rate.snapshot']
+        booking = folio.booking_id or False
+        board = (booking.meal_plan or 'RO') if booking else 'RO'
         days = [start + timedelta(days=offset) for offset in range(nights)]
         for day in days:
             charge._check_open_day(day, folio_company)
@@ -720,15 +727,18 @@ class HotelRateEngine(models.AbstractModel):
                 line = dup
                 detailed = self.price_detailed(
                     room.id, day, plan.id, pax=pax, adults=adults,
-                    children=children, toddlers=toddlers)
+                    children=children, toddlers=toddlers,
+                    board=board, booking=booking)
             else:
                 detailed = self.price_detailed(
                     room.id, day, plan.id, pax=pax, adults=adults,
-                    children=children, toddlers=toddlers)
+                    children=children, toddlers=toddlers,
+                    board=board, booking=booking)
                 line = charge.post_charge(
-                    folio.id, product.id, 1, detailed['net'],
+                    folio.id, product.id, 1, detailed['resolved'],
                     'to_guest', hotel_date=day,
-                    room_template_id=room.id)
+                    room_template_id=room.id,
+                    booking_line_id=False)
                 lines |= line
             existing = snapshots.search([
                 ('folio_id', '=', folio.id),
@@ -745,11 +755,62 @@ class HotelRateEngine(models.AbstractModel):
                     'folio_line_id': line.id,
                     'base': detailed['base'],
                     'adjustment': detailed['adjustment'],
-                    'occupancy': detailed['occupancy'],
+                    'occupancy': 0.0,
                     'board': detailed.get('board', 0.0),
-                    'net': detailed['net'],
+                    'net': detailed['resolved'],
                     'tax': line.price_tax or 0.0,
                     'source_rule_id': detailed['rule_id'] or False,
                     'override': False,
                 })
+            for bline in detailed['lines'][1:]:
+                if not bline['total']:
+                    continue
+                occ = self.env['hotel.rate.occupancy'].browse(
+                    bline['occupancy_id'])
+                bproduct = occ.service_product_id.product_variant_id \
+                    if occ.service_product_id else False
+                if not bproduct:
+                    shared = [l2 for l2 in detailed['lines'][1:]
+                              if l2['total']]
+                    if len(shared) > 1:
+                        raise ValidationError(
+                            "Band %s needs a service product for "
+                            "itemized posting (booking %s)."
+                            % (bline['band'],
+                               folio.booking_id.name or folio.id))
+                    bproduct = product
+                dup_band = self.env['hotel.folio.line'].search([
+                    ('folio_id', '=', folio.id),
+                    ('product_id', '=', bproduct.id),
+                    ('hotel_date', '=', day),
+                    ('room_template_id', '=', room.id),
+                ], limit=1)
+                if dup_band:
+                    lines |= dup_band
+                    band_line = dup_band
+                else:
+                    band_line = charge.post_charge(
+                        folio.id, bproduct.id, bline['qty'],
+                        bline['amount'], 'to_guest', hotel_date=day,
+                        room_template_id=room.id, source='rate')
+                    lines |= band_line
+                if not snapshots.search([
+                        ('folio_id', '=', folio.id),
+                        ('room_template_id', '=', room.id),
+                        ('hotel_date', '=', day),
+                        ('folio_line_id', '=', band_line.id),
+                ], limit=1):
+                    snapshots.create({
+                        'company_id': folio_company.id,
+                        'hotel_date': day,
+                        'room_template_id': room.id,
+                        'plan_id': plan.id,
+                        'folio_id': folio.id,
+                        'folio_line_id': band_line.id,
+                        'base': 0.0, 'adjustment': 0.0,
+                        'occupancy': bline['total'],
+                        'board': 0.0, 'net': bline['total'],
+                        'tax': band_line.price_tax or 0.0,
+                        'source_rule_id': False, 'override': False,
+                    })
         return lines

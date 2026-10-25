@@ -336,3 +336,135 @@ class TestOccupancyItemizedEngine(TransactionCase):
         line = [l for l in breakdown['lines'] if l['band'] == 'adult'][0]
         self.assertEqual(line['qty'], 2)
         self.assertEqual(line['total'], 4000.0)
+
+
+class TestOccupancyItemizedPosting(TransactionCase):
+    def setUp(self):
+        super().setUp()
+        self.company = self.env.company
+        self.dtype = self.env['hotel.room.type'].create({
+            'name': 'ItemDeluxe', 'base_rate': 10000.0,
+            'max_occupants': 8,
+        })
+        self.plan = self.env['hotel.rate.plan'].create({
+            'name': 'ItemRack', 'company_id': self.company.id})
+        self.env['hotel.rate.rule'].create({
+            'plan_id': self.plan.id, 'room_type_id': self.dtype.id,
+            'rate_type': 'percent', 'adjustment_pct': 30.0,
+            'priority': 50, 'date_from': '2026-12-20',
+            'date_to': '2026-12-31'})
+        self.room = self.env['product.template'].create({
+            'name': 'ITEM101', 'is_room': True, 'room_type': 'double',
+            'num_person': 8, 'list_price': 10000.0,
+            'room_type_id': self.dtype.id})
+        self.env['hotel.board.rule'].create({
+            'company_id': self.company.id, 'room_type_id': self.dtype.id,
+            'plan_id': self.plan.id, 'board': 'BB',
+            'date_from': '2026-12-20', 'date_to': '2026-12-31',
+            'supplement': 3500.0})
+        self.extra_product = self.env['product.product'].create({
+            'name': 'Extra Child', 'type': 'service',
+            'list_price': 1750.0,
+        })
+        self.env['hotel.rate.occupancy'].create({
+            'room_type_id': self.dtype.id, 'plan_id': self.plan.id,
+            'band': 'child', 'included_count': 0, 'mode': 'percent',
+            'value': 50.0, 'basis': 'board',
+            'service_product_id': self.extra_product.id})
+        self.engine = self.env['hotel.rate.engine']
+
+    def _folio_for_board(self, board):
+        booking = self.env['room.booking'].create({
+            'partner_id': self.company.partner_id.id,
+            'meal_plan': board,
+        })
+        return self.env['hotel.folio'].create({
+            'partner_id': self.company.partner_id.id,
+            'booking_id': booking.id,
+        })
+
+    def test_band_lines_posted_separately_with_product_taxes(self):
+        # 2 nights BB, 2 adults + 1 child: per night room 13000 +
+        # child 1750. Folio = 2 base + 2 band lines; total 29500.
+        folio = self._folio_for_board('BB')
+        lines = self.engine.post_stay_nights(
+            folio.id, self.room.id,
+            '2026-12-24', '2026-12-26', self.plan.id,
+            adults=2, children=1)
+        self.assertEqual(len(lines), 4)
+        band = lines.filtered(
+            lambda l: l.product_id == self.extra_product)
+        self.assertEqual(len(band), 2)
+        self.assertEqual(sum(band.mapped('price_total')), 3500.0)
+        base = lines - band
+        self.assertEqual(sum(base.mapped('price_total')), 26000.0)
+        self.assertEqual(sum(lines.mapped('price_total')), 29500.0)
+        for line in band:
+            self.assertEqual(
+                set(line.tax_ids.ids),
+                set(self.extra_product.taxes_id.ids))
+        snaps = self.env['hotel.rate.snapshot'].search([
+            ('folio_id', '=', folio.id),
+            ('room_template_id', '=', self.room.id),
+        ])
+        self.assertEqual(len(snaps), 4)
+        for line in base:
+            snap = snaps.filtered(
+                lambda s: s.folio_line_id.id == line.id)
+            self.assertEqual(len(snap), 1)
+            self.assertEqual(snap.occupancy, 0.0)
+            self.assertEqual(snap.net, 13000.0)
+        for line in band:
+            snap = snaps.filtered(
+                lambda s: s.folio_line_id.id == line.id)
+            self.assertEqual(len(snap), 1)
+            self.assertEqual(snap.occupancy, 1750.0)
+            self.assertEqual(snap.net, 1750.0)
+
+    def test_repost_dedups_band_lines(self):
+        folio = self._folio_for_board('BB')
+        lines = self.engine.post_stay_nights(
+            folio.id, self.room.id,
+            '2026-12-24', '2026-12-26', self.plan.id,
+            adults=2, children=1)
+        first_ids = set(lines.ids)
+        self.assertEqual(len(first_ids), 4)
+        before = {
+            s.folio_line_id.id: (s.net, s.occupancy)
+            for s in self.env['hotel.rate.snapshot'].search([
+                ('folio_id', '=', folio.id),
+                ('room_template_id', '=', self.room.id),
+            ])
+        }
+        relines = self.engine.post_stay_nights(
+            folio.id, self.room.id,
+            '2026-12-24', '2026-12-26', self.plan.id,
+            adults=2, children=1)
+        self.assertEqual(set(relines.ids), first_ids)
+        after = {
+            s.folio_line_id.id: (s.net, s.occupancy)
+            for s in self.env['hotel.rate.snapshot'].search([
+                ('folio_id', '=', folio.id),
+                ('room_template_id', '=', self.room.id),
+            ])
+        }
+        self.assertEqual(after, before)
+        self.assertEqual(len(after), 4)
+
+    def test_zero_reason_lines_not_posted(self):
+        # RO board-basis child: only 2 base lines, no band lines.
+        folio = self._folio_for_board('RO')
+        lines = self.engine.post_stay_nights(
+            folio.id, self.room.id,
+            '2026-12-24', '2026-12-26', self.plan.id,
+            adults=2, children=1)
+        self.assertEqual(len(lines), 2)
+        band = lines.filtered(
+            lambda l: l.product_id == self.extra_product)
+        self.assertEqual(len(band), 0)
+        self.assertEqual(sum(lines.mapped('price_total')), 26000.0)
+        snaps = self.env['hotel.rate.snapshot'].search([
+            ('folio_id', '=', folio.id),
+            ('room_template_id', '=', self.room.id),
+        ])
+        self.assertEqual(len(snaps), 2)
