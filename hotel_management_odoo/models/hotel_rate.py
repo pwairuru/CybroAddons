@@ -450,7 +450,11 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def _board_supplement(self, room_type, plan, board, day, booking=None):
-        """Nightly per-person board supplement or (0.0, reason)."""
+        """Nightly per-person board supplement.
+
+        Returns (supplement, False); the caller assigns reason codes
+        (e.g. 'no-board-price' only applies to board-basis bands, set
+        in price_detailed, never here)."""
         if board and board != 'RO':
             rule = self.env['hotel.board.rule']._match(
                 room_type.id if room_type else False, board, day,
@@ -465,7 +469,7 @@ class HotelRateEngine(models.AbstractModel):
                 fallback = 0.0
             if fallback:
                 return fallback, False
-        return 0.0, 'no-board-price'
+        return 0.0, False
 
     @api.model
     def price_detailed(self, room_template_id, date, plan_id, pax=1,
