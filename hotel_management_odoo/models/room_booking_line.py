@@ -275,3 +275,43 @@ class RoomBookingLine(models.Model):
                 raise ValidationError(
                     _("Invoiced lines cannot be edited (room %s).")
                     % line.room_id.display_name)
+
+    extra_per_night = fields.Float(
+        string='Extras / Night', compute='_compute_extra_estimate',
+        help="Estimated extra-guest charge per night under the company "
+             "default plan (quote only; posting is authoritative).")
+    extra_stay_total = fields.Float(
+        string='Extras Total', compute='_compute_extra_estimate',
+        help="Estimated extra-guest charge for the whole line.")
+
+    @api.depends('adults', 'children', 'toddlers', 'room_id',
+                 'uom_qty', 'checkin_date', 'checkout_date',
+                 'booking_id.meal_plan', 'booking_id.pricelist_id',
+                 'booking_id.company_id')
+    def _compute_extra_estimate(self):
+        for line in self:
+            line.extra_per_night = 0.0
+            line.extra_stay_total = 0.0
+            if not line.room_id or not line.booking_id:
+                continue
+            plan = self.env['hotel.rate.plan']._default_plan(
+                line.booking_id.company_id or self.env.company)
+            if not plan:
+                continue
+            try:
+                detailed = self.env['hotel.rate.engine'].price_detailed(
+                    line.room_id.id,
+                    fields.Date.to_string(
+                        fields.Datetime.context_timestamp(
+                            line, line.checkin_date).date())
+                    if line.checkin_date else fields.Date.today(),
+                    plan.id, adults=line.adults or 0,
+                    children=line.children or 0,
+                    toddlers=line.toddlers or 0,
+                    board=line.booking_id.meal_plan or 'RO',
+                    booking=line.booking_id)
+            except Exception:
+                continue
+            line.extra_per_night = float(detailed.get('occupancy', 0.0))
+            line.extra_stay_total = float(
+                detailed.get('occupancy', 0.0)) * (line.uom_qty or 0.0)

@@ -137,6 +137,8 @@
                                     <field groups="account.group_account_manager"
                                            name="price_total" widget="monetary"
                                            readonly="booking_line_visible == True"/>
+                                    <field name="extra_per_night" widget="monetary"/>
+                                    <field name="extra_stay_total" widget="monetary"/>
                                 </list>
                             </field>
                             <group colspan="2"

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from odoo import fields
 from odoo.exceptions import ValidationError
@@ -468,3 +468,57 @@ class TestOccupancyItemizedPosting(TransactionCase):
             ('room_template_id', '=', self.room.id),
         ])
         self.assertEqual(len(snaps), 2)
+
+
+class TestOccupancyQuote(TransactionCase):
+    def test_line_estimate_matches_engine(self):
+        # Deluxe/Rack/BB fixtures as in Task 2 (child 50% board).
+        company = self.env.company
+        dtype = self.env['hotel.room.type'].create({
+            'name': 'QuoteDeluxe', 'base_rate': 10000.0,
+            'max_occupants': 8,
+        })
+        plan = self.env['hotel.rate.plan'].create({
+            'name': 'QuoteRack', 'company_id': company.id})
+        company.default_rate_plan_id = plan.id
+        self.env['hotel.rate.rule'].create({
+            'plan_id': plan.id, 'room_type_id': dtype.id,
+            'rate_type': 'percent', 'adjustment_pct': 30.0,
+            'priority': 50, 'date_from': '2026-12-20',
+            'date_to': '2026-12-31'})
+        room = self.env['product.template'].create({
+            'name': 'QUOTE101', 'is_room': True, 'room_type': 'double',
+            'num_person': 8, 'list_price': 10000.0,
+            'room_type_id': dtype.id})
+        self.env['hotel.board.rule'].create({
+            'company_id': company.id, 'room_type_id': dtype.id,
+            'plan_id': plan.id, 'board': 'BB',
+            'date_from': '2026-12-20', 'date_to': '2026-12-31',
+            'supplement': 3500.0})
+        self.env['hotel.rate.occupancy'].create({
+            'room_type_id': dtype.id, 'plan_id': plan.id,
+            'band': 'child', 'included_count': 0, 'mode': 'percent',
+            'value': 50.0, 'basis': 'board'})
+        booking = self.env['room.booking'].create({
+            'partner_id': company.partner_id.id,
+            'meal_plan': 'BB',
+        })
+        line = self.env['room.booking.line'].create({
+            'booking_id': booking.id,
+            'room_id': room.id,
+            'checkin_date': datetime(2026, 12, 24, 14, 0, 0),
+            'checkout_date': datetime(2026, 12, 26, 12, 0, 0),
+            'adults': 2, 'children': 1,
+        })
+        self.assertEqual(line.uom_qty, 2.0)
+        # Child 50% of BB 3500 = 1750/night; 2 nights = 3500.
+        self.assertAlmostEqual(line.extra_per_night, 1750.0)
+        self.assertAlmostEqual(line.extra_stay_total, 3500.0)
+        # Stored room total unchanged by the estimate: room-only
+        # pricelist gross (room carries 16% price-included VAT, so the
+        # incl-tax total equals price_unit x nights; subtotal backs
+        # the tax out). The estimate adds nothing to stored amounts.
+        room_only = line.price_unit * line.uom_qty
+        self.assertAlmostEqual(line.price_total, room_only)
+        self.assertAlmostEqual(
+            line.price_subtotal + line.price_tax, line.price_total)
