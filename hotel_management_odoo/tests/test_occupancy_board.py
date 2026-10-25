@@ -469,6 +469,104 @@ class TestOccupancyItemizedPosting(TransactionCase):
         ])
         self.assertEqual(len(snaps), 2)
 
+    def test_band_service_product_used_directly(self):
+        # C1: service_product_id is already a product.product variant.
+        folio = self._folio_for_board('BB')
+        lines = self.engine.post_stay_nights(
+            folio.id, self.room.id,
+            '2026-12-24', '2026-12-25', self.plan.id,
+            adults=2, children=1)
+        band = lines.filtered(
+            lambda l: l.product_id == self.extra_product)
+        self.assertEqual(len(band), 1)
+        self.assertEqual(band.price_unit, 1750.0)
+
+    def test_duplicate_band_product_raises_before_any_post(self):
+        # C2+C4: adult + child sharing one service product raises,
+        # and the raise happens before the first post_charge.
+        self.env['hotel.rate.occupancy'].create({
+            'room_type_id': self.dtype.id, 'plan_id': self.plan.id,
+            'band': 'adult', 'included_count': 0, 'mode': 'fixed',
+            'value': 1000.0, 'basis': 'resolved_rate',
+            'service_product_id': self.extra_product.id})
+        folio = self._folio_for_board('BB')
+        with self.assertRaises(ValidationError):
+            self.engine.post_stay_nights(
+                folio.id, self.room.id,
+                '2026-12-24', '2026-12-26', self.plan.id,
+                adults=2, children=1)
+        self.assertEqual(len(folio.line_ids), 0)
+        self.assertEqual(self.env['hotel.rate.snapshot'].search_count([
+            ('folio_id', '=', folio.id)]), 0)
+
+    def _folded_base_line(self, folio, day='2026-12-24'):
+        room_variant = self.room.product_variant_id
+        self.assertTrue(room_variant)
+        line = self.env['hotel.charge.service'].post_charge(
+            folio.id, room_variant.id, 1, 14750.0, 'to_guest',
+            hotel_date=day, room_template_id=self.room.id)
+        rule = self.env['hotel.rate.rule'].search([
+            ('plan_id', '=', self.plan.id),
+            ('room_type_id', '=', self.dtype.id),
+        ], limit=1)
+        self.env['hotel.rate.snapshot'].create({
+            'company_id': self.company.id,
+            'hotel_date': day,
+            'room_template_id': self.room.id,
+            'plan_id': self.plan.id,
+            'folio_id': folio.id,
+            'folio_line_id': line.id,
+            'base': 10000.0,
+            'adjustment': 3000.0,
+            'occupancy': 1750.0,
+            'board': 0.0,
+            'net': 14750.0,
+            'tax': 0.0,
+            'source_rule_id': rule.id or False,
+            'override': False,
+        })
+        return line
+
+    def test_folded_base_line_synced_on_repost(self):
+        # C3: pre-upgrade folded base (14750 = 13000 + 1750) syncs
+        # to resolved on repost; no double count.
+        folio = self._folio_for_board('BB')
+        base = self._folded_base_line(folio)
+        lines = self.engine.post_stay_nights(
+            folio.id, self.room.id,
+            '2026-12-24', '2026-12-25', self.plan.id,
+            adults=2, children=1)
+        base.invalidate_recordset()
+        self.assertEqual(base.price_unit, 13000.0)
+        snap = self.env['hotel.rate.snapshot'].search([
+            ('folio_line_id', '=', base.id),
+        ])
+        self.assertEqual(len(snap), 1)
+        self.assertEqual(snap.occupancy, 0.0)
+        self.assertEqual(snap.net, 13000.0)
+        band = lines.filtered(
+            lambda l: l.product_id == self.extra_product)
+        self.assertEqual(len(band), 1)
+        self.assertEqual(sum(lines.mapped('price_total')), 14750.0)
+        notes = ' '.join(folio.message_ids.mapped('body') or [])
+        self.assertIn('14750.00', notes)
+        self.assertIn('13000.00', notes)
+
+    def test_folded_base_line_locked_refuses_repost(self):
+        # C3: locked folded base refuses the repost instead of
+        # double counting.
+        folio = self._folio_for_board('BB')
+        self._folded_base_line(folio).write({'locked': True})
+        with self.assertRaises(ValidationError):
+            self.engine.post_stay_nights(
+                folio.id, self.room.id,
+                '2026-12-24', '2026-12-25', self.plan.id,
+                adults=2, children=1)
+        self.assertEqual(self.env['hotel.folio.line'].search_count([
+            ('folio_id', '=', folio.id),
+            ('product_id', '=', self.extra_product.id),
+        ]), 0)
+
 
 class TestOccupancyQuote(TransactionCase):
     def test_line_estimate_matches_engine(self):

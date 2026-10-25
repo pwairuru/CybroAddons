@@ -679,12 +679,15 @@ class HotelRateEngine(models.AbstractModel):
                          adults=None, children=0, toddlers=0):
         """Post one folio line per night + one rate snapshot per night.
 
-        Pre-validates ALL nights are open before the first post_charge
-        (no partial stays), and dedups on folio + product + hotel date
-        + room so two rooms sharing one product never collapse.
-        Business-day guard enforced per night inside post_charge.
-        Snapshots are immutable: an existing snapshot for the same
-        folio + room + date is kept, never rewritten.
+        Pre-validates ALL nights are open and resolves + validates every
+        night's band products before the first post_charge (no partial
+        stays: a band failure leaves zero lines), and dedups on folio +
+        product + hotel date + room so two rooms sharing one product
+        never collapse. Business-day guard enforced per night inside
+        post_charge. Snapshots are immutable: an existing snapshot for
+        the same folio + room + date + line is kept, never rewritten,
+        except a folded pre-upgrade base line (price holds the old net
+        incl occupancy) which is repriced to resolved with a folio note.
         """
         nights = self.check_stay(room_template_id, date_from, date_to,
                                  plan_id, pax=pax, adults=adults,
@@ -712,10 +715,50 @@ class HotelRateEngine(models.AbstractModel):
         booking = folio.booking_id or False
         board = (booking.meal_plan or 'RO') if booking else 'RO'
         days = [start + timedelta(days=offset) for offset in range(nights)]
+        detailed_by_day = {}
+        bands_by_day = {}
         for day in days:
             charge._check_open_day(day, folio_company)
+            detailed = self.price_detailed(
+                room.id, day, plan.id, pax=pax, adults=adults,
+                children=children, toddlers=toddlers,
+                board=board, booking=booking)
+            detailed_by_day[day] = detailed
+            # Resolve + validate every night's band products up front:
+            # a missing or duplicate service product raises before the
+            # first post_charge, so a failed stay posts zero lines.
+            seen = {}
+            resolved_bands = []
+            for bline in detailed['lines'][1:]:
+                if not bline['total']:
+                    continue
+                occ = self.env['hotel.rate.occupancy'].browse(
+                    bline['occupancy_id'])
+                bproduct = occ.service_product_id \
+                    if occ.service_product_id else False
+                if not bproduct:
+                    shared = [l2 for l2 in detailed['lines'][1:]
+                              if l2['total']]
+                    if len(shared) > 1:
+                        raise ValidationError(
+                            "Band %s needs a service product for "
+                            "itemized posting (booking %s)."
+                            % (bline['band'],
+                               folio.booking_id.name or folio.id))
+                    bproduct = product
+                if bproduct.id in seen:
+                    raise ValidationError(
+                        "Bands %s and %s share service product %s for "
+                        "itemized posting (booking %s)."
+                        % (seen[bproduct.id], bline['band'],
+                           bproduct.display_name,
+                           folio.booking_id.name or folio.id))
+                seen[bproduct.id] = bline['band']
+                resolved_bands.append((bline, bproduct))
+            bands_by_day[day] = resolved_bands
         lines = self.env['hotel.folio.line']
         for day in days:
+            detailed = detailed_by_day[day]
             dup = self.env['hotel.folio.line'].search([
                 ('folio_id', '=', folio.id),
                 ('product_id', '=', product.id),
@@ -725,15 +768,38 @@ class HotelRateEngine(models.AbstractModel):
             if dup:
                 lines |= dup
                 line = dup
-                detailed = self.price_detailed(
-                    room.id, day, plan.id, pax=pax, adults=adults,
-                    children=children, toddlers=toddlers,
-                    board=board, booking=booking)
+                if bands_by_day[day] and \
+                        float(line.price_unit or 0.0) != \
+                        float(detailed['resolved']):
+                    if (not line.locked) and (not line.invoiced_qty) \
+                            and folio.state == 'open':
+                        old_price = float(line.price_unit or 0.0)
+                        line.write(
+                            {'price_unit': detailed['resolved']})
+                        bsnap = snapshots.search([
+                            ('folio_line_id', '=', line.id),
+                        ], limit=1)
+                        if bsnap:
+                            bsnap.write({
+                                'base': detailed['base'],
+                                'adjustment': detailed['adjustment'],
+                                'occupancy': 0.0,
+                                'board': detailed.get('board', 0.0),
+                                'net': detailed['resolved'],
+                                'tax': line.price_tax or 0.0,
+                                'source_rule_id':
+                                    detailed['rule_id'] or False,
+                            })
+                        folio.message_post(body=(
+                            "Base charge repriced %.2f -> %.2f on %s "
+                            "(itemized repost)."
+                            % (old_price, detailed['resolved'], day)))
+                    else:
+                        raise ValidationError(
+                            "Folio %s line %s is locked/invoiced/settled; "
+                            "cannot reprice folded base charge for "
+                            "itemized repost." % (folio.id, line.id))
             else:
-                detailed = self.price_detailed(
-                    room.id, day, plan.id, pax=pax, adults=adults,
-                    children=children, toddlers=toddlers,
-                    board=board, booking=booking)
                 line = charge.post_charge(
                     folio.id, product.id, 1, detailed['resolved'],
                     'to_guest', hotel_date=day,
@@ -744,6 +810,7 @@ class HotelRateEngine(models.AbstractModel):
                 ('folio_id', '=', folio.id),
                 ('room_template_id', '=', room.id),
                 ('hotel_date', '=', day),
+                ('folio_line_id', '=', line.id),
             ], limit=1)
             if not existing:
                 snapshots.create({
@@ -762,23 +829,7 @@ class HotelRateEngine(models.AbstractModel):
                     'source_rule_id': detailed['rule_id'] or False,
                     'override': False,
                 })
-            for bline in detailed['lines'][1:]:
-                if not bline['total']:
-                    continue
-                occ = self.env['hotel.rate.occupancy'].browse(
-                    bline['occupancy_id'])
-                bproduct = occ.service_product_id.product_variant_id \
-                    if occ.service_product_id else False
-                if not bproduct:
-                    shared = [l2 for l2 in detailed['lines'][1:]
-                              if l2['total']]
-                    if len(shared) > 1:
-                        raise ValidationError(
-                            "Band %s needs a service product for "
-                            "itemized posting (booking %s)."
-                            % (bline['band'],
-                               folio.booking_id.name or folio.id))
-                    bproduct = product
+            for bline, bproduct in bands_by_day[day]:
                 dup_band = self.env['hotel.folio.line'].search([
                     ('folio_id', '=', folio.id),
                     ('product_id', '=', bproduct.id),
