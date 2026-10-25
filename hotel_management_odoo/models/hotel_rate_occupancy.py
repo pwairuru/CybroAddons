@@ -49,7 +49,8 @@ class HotelRateOccupancy(models.Model):
                             tracking=True)
     value = fields.Float(string="Value", default=0.0, tracking=True)
     basis = fields.Selection([('resolved_rate', 'Resolved Rate'),
-                              ('bar', 'BAR (type base rate)')],
+                              ('bar', 'BAR (type base rate)'),
+                              ('board', 'Board Price')],
                              string="Basis", default='resolved_rate',
                              required=True, tracking=True)
     service_product_id = fields.Many2one('product.product',
@@ -58,8 +59,20 @@ class HotelRateOccupancy(models.Model):
                                          "extra-guest charges.",
                                          ondelete="set null",
                                          tracking=True)
+    per = fields.Selection([('per_guest', 'Per Guest'),
+                            ('per_unit', 'Per Unit')],
+                           string="Charge Per", default='per_guest',
+                           required=True, tracking=True,
+                           help="Per Guest: each extra guest pays. Per Unit: "
+                           "one charge covers unit_capacity extras (e.g. a "
+                           "vehicle or bed shared by several guests).")
+    unit_capacity = fields.Integer(string="Unit Capacity", default=1,
+                                   tracking=True,
+                                   help="Extras covered by one charge when "
+                                   "Charge Per is Per Unit.")
 
-    @api.constrains('included_count', 'max_count', 'value')
+    @api.constrains('included_count', 'max_count', 'value',
+                    'unit_capacity')
     def _check_counts(self):
         for rec in self:
             if rec.included_count < 0:
@@ -72,6 +85,9 @@ class HotelRateOccupancy(models.Model):
                     % (rec.max_count, rec.included_count))
             if rec.value < 0:
                 raise ValidationError("Occupancy value cannot be negative.")
+            if rec.unit_capacity < 1:
+                raise ValidationError(
+                    "Unit capacity must be at least 1.")
 
     @api.constrains('room_type_id', 'plan_id', 'band')
     def _check_unique_band(self):

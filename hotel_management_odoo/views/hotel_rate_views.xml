@@ -135,6 +135,7 @@
                 <field name="mode"/>
                 <field name="value"/>
                 <field name="basis"/>
+                <field name="per"/>
             </list>
         </field>
     </record>
@@ -157,6 +158,8 @@
                             <field name="mode"/>
                             <field name="value"/>
                             <field name="basis"/>
+                            <field name="per"/>
+                            <field name="unit_capacity" invisible="per != 'per_unit'"/>
                             <field name="service_product_id"/>
                         </group>
                     </group>

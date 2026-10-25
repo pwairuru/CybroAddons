@@ -258,3 +258,16 @@ class TestOccupancyBoard(TransactionCase):
         self.assertFalse(result)
         self.assertEqual(self.env['hotel.folio.line'].search_count([
             ('folio_id', '=', folio.id)]), 0)
+
+
+class TestOccupancyItemizedData(TransactionCase):
+    def test_per_unit_capacity_validation(self):
+        dtype = self.env['hotel.room.type'].create({
+            'name': 'DataType', 'base_rate': 5000.0})
+        from odoo.exceptions import ValidationError
+        with self.assertRaises(ValidationError):
+            self.env['hotel.rate.occupancy'].create({
+                'room_type_id': dtype.id, 'band': 'adult',
+                'mode': 'fixed', 'value': 1000.0, 'basis': 'board',
+                'per': 'per_unit', 'unit_capacity': 0,
+            })
