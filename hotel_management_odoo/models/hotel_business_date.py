@@ -175,8 +175,8 @@ class HotelNightAudit(models.Model):
         """Post one room-night charge per in-house booking line.
 
         Nights are priced through the rate engine
-        (``price_detailed`` net, with the line's pax) under the
-        company's first rate plan; without any plan the booking
+        (``price_detailed`` net, with the line's pax) under the plan
+        matching each booking's board; without a plan the booking
         line rent is used. Pre-validates the day is open before the
         first post_charge (no partial audit), and dedups on folio +
         product + hotel date + room so two lines sharing one
@@ -185,8 +185,7 @@ class HotelNightAudit(models.Model):
         charge = self.env['hotel.charge.service']
         company = self.company_id or self.env.company
         charge._check_open_day(day, company)
-        plan = self.env['hotel.rate.plan'].search(
-            [('company_id', '=', company.id)], order='id', limit=1)
+        plan_model = self.env['hotel.rate.plan']
         engine = self.env['hotel.rate.engine']
         bookings = self.env['room.booking'].search(
             [('company_id', '=', company.id),
@@ -195,6 +194,7 @@ class HotelNightAudit(models.Model):
         for booking in bookings:
             if not self._covers(booking, day):
                 continue
+            plan = plan_model._plan_for_booking(booking)
             folio = self.env['hotel.folio'].search(
                 [('booking_id', '=', booking.id),
                  ('state', '=', 'open')], limit=1)

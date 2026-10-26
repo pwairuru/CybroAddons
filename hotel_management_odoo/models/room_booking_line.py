@@ -278,8 +278,8 @@ class RoomBookingLine(models.Model):
 
     extra_per_night = fields.Float(
         string='Extras / Night', compute='_compute_extra_estimate',
-        help="Estimated extra-guest charge per night under the company "
-             "default plan (quote only; posting is authoritative).")
+        help="Estimated extra-guest charge per night under the booking's "
+             "board plan (quote only; posting is authoritative).")
     extra_stay_total = fields.Float(
         string='Extras Total', compute='_compute_extra_estimate',
         help="Estimated extra-guest charge for the whole line.")
@@ -294,8 +294,8 @@ class RoomBookingLine(models.Model):
             line.extra_stay_total = 0.0
             if not line.room_id or not line.booking_id:
                 continue
-            plan = self.env['hotel.rate.plan']._default_plan(
-                line.booking_id.company_id or self.env.company)
+            plan = self.env['hotel.rate.plan']._plan_for_booking(
+                line.booking_id)
             if not plan:
                 continue
             try:

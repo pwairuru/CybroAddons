@@ -91,8 +91,7 @@ class HotelPostStay(models.TransientModel):
                 'folio_id': self._default_folio(booking).id}
         line = line or booking.room_line_ids[:1]
         vals.update(self._line_defaults(line))
-        plan = self.env['hotel.rate.plan']._default_plan(
-            booking.company_id)
+        plan = self.env['hotel.rate.plan']._plan_for_booking(booking)
         if plan:
             vals['plan_id'] = plan.id
         return vals

@@ -24,4 +24,5 @@ from . import test_service_product
 from . import test_charge_ancillaries
 from . import test_folio_split_wizard
 from . import test_default_rate_plan
+from . import test_rate_plan_selection
 from . import test_kanban_avatar

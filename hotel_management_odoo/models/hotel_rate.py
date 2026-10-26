@@ -54,6 +54,23 @@ class HotelRatePlan(models.Model):
         return self.search(
             [('company_id', '=', company.id)], order='id', limit=1)
 
+    @api.model
+    def _plan_for_booking(self, booking):
+        """Plan matching the booking's board, else the company default.
+
+        ``room.booking.meal_plan`` stores BB/HB/FB (or RO when no board
+        was sold), so the code lookup keeps plans interchangeable across
+        companies while still falling back to a usable plan.
+        """
+        company = booking.company_id or self.env.company
+        code = (booking.meal_plan or '').strip()
+        plan = self.browse()
+        if code:
+            plan = self.search(
+                [('company_id', '=', company.id), ('code', '=', code)],
+                order='id', limit=1)
+        return plan or self._default_plan(company)
+
 
 class HotelRateRule(models.Model):
     """Seasonal adjustment window for a plan.
