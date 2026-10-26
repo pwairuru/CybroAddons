@@ -12,6 +12,7 @@ class TestRatePlanSelection(TransactionCase):
         super().setUp()
         self.company = self.env.company
         self.company.default_rate_plan_id = False
+        self.env['hotel.rate.plan'].search([]).write({'active': False})
         self.room_type = self.env['hotel.room.type'].create({
             'name': 'Deluxe',
             'base_rate': 10000.0,
