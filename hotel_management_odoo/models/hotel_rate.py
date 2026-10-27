@@ -601,7 +601,13 @@ class HotelRateEngine(models.AbstractModel):
         ``basis``: resolved_rate => % of resolved, bar => % of the
         type BAR (type base_rate), board => % of the nightly
         per-person board supplement for the passed ``board`` (0.0
-        with reason 'no-board-price' when no board rule matches).
+        with reason 'no-board-price' when no board rule matches),
+        meal_plan => % of the resolved plan price (falls back to
+        resolved on the RO legacy path where no plan price exists).
+        Per-person room types (charge_mode per_person) price the
+        base line as resolved x heads / standard (heads = adults +
+        0.5 x children) with no band extra lines; caps still
+        enforced.
         Each band line carries ``supplement`` (the nightly board
         supplement used as reference, 0.0 for non-board bases) and
         ``reason`` (False when priced, e.g. 'no-board-price' when the
@@ -658,6 +664,38 @@ class HotelRateEngine(models.AbstractModel):
             rule_basis = 'resolved_rate'
         type_bar = float(room_type.base_rate) \
             if room_type else float(base)
+        if room_type and room_type.charge_mode == 'per_person':
+            standard = int(
+                room_type.standard_heads or room_type.adult_capacity
+                or 1)
+            heads = float(eff_adults) + 0.5 * float(eff_children)
+            total = float(round(float(resolved) * heads / standard, 2))
+            for band, requested in (('adult', eff_adults),
+                                    ('child', eff_children),
+                                    ('toddler', eff_toddlers)):
+                rec = self._occupancy_record(room_type, plan, band)
+                if not rec:
+                    continue
+                if rec.max_count and requested > rec.max_count:
+                    raise ValidationError(
+                        "Band %s allows max %d; requested %d."
+                        % (band, rec.max_count, requested))
+            lines = [{
+                'band': 'base', 'qty': 1, 'amount': total,
+                'total': total, 'basis': rule_basis,
+                'mode': (rule.rate_type if rule else 'bar'),
+                'value': (rule.fixed_price if rule
+                          and rule.rate_type == 'fixed'
+                          else (rule.adjustment_pct if rule else 0.0)),
+                'rule_id': rule_id,
+            }]
+            return {
+                'net': total, 'base': float(base),
+                'resolved': float(resolved),
+                'adjustment': float(adjustment),
+                'occupancy': 0.0, 'board': 0.0,
+                'rule_id': rule_id, 'lines': lines, 'basis': rule_basis,
+            }
         lines = [{
             'band': 'base', 'qty': 1, 'amount': float(resolved),
             'total': float(resolved), 'basis': rule_basis,
@@ -692,6 +730,8 @@ class HotelRateEngine(models.AbstractModel):
                     ref = type_bar
                 elif rec.basis == 'board':
                     ref = supplement
+                elif rec.basis == 'meal_plan':
+                    ref = float(resolved)
                 else:
                     ref = resolved
                 unit = float(ref * (rec.value or 0.0) / 100.0)

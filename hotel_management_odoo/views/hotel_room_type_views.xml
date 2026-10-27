@@ -128,6 +128,9 @@
                         <group string="Rate Authority">
                             <field name="base_rate"/>
                             <field name="default_board"/>
+                            <field name="charge_mode"/>
+                            <field name="standard_heads"
+                                   invisible="charge_mode != 'per_person'"/>
                         </group>
                         <group string="Website">
                             <field name="website_published"/>

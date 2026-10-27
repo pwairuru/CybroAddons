@@ -17,6 +17,17 @@ class HotelRoomType(models.Model):
     child_capacity = fields.Integer(default=0, tracking=True)
     max_occupants = fields.Integer(default=2, tracking=True)
     base_rate = fields.Float(required=True, default=0.0, tracking=True)
+    charge_mode = fields.Selection(
+        [('per_room', 'Per Room'), ('per_person', 'Per Person')],
+        string="Charge Mode", default='per_room', required=True,
+        tracking=True,
+        help="Per Room: plan price covers adult_capacity + included "
+        "children, extras via occupancy bands. Per Person: total = "
+        "plan price x heads / standard heads.")
+    standard_heads = fields.Integer(
+        string="Standard Heads", default=0, tracking=True,
+        help="Divisor for per-person pricing; 0 falls back to "
+        "adult_capacity (then 1).")
     default_board = fields.Selection(
         [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
          ('HB', 'Half Board'), ('FB', 'Full Board')],

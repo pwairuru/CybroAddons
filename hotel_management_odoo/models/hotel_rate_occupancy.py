@@ -13,7 +13,9 @@ class HotelRateOccupancy(models.Model):
     One record covers guests beyond ``included_count`` for a band:
     extra = max(0, requested - included). Charge is ``value`` flat
     or ``value`` percent of the resolved nightly rate
-    (``resolved_rate``) or the type BAR (``bar`` = type base_rate).
+    (``resolved_rate``), the type BAR (``bar`` = type base_rate),
+    or the resolved plan price (``meal_plan``; falls back to
+    resolved when no plan price, e.g. RO legacy path).
     ``plan_id`` empty means type default; a plan-specific record for
     the same type+band wins over the default. No record for a band
     means no extra charge (legacy stays without occupancy records
@@ -49,10 +51,11 @@ class HotelRateOccupancy(models.Model):
                             tracking=True)
     value = fields.Float(string="Value", default=0.0, tracking=True)
     basis = fields.Selection([('resolved_rate', 'Resolved Rate'),
-                              ('bar', 'BAR (type base rate)'),
-                              ('board', 'Board Price')],
-                             string="Basis", default='resolved_rate',
-                             required=True, tracking=True)
+                               ('bar', 'BAR (type base rate)'),
+                               ('board', 'Board Price'),
+                               ('meal_plan', 'Meal Plan Price')],
+                              string="Basis", default='resolved_rate',
+                              required=True, tracking=True)
     service_product_id = fields.Many2one('product.product',
                                          string="Service Product",
                                          help="Product used when posting "
