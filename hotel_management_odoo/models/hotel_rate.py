@@ -128,7 +128,9 @@ class HotelRateRule(models.Model):
                                 "source of truth for matching.",
                                 ondelete="set null", index=True,
                                 tracking=True)
-    period_year = fields.Integer(string="Period Year", tracking=True)
+    period_year = fields.Integer(string="Period Year",
+                                 default=lambda self: fields.Date.today().year,
+                                 tracking=True)
 
     @api.model
     def _dates_from_period(self, period, year):
@@ -196,6 +198,13 @@ class HotelRateRule(models.Model):
         for rule in self:
             if rule.min_stay < 1:
                 raise ValidationError("Min stay must be at least 1 night.")
+
+    @api.constrains('period_year')
+    def _check_period_year(self):
+        for rule in self:
+            if rule.period_year and rule.period_year < 2000:
+                raise ValidationError(
+                    "Period year must be 2000 or later.")
 
     def _effective_rate(self):
         self.ensure_one()
@@ -559,6 +568,10 @@ class HotelRateEngine(models.AbstractModel):
         table price exists, so legacy behavior stays untouched.
         """
         code = board.strip() if isinstance(board, str) else 'RO'
+        # RO stays on the legacy path intentionally: RO has no meal
+        # component and the phase-1 RO table price duplicates
+        # base_rate authority, so routing it through meal lines
+        # would change live RO pricing.
         if not room_type or not code or code == 'RO':
             return False
         line = room_type.meal_price_ids.filtered(

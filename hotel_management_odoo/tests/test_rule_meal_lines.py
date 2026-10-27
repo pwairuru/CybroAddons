@@ -58,3 +58,36 @@ class TestRuleMealLines(TransactionCase):
             'priority': 10})
         self.assertEqual(rule.date_from.isoformat(), '2026-12-01')
         self.assertEqual(rule.date_to.isoformat(), '2026-12-31')
+
+    def test_new_plan_backfills_rule_lines(self):
+        _dtype, _plan, rule = self._type_plan()
+        plan = self.env['hotel.meal.plan'].create({
+            'code': 'SP', 'name': 'Special',
+            'description': 'Limited special.'})
+        line = rule.meal_line_ids.filtered(
+            lambda l: l.meal_plan_id.id == plan.id)
+        self.assertEqual(len(line), 1)
+        self.assertEqual(line.rate_type, 'percent')
+        self.assertEqual(line.value, 0.0)
+
+    def test_ro_ignores_meal_lines(self):
+        dtype, plan, rule = self._type_plan()
+        dtype.meal_price_ids.filtered(
+            lambda l: l.meal_plan_id.code == 'BB').write(
+                {'price': 12000.0})
+        rule.meal_line_ids.filtered(
+            lambda l: l.meal_plan_id.code == 'BB').write(
+                {'rate_type': 'percent', 'value': 50.0})
+        room = self.env['product.template'].create({
+            'name': 'RM102', 'is_room': True, 'room_type': 'double',
+            'num_person': 2, 'list_price': 10000.0,
+            'room_type_id': dtype.id})
+        engine = self.env['hotel.rate.engine']
+        self.assertEqual(
+            engine.price_for(
+                room.id, '2026-12-24', plan.id, adults=2, board='BB'),
+            18000.0)
+        self.assertEqual(
+            engine.price_for(
+                room.id, '2026-12-24', plan.id, adults=2, board='RO'),
+            10000.0)
