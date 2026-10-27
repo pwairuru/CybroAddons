@@ -99,3 +99,18 @@ class TestRuleMealLines(TransactionCase):
             engine.price_for(
                 room.id, '2026-12-24', plan.id, adults=2, board='RO'),
             10000.0)
+
+    def test_new_form_prefills_five_lines(self):
+        defaults = self.env['hotel.rate.rule'].default_get(
+            ['meal_line_ids'])
+        commands = defaults.get('meal_line_ids', [])
+        self.assertEqual(len(commands), 5)
+        plan_ids = set()
+        for cmd in commands:
+            self.assertEqual(cmd[0], 0)
+            self.assertEqual(cmd[2].get('rate_type'), 'percent')
+            self.assertEqual(cmd[2].get('value'), 0.0)
+            plan_ids.add(cmd[2].get('meal_plan_id'))
+        plans = self.env['hotel.meal.plan'].search(
+            [('active', '=', True)])
+        self.assertEqual(plan_ids, set(plans.ids))

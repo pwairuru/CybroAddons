@@ -159,6 +159,22 @@ class HotelRateRule(models.Model):
                 rule.date_from = date_from
                 rule.date_to = date_to
 
+    @api.model
+    def default_get(self, fields_list):
+        defaults = super().default_get(fields_list)
+        if 'meal_line_ids' in fields_list \
+                and not defaults.get('meal_line_ids'):
+            plans = self.env['hotel.meal.plan'].search(
+                [('active', '=', True)], order='sequence')
+            defaults['meal_line_ids'] = [
+                (0, 0, {
+                    'meal_plan_id': plan.id,
+                    'rate_type': 'percent',
+                    'value': 0.0,
+                }) for plan in plans
+            ]
+        return defaults
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
