@@ -75,8 +75,16 @@ class TestRuleMealLines(TransactionCase):
         dtype.meal_price_ids.filtered(
             lambda l: l.meal_plan_id.code == 'BB').write(
                 {'price': 12000.0})
+        dtype.meal_price_ids.filtered(
+            lambda l: l.meal_plan_id.code == 'RO').write(
+                {'price': 9000.0})
         rule.meal_line_ids.filtered(
             lambda l: l.meal_plan_id.code == 'BB').write(
+                {'rate_type': 'percent', 'value': 50.0})
+        # Even a non-zero RO line must not move RO pricing: without
+        # the RO carve-out this would price 9000 x 1.5 = 13500.
+        rule.meal_line_ids.filtered(
+            lambda l: l.meal_plan_id.code == 'RO').write(
                 {'rate_type': 'percent', 'value': 50.0})
         room = self.env['product.template'].create({
             'name': 'RM102', 'is_room': True, 'room_type': 'double',
