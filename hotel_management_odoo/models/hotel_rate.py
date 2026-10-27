@@ -478,15 +478,14 @@ class HotelRateEngine(models.AbstractModel):
         return max(candidates, key=_rank)
 
     @api.model
-    def _resolve_counts(self, pax=1, adults=None, children=0, toddlers=0):
-        """Effective (adults, children, toddlers, total) for pricing.
+    def _resolve_counts(self, pax=1, adults=None, children=0):
+        """Effective (adults, children, total) for pricing.
 
         Legacy callers pass only pax (adults None): adults = pax.
-        New callers pass adults/children/toddlers explicitly; pax is
+        New callers pass adults/children explicitly; pax is
         ignored then except as the adults fallback."""
         eff_adults = pax if adults is None else adults
         eff_children = children or 0
-        eff_toddlers = toddlers or 0
         try:
             eff_adults = int(eff_adults or 0)
         except (TypeError, ValueError):
@@ -495,14 +494,10 @@ class HotelRateEngine(models.AbstractModel):
             eff_children = int(eff_children or 0)
         except (TypeError, ValueError):
             eff_children = 0
-        try:
-            eff_toddlers = int(eff_toddlers or 0)
-        except (TypeError, ValueError):
-            eff_toddlers = 0
-        if eff_adults < 0 or eff_children < 0 or eff_toddlers < 0:
+        if eff_adults < 0 or eff_children < 0:
             raise ValidationError("Occupant counts cannot be negative.")
-        return eff_adults, eff_children, eff_toddlers, \
-            eff_adults + eff_children + eff_toddlers
+        return eff_adults, eff_children, \
+            eff_adults + eff_children
 
     @api.model
     def _validate_price_inputs(self, room_template_id, date, plan_id):
@@ -591,7 +586,7 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def price_detailed(self, room_template_id, date, plan_id, pax=1,
-                       adults=None, children=0, toddlers=0,
+                       adults=None, children=0,
                        board='RO', booking=None):
         """Full nightly breakdown: {net, base, resolved, adjustment,
         occupancy, board, rule_id, lines[], basis}.
@@ -615,9 +610,9 @@ class HotelRateEngine(models.AbstractModel):
         """
         day, room, plan = self._validate_price_inputs(
             room_template_id, date, plan_id)
-        eff_adults, eff_children, eff_toddlers, total = \
+        eff_adults, eff_children, total = \
             self._resolve_counts(pax=pax, adults=adults,
-                                 children=children, toddlers=toddlers)
+                                 children=children)
         if total and room.num_person and total > room.num_person:
             raise ValidationError(
                 "Room %s fits %d; requested %d pax."
@@ -671,8 +666,7 @@ class HotelRateEngine(models.AbstractModel):
             heads = float(eff_adults) + 0.5 * float(eff_children)
             total = float(round(float(resolved) * heads / standard, 2))
             for band, requested in (('adult', eff_adults),
-                                    ('child', eff_children),
-                                    ('toddler', eff_toddlers)):
+                                    ('child', eff_children)):
                 rec = self._occupancy_record(room_type, plan, band)
                 if not rec:
                     continue
@@ -707,8 +701,7 @@ class HotelRateEngine(models.AbstractModel):
         }]
         occupancy_total = 0.0
         for band, requested in (('adult', eff_adults),
-                                ('child', eff_children),
-                                ('toddler', eff_toddlers)):
+                                ('child', eff_children)):
             rec = self._occupancy_record(room_type, plan, band)
             if not rec:
                 continue
@@ -757,24 +750,24 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def price_for(self, room_template_id, date, plan_id, pax=1,
-                  adults=None, children=0, toddlers=0, board='RO'):
+                  adults=None, children=0, board='RO'):
         """Nightly price for a room template on a date under a plan.
 
         KEEPS float return (Task 4 adds nothing here). For the full
         breakdown use price_detailed(). pax stays as the legacy
         positional guest count (mapped to adults); pass adults /
-        children / toddlers explicitly for occupancy pricing.
+        children explicitly for occupancy pricing.
         ``board`` selects the phase-1 type x plan price as the base
         (with the matching rule's meal line applied); RO keeps the
         legacy base path."""
         detailed = self.price_detailed(
             room_template_id, date, plan_id, pax=pax, adults=adults,
-            children=children, toddlers=toddlers, board=board)
+            children=children, board=board)
         return float(detailed['net'])
 
     @api.model
     def check_stay(self, room_template_id, date_from, date_to,
-                   plan_id, pax=1, adults=None, children=0, toddlers=0):
+                   plan_id, pax=1, adults=None, children=0):
         """Validate closed + min-stay for a stay window.
 
         Min-stay is the max over any rule/restriction overlapping the
@@ -839,8 +832,8 @@ class HotelRateEngine(models.AbstractModel):
             raise ValidationError(
                 "Minimum stay is %d night(s); requested %d."
                 % (required, nights))
-        _, _, _, total = self._resolve_counts(
-            pax=pax, adults=adults, children=children, toddlers=toddlers)
+        _, _, total = self._resolve_counts(
+            pax=pax, adults=adults, children=children)
         if total and room.num_person and total > room.num_person:
             raise ValidationError(
                 "Room %s fits %d; requested %d pax."
@@ -856,7 +849,7 @@ class HotelRateEngine(models.AbstractModel):
     @api.model
     def post_stay_nights(self, folio_id, room_template_id,
                          date_from, date_to, plan_id, pax=1,
-                         adults=None, children=0, toddlers=0):
+                         adults=None, children=0):
         """Post one folio line per night + one rate snapshot per night.
 
         Pre-validates ALL nights are open and resolves + validates every
@@ -871,7 +864,7 @@ class HotelRateEngine(models.AbstractModel):
         """
         nights = self.check_stay(room_template_id, date_from, date_to,
                                  plan_id, pax=pax, adults=adults,
-                                 children=children, toddlers=toddlers)
+                                 children=children)
         folio = self.env['hotel.folio'].browse(folio_id)
         if not folio.exists():
             raise ValidationError("Folio %s does not exist." % folio_id)
@@ -901,7 +894,7 @@ class HotelRateEngine(models.AbstractModel):
             charge._check_open_day(day, folio_company)
             detailed = self.price_detailed(
                 room.id, day, plan.id, pax=pax, adults=adults,
-                children=children, toddlers=toddlers,
+                children=children,
                 board=board, booking=booking)
             detailed_by_day[day] = detailed
             # Resolve + validate every night's band products up front:

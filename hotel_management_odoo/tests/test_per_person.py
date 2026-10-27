@@ -107,6 +107,11 @@ class TestPerPerson(TransactionCase):
         self.assertEqual(family['occupancy'], 0.0)
         self.assertEqual(len(family['lines']), 1)
 
+    def test_toddler_kwarg_gone(self):
+        _dtype, plan, room = self._setup()
+        engine = self.env['hotel.rate.engine']
+        self.assertFalse('toddlers' in engine.price_detailed.__code__.co_varnames)
+
     def test_caps_raise_in_both_modes(self):
         # Per-person: room fits but type max_occupants does not, so
         # the raise comes from the type guard.

@@ -154,5 +154,4 @@ class HotelPostStay(models.TransientModel):
         return self.env['hotel.rate.engine'].post_stay_nights(
             self.folio_id.id, self.room_template_id.id,
             self.date_from, self.date_to, self.plan_id.id,
-            adults=self.adults, children=self.children,
-            toddlers=self.toddlers)
+            adults=self.adults, children=self.children)

@@ -284,7 +284,7 @@ class RoomBookingLine(models.Model):
         string='Extras Total', compute='_compute_extra_estimate',
         help="Estimated extra-guest charge for the whole line.")
 
-    @api.depends('adults', 'children', 'toddlers', 'room_id',
+    @api.depends('adults', 'children', 'room_id',
                  'uom_qty', 'checkin_date', 'checkout_date',
                  'booking_id.meal_plan', 'booking_id.pricelist_id',
                  'booking_id.company_id')
@@ -307,7 +307,6 @@ class RoomBookingLine(models.Model):
                     if line.checkin_date else fields.Date.today(),
                     plan.id, adults=line.adults or 0,
                     children=line.children or 0,
-                    toddlers=line.toddlers or 0,
                     board=line.booking_id.meal_plan or 'RO',
                     booking=line.booking_id)
             except Exception:

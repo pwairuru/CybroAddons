@@ -220,7 +220,6 @@ class HotelNightAudit(models.Model):
                     price = engine.price_detailed(
                         line.room_id.id, day, plan.id,
                         adults=line.adults, children=line.children,
-                        toddlers=line.toddlers,
                         board=booking.meal_plan or 'RO',
                         booking=booking)['net']
                 else:

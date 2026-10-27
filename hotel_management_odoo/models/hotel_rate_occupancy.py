@@ -4,7 +4,7 @@ from odoo.exceptions import ValidationError
 
 from .hotel_business_date import _to_date
 
-OCCUPANCY_BANDS = ('adult', 'child', 'toddler')
+OCCUPANCY_BANDS = ('adult', 'child')
 
 
 class HotelRateOccupancy(models.Model):
@@ -37,8 +37,7 @@ class HotelRateOccupancy(models.Model):
                               "empty = default for the type.",
                               ondelete="cascade", index=True,
                               tracking=True)
-    band = fields.Selection([('adult', 'Adult'), ('child', 'Child'),
-                             ('toddler', 'Toddler')],
+    band = fields.Selection([('adult', 'Adult'), ('child', 'Child')],
                             string="Band", required=True, tracking=True)
     included_count = fields.Integer(string="Included", default=0,
                                     tracking=True)
