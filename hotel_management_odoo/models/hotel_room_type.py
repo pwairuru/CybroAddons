@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class HotelRoomType(models.Model):
@@ -21,6 +21,9 @@ class HotelRoomType(models.Model):
         [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
          ('HB', 'Half Board'), ('FB', 'Full Board')],
         default='RO', required=True, tracking=True)
+    meal_price_ids = fields.One2many('hotel.room.type.meal.price',
+                                     'room_type_id',
+                                     string="Meal Prices")
     website_published = fields.Boolean(default=False, tracking=True)
     amenity_ids = fields.Many2many('hotel.amenity', string="Amenities")
     image = fields.Image()
@@ -29,3 +32,25 @@ class HotelRoomType(models.Model):
     def default_rate(self):
         self.ensure_one()
         return self.base_rate
+
+    def ensure_meal_price_lines(self):
+        """Create the missing per-plan price lines (0.0)."""
+        plans = self.env['hotel.meal.plan'].search(
+            [('active', '=', True)])
+        line_model = self.env['hotel.room.type.meal.price']
+        for rtype in self:
+            have = set(rtype.meal_price_ids.mapped('meal_plan_id.id'))
+            for plan in plans:
+                if plan.id not in have:
+                    line_model.create({
+                        'room_type_id': rtype.id,
+                        'meal_plan_id': plan.id,
+                        'price': 0.0,
+                    })
+        return True
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records.ensure_meal_price_lines()
+        return records

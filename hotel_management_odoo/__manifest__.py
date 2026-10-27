@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel Management',
-    'version': '20.0.1.13.1',
+    'version': '20.0.1.14.0',
     'category': 'Industries',
     'summary': """A complete Hotel Management System that cover all areas of 
      Hotel services""" ,
@@ -61,8 +61,10 @@
         'views/hotel_folio_views.xml',
         'views/hotel_guest_views.xml',
         'data/hotel_guest_data.xml',
+        'data/hotel_meal_plan_data.xml',
         'views/hotel_night_audit_views.xml',
         'views/hotel_rate_views.xml',
+        'views/hotel_meal_plan_views.xml',
         'views/res_company_views.xml',
         'views/hotel_conference_views.xml',
         'views/hotel_cashier_views.xml',
