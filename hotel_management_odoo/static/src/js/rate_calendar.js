@@ -202,7 +202,7 @@ export class HotelRateCalendar extends Component {
         };
         if (Number(this.state.bulkForm.periodId)) {
             // Type x period: server fills date_from/to from the
-            // period + year and backfills the 5 meal lines on create.
+            // period + year and backfills the per-plan meal lines.
             vals.period_id = Number(this.state.bulkForm.periodId);
             vals.period_year = Number(this.state.bulkForm.year)
                 || new Date().getFullYear();

@@ -173,17 +173,24 @@ class HotelRateRule(models.Model):
         records = super().create(vals_list)
         plans = self.env['hotel.meal.plan'].search(
             [('active', '=', True)])
-        line_model = self.env['hotel.rate.rule.meal.line']
-        for rule in records:
-            have = set(rule.meal_line_ids.mapped('meal_plan_id.id'))
-            for plan in plans:
-                if plan.id not in have:
-                    line_model.create({
-                        'rule_id': rule.id,
-                        'meal_plan_id': plan.id,
-                        'rate_type': 'percent',
-                        'value': 0.0,
-                    })
+        if plans and records:
+            line_model = self.env['hotel.rate.rule.meal.line']
+            have = {
+                (line.rule_id.id, line.meal_plan_id.id)
+                for line in line_model.search([
+                    ('rule_id', 'in', records.ids),
+                    ('meal_plan_id', 'in', plans.ids),
+                ])
+            }
+            missing = [{
+                'rule_id': rule.id,
+                'meal_plan_id': plan.id,
+                'rate_type': 'percent',
+                'value': 0.0,
+            } for rule in records for plan in plans
+                if (rule.id, plan.id) not in have]
+            if missing:
+                line_model.create(missing)
         return records
 
     @api.constrains('date_from', 'date_to')
@@ -292,7 +299,7 @@ class HotelRateEngine(models.AbstractModel):
     _name = 'hotel.rate.engine'
     _description = "Hotel Rate Engine"
 
-    #: Rate calendar window cap (Task 6): matrix() never spans more.
+    #: Rate calendar window cap: matrix() never spans more.
     MATRIX_MAX_DAYS = 42
 
     @api.model
@@ -450,13 +457,21 @@ class HotelRateEngine(models.AbstractModel):
                     'period': period_labels[day_idx],
                 }
                 if show_all:
-                    # Per meal-plan price via the Task-2 resolver; RO
-                    # keeps the legacy path (equals cell price).
-                    cell['plans'] = {
-                        code: float(self.price_for(
-                            rep.id, day, plan.id, board=code))
-                        for code in meal_codes
-                    } if plan and rep else {}
+                    # Per meal-plan price via the plan-price resolver.
+                    # RO stays on the legacy path intentionally (Ruling 4):
+                    # assigned explicitly from the cell price so it can
+                    # never drift through the resolver.
+                    if plan and rep:
+                        plans_cell = {}
+                        for code in meal_codes:
+                            if code == 'RO':
+                                plans_cell[code] = float(price)
+                            else:
+                                plans_cell[code] = float(self.price_for(
+                                    rep.id, day, plan.id, board=code))
+                        cell['plans'] = plans_cell
+                    else:
+                        cell['plans'] = {}
                 cells.append(cell)
             rows.append({'type_id': rtype.id, 'name': rtype.name,
                          'cells': cells})
@@ -784,7 +799,7 @@ class HotelRateEngine(models.AbstractModel):
                   adults=None, children=0, board='RO'):
         """Nightly price for a room template on a date under a plan.
 
-        KEEPS float return (Task 4 adds nothing here). For the full
+        Keeps float return. For the full
         breakdown use price_detailed(). pax stays as the legacy
         positional guest count (mapped to adults); pass adults /
         children explicitly for occupancy pricing.

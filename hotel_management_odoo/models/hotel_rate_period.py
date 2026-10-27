@@ -31,9 +31,16 @@ class HotelRatePeriod(models.Model):
 
     def covers(self, month, day):
         self.ensure_one()
+        try:
+            point = (int(month), int(day))
+        except (TypeError, ValueError):
+            raise ValidationError(
+                "Bad month-day %r-%r; use MM-DD ints." % (month, day))
+        if not 1 <= point[0] <= 12 or not 1 <= point[1] <= 31:
+            raise ValidationError(
+                "Bad month-day %r-%r; use MM-DD ints." % (month, day))
         start = tuple(int(x) for x in self.start_md.split('-'))
         end = tuple(int(x) for x in self.end_md.split('-'))
-        point = (month, day)
         if start <= end:
             return start <= point <= end
         return point >= start or point <= end

@@ -25,3 +25,10 @@ class TestRatePeriods(TransactionCase):
             self.env['hotel.rate.period'].create({
                 'name': 'Bad', 'start_md': '13-01', 'end_md': '13-31',
             })
+
+    def test_covers_rejects_garbage(self):
+        period = self.env['hotel.rate.period'].search(
+            [('active', '=', True)], limit=1)
+        for month, day in [('x', 'y'), (None, None), (13, 1), (1, 32)]:
+            with self.assertRaises(ValidationError):
+                period.covers(month, day)

@@ -205,7 +205,7 @@ class HotelRateSnapshot(models.Model):
 
     Written by ``hotel.rate.engine.post_stay_nights`` (one per folio
     line). Never edited in place: repricing writes a new snapshot
-    (Task 4 folio flows consume these; Task 6 matrix reads them).
+    (folio flows consume these; the calendar matrix reads them).
     """
     _name = 'hotel.rate.snapshot'
     _description = "Hotel Rate Snapshot"
