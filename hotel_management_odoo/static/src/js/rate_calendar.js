@@ -88,6 +88,19 @@ export class HotelRateCalendar extends Component {
         const idx = this.state.dates.indexOf(date);
         return idx >= 0 ? (this.state.periods[idx] || '') : '';
     }
+    periodRuns() {
+        const runs = [];
+        this.state.dates.forEach((d, i) => {
+            const label = this.state.periods[i] || '';
+            const last = runs[runs.length - 1];
+            if (last && last.label === label) {
+                last.span += 1;
+            } else {
+                runs.push({ label, from: i + 2, span: 1 });
+            }
+        });
+        return runs;
+    }
     headFor(date) {
         const d = new Date(date + 'T00:00:00Z');
         const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

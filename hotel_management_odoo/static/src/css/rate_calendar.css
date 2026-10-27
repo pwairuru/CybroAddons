@@ -15,6 +15,7 @@
 .o_rc_grid { display: grid; min-width: max-content; }
 .o_rc_corner, .o_rc_room_cell { position: sticky; left: 0; background: #fff; z-index: 2; }
 .o_rc_date_head { text-align: center; padding: 6px 4px; border-bottom: 1px solid #e2e8f0; }
+.o_rc_period_head { text-align: center; padding: 4px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .o_rc_room_cell { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
 .o_rc_cell { border-radius: 6px; padding: 4px 6px; margin: 3px 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; cursor: pointer; min-height: 40px; border-bottom: 1px solid #f1f5f9; }
 .o_rc_cell.o_rc_closed { cursor: not-allowed; }

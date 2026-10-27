@@ -59,10 +59,12 @@
             <div class="o_rc_scroll">
                 <div class="o_rc_grid" t-att-style="'grid-template-columns: 190px repeat(' + this.state.dates.length + ', minmax(74px, 1fr));'">
                     <div class="o_rc_corner fw-bold" style="grid-row: 1 / span 2; grid-column: 1;"><span>Room type</span></div>
-                    <t t-foreach="this.state.dates" t-as="d" t-key="d">
-                        <div class="o_rc_period_head" t-att-style="'grid-row: 1; grid-column: ' + this.colFor(d) + ';'">
-                            <small class="text-muted"><t t-out="this.state.periods[d_index] || ''"/></small>
+                    <t t-foreach="this.periodRuns()" t-as="run" t-key="run.label + run.from">
+                        <div class="o_rc_period_head" t-att-style="'grid-row: 1; grid-column: ' + run.from + ' / span ' + run.span + ';'">
+                            <small class="text-muted fw-bold"><t t-out="run.label"/></small>
                         </div>
+                    </t>
+                    <t t-foreach="this.state.dates" t-as="d" t-key="d">
                         <div class="o_rc_date_head" t-att-style="'grid-row: 2; grid-column: ' + this.colFor(d) + ';'">
                             <div class="small text-muted"><t t-out="this.headFor(d).dow"/></div><div class="fw-bold"><t t-out="this.headFor(d).day"/><small class="text-muted"> <t t-out="this.headFor(d).mon"/></small></div>
                         </div>
