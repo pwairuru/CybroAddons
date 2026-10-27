@@ -44,6 +44,7 @@ from . import hotel_rack
 from . import hotel_rate
 from . import hotel_rate_occupancy
 from . import hotel_rate_period
+from . import hotel_rate_rule_meal
 from . import hotel_meal_plan
 from . import hotel_room_type
 from . import hotel_rooming

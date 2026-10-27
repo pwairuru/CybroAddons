@@ -76,11 +76,24 @@
                             <field name="rate_type"/>
                             <field name="fixed_price"/>
                             <field name="adjustment_pct"/>
+                            <field name="period_id"/>
+                            <field name="period_year"/>
                             <field name="date_from"/>
                             <field name="date_to"/>
                             <field name="min_stay"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="Meal Lines">
+                            <field name="meal_line_ids">
+                                <list editable="bottom">
+                                    <field name="meal_plan_id" readonly="1"/>
+                                    <field name="rate_type"/>
+                                    <field name="value"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
                 <chatter/>
             </form>

@@ -28,3 +28,4 @@ from . import test_rate_plan_selection
 from . import test_kanban_avatar
 from . import test_meal_plan
 from . import test_rate_periods
+from . import test_rule_meal_lines

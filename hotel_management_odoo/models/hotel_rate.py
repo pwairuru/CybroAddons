@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import timedelta
+from datetime import date, timedelta
 from math import ceil
 
 from odoo import api, fields, models
@@ -120,6 +120,69 @@ class HotelRateRule(models.Model):
                                   tracking=True)
     min_stay = fields.Integer(string="Min Stay (nights)", default=1,
                               tracking=True)
+    meal_line_ids = fields.One2many('hotel.rate.rule.meal.line', 'rule_id',
+                                    string="Meal Lines")
+    period_id = fields.Many2one('hotel.rate.period', string="Period",
+                                help="Picking a period fills date_from/to "
+                                "for the chosen year; dates stay the "
+                                "source of truth for matching.",
+                                ondelete="set null", index=True,
+                                tracking=True)
+    period_year = fields.Integer(string="Period Year", tracking=True)
+
+    @api.model
+    def _dates_from_period(self, period, year):
+        """Concrete (date_from, date_to) for a period + year.
+
+        Year-end wraps roll the end date into the next year
+        (e.g. 12-20 -> 01-05 + 2026 = 2026-12-20 -> 2027-01-05).
+        """
+        start = tuple(int(x) for x in period.start_md.split('-'))
+        end = tuple(int(x) for x in period.end_md.split('-'))
+        date_from = date(int(year), start[0], start[1])
+        if end < start:
+            date_to = date(int(year) + 1, end[0], end[1])
+        else:
+            date_to = date(int(year), end[0], end[1])
+        return date_from, date_to
+
+    @api.onchange('period_id', 'period_year')
+    def _onchange_period_fill_dates(self):
+        for rule in self:
+            if rule.period_id and rule.period_year:
+                date_from, date_to = self._dates_from_period(
+                    rule.period_id, rule.period_year)
+                rule.date_from = date_from
+                rule.date_to = date_to
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('period_id') and vals.get('period_year') \
+                    and (not vals.get('date_from')
+                         or not vals.get('date_to')):
+                period = self.env['hotel.rate.period'].browse(
+                    vals['period_id'])
+                if period.exists():
+                    date_from, date_to = self._dates_from_period(
+                        period, vals['period_year'])
+                    vals['date_from'] = fields.Date.to_string(date_from)
+                    vals['date_to'] = fields.Date.to_string(date_to)
+        records = super().create(vals_list)
+        plans = self.env['hotel.meal.plan'].search(
+            [('active', '=', True)])
+        line_model = self.env['hotel.rate.rule.meal.line']
+        for rule in records:
+            have = set(rule.meal_line_ids.mapped('meal_plan_id.id'))
+            for plan in plans:
+                if plan.id not in have:
+                    line_model.create({
+                        'rule_id': rule.id,
+                        'meal_plan_id': plan.id,
+                        'rate_type': 'percent',
+                        'value': 0.0,
+                    })
+        return records
 
     @api.constrains('date_from', 'date_to')
     def _check_dates(self):
@@ -489,6 +552,31 @@ class HotelRateEngine(models.AbstractModel):
         return 0.0, False
 
     @api.model
+    def _meal_plan_price(self, room_type, board):
+        """Phase-1 type x plan price for the booking board.
+
+        Returns False for RO (legacy base path) or when no usable
+        table price exists, so legacy behavior stays untouched.
+        """
+        code = board.strip() if isinstance(board, str) else 'RO'
+        if not room_type or not code or code == 'RO':
+            return False
+        line = room_type.meal_price_ids.filtered(
+            lambda l: l.meal_plan_id.code == code)[:1]
+        if not line or not line.price:
+            return False
+        return float(line.price)
+
+    @api.model
+    def _matching_meal_line(self, rule, board):
+        """The matching rule's line for the booking board."""
+        code = board.strip() if isinstance(board, str) else 'RO'
+        if not rule or not code or code == 'RO':
+            return False
+        return rule.meal_line_ids.filtered(
+            lambda l: l.meal_plan_id.code == code)[:1]
+
+    @api.model
     def price_detailed(self, room_template_id, date, plan_id, pax=1,
                        adults=None, children=0, toddlers=0,
                        board='RO', booking=None):
@@ -524,7 +612,22 @@ class HotelRateEngine(models.AbstractModel):
                    total))
         base = self._base_price(room, plan)
         rule = self._matching_rule(plan, room.id, day)
-        if not rule:
+        plan_price = self._meal_plan_price(room_type, board)
+        meal_line = self._matching_meal_line(rule, board) \
+            if plan_price else False
+        if plan_price:
+            if meal_line and meal_line.rate_type == 'fixed':
+                resolved = float(round(meal_line.value or 0.0, 2))
+            elif meal_line:
+                resolved = float(round(
+                    plan_price * (1.0 + (meal_line.value or 0.0) / 100.0),
+                    2))
+            else:
+                resolved = float(plan_price)
+            adjustment = float(resolved - base)
+            rule_id = rule.id if rule else False
+            rule_basis = 'resolved_rate'
+        elif not rule:
             resolved = float(base)
             adjustment = 0.0
             rule_id = False
@@ -601,16 +704,19 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def price_for(self, room_template_id, date, plan_id, pax=1,
-                  adults=None, children=0, toddlers=0):
+                  adults=None, children=0, toddlers=0, board='RO'):
         """Nightly price for a room template on a date under a plan.
 
         KEEPS float return (Task 4 adds nothing here). For the full
         breakdown use price_detailed(). pax stays as the legacy
         positional guest count (mapped to adults); pass adults /
-        children / toddlers explicitly for occupancy pricing."""
+        children / toddlers explicitly for occupancy pricing.
+        ``board`` selects the phase-1 type x plan price as the base
+        (with the matching rule's meal line applied); RO keeps the
+        legacy base path."""
         detailed = self.price_detailed(
             room_template_id, date, plan_id, pax=pax, adults=adults,
-            children=children, toddlers=toddlers)
+            children=children, toddlers=toddlers, board=board)
         return float(detailed['net'])
 
     @api.model

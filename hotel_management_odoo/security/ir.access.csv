@@ -95,3 +95,5 @@ access_hotel_room_type_meal_price_user,access.hotel.room.type.meal.price.user,mo
 access_hotel_room_type_meal_price_manager,access.hotel.room.type.meal.price.manager,model_hotel_room_type_meal_price,hotel_management_odoo.hotel_group_manager,crud
 access_hotel_rate_period_user,access.hotel.rate.period.user,model_hotel_rate_period,base.group_user,r
 access_hotel_rate_period_manager,access.hotel.rate.period.manager,model_hotel_rate_period,hotel_management_odoo.hotel_group_manager,crud
+access_hotel_rate_rule_meal_line_user,access.hotel.rate.rule.meal.line.user,model_hotel_rate_rule_meal_line,base.group_user,r
+access_hotel_rate_rule_meal_line_manager,access.hotel.rate.rule.meal.line.manager,model_hotel_rate_rule_meal_line,hotel_management_odoo.hotel_group_manager,crud
