@@ -30,6 +30,7 @@ export class HotelRateCalendar extends Component {
             dates: [], periods: [], rows: [], plans: [], types: [],
             ratePeriods: [],
             planId: false, board: 'RO',
+            zoom: 'day', year: new Date().getFullYear(), month: null,
             days: 14, dateFrom: false, loading: true,
             bulk: false, sel: false, bulkForm: {
                 mode: 'percent', value: 0, priority: 10,
@@ -68,6 +69,14 @@ export class HotelRateCalendar extends Component {
     isAll() { return this.state.board === 'ALL'; }
     boardArg() { return this.isAll() ? false : this.state.board; }
     async reload() {
+        if (this.state.zoom === 'month') {
+            const typeIds = this.state.types.map((t) => t.id);
+            this.state.month = await this.orm.call('hotel.rate.engine',
+                'period_matrix', [this.state.year, typeIds,
+                    this.state.planId || false, this.boardArg()]);
+            this.state.notice = false;
+            return;
+        }
         const { from, to } = this._window();
         const typeIds = this.state.types.map((t) => t.id);
         const data = await this.orm.call('hotel.rate.engine', 'matrix',
@@ -80,6 +89,68 @@ export class HotelRateCalendar extends Component {
         });
     }
     colFor(date) { return this.state.dates.indexOf(date) + 2; }
+    zoomCount() {
+        if (this.state.zoom === 'month') {
+            return this.state.month ? this.state.month.periods.length : 0;
+        }
+        if (this.state.zoom === 'week') { return this.weekCols().length; }
+        return this.state.dates.length;
+    }
+    _weekStart(d) {
+        const monday = new Date(d);
+        const dow = (monday.getUTCDay() + 6) % 7;
+        monday.setUTCDate(monday.getUTCDate() - dow);
+        return monday;
+    }
+    weekCols() {
+        const weeks = [];
+        this.state.dates.forEach((ds) => {
+            const start = this._weekStart(_parseDay(ds));
+            const key = _fmtDay(start);
+            let week = weeks[weeks.length - 1];
+            if (!week || week.key !== key) {
+                const end = new Date(start);
+                end.setUTCDate(end.getUTCDate() + 6);
+                week = { key, from: ds, to: ds, label:
+                    start.getUTCDate() + ' ' +
+                    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                    [start.getUTCMonth()] + ' – ' + end.getUTCDate() + ' ' +
+                    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                    [end.getUTCMonth()] };
+                weeks.push(week);
+            } else {
+                week.to = ds;
+            }
+        });
+        return weeks;
+    }
+    _dayValue(cell) {
+        return this.state.board !== 'RO' ? cell.total : cell.price;
+    }
+    weekRange(row, week) {
+        const vals = row.cells
+            .filter((c) => c.date >= week.from && c.date <= week.to)
+            .map((c) => this._dayValue(c));
+        if (!vals.length) { return ''; }
+        const lo = Math.min(...vals), hi = Math.max(...vals);
+        return lo === hi ? String(lo) : lo + ' – ' + hi;
+    }
+    async onWeekCell(row, week) {
+        this.state.zoom = 'day';
+        this.state.dateFrom = week.from;
+        this.state.notice = false;
+        await this.reload();
+    }
+    async onMonthCell(row, cell) {
+        const period = (this.state.month.periods || [])
+            .find((p) => p.id === cell.period_id);
+        this.state.zoom = 'day';
+        this.state.dateFrom = period ? period.date_from : false;
+        this.state.notice = false;
+        await this.reload();
+    }
     planEntries(cell) {
         return Object.entries(cell.plans || {})
             .sort((a, b) => (a[0] < b[0] ? -1 : 1));
@@ -233,6 +304,19 @@ export class HotelRateCalendar extends Component {
     }
     async setDays(days) { this.state.days = days; await this.reload(); }
     onDaysChange(e) { this.setDays(Number(e.target.value)); }
+    async onZoomChange(e) {
+        this.state.zoom = e.target.value;
+        if (this.state.zoom !== 'day' && this.isAll()) {
+            this.state.board = 'RO';
+            this.state.notice = 'All-plans view is day-zoom only.';
+        }
+        if (this.state.zoom === 'month') {
+            const base = this.state.dateFrom || _todayIso();
+            this.state.year = _parseDay(base).getUTCFullYear();
+        }
+        this.state.sel = false;
+        await this.reload();
+    }
     async onPlanChange(e) {
         this.state.planId = Number(e.target.value) || false;
         await this.reload();
@@ -254,8 +338,17 @@ export class HotelRateCalendar extends Component {
         this.state.sel = false;
         this.state.overlapWarning = false;
     }
-    async goToday() { this.state.dateFrom = false; await this.reload(); }
+    async goToday() {
+        this.state.dateFrom = false;
+        this.state.year = new Date().getFullYear();
+        await this.reload();
+    }
     async shift(n) {
+        if (this.state.zoom === 'month') {
+            this.state.year += n;
+            await this.reload();
+            return;
+        }
         const base = this.state.dateFrom || _todayIso();
         const d = _parseDay(base);
         d.setUTCDate(d.getUTCDate() + n * this.state.days);

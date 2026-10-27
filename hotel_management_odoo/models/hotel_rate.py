@@ -485,6 +485,67 @@ class HotelRateEngine(models.AbstractModel):
         }
 
     @api.model
+    def period_matrix(self, year, type_ids, plan_id=None, board='RO'):
+        """Rate calendar grid for room types x rate periods.
+
+        One column per active ``hotel.rate.period`` (sequence order) for
+        the given year. Each cell carries the min/max nightly ``total``
+        across the period's nights (single-board mode only) plus the
+        sorted rule ids covering it. Reuses :meth:`matrix` per period
+        window (periods stay under its day cap).
+        Returns ``{year, periods[{id, name, date_from, date_to}],
+        plan_id, rows[{type_id, name, cells[{period_id, min, max,
+        rule_ids}]}]}``.
+        """
+        year = int(year)
+        if year < 2000 or year > 2100:
+            raise ValidationError("Period matrix year %r out of range."
+                                  % (year,))
+        periods = self.env['hotel.rate.period'].search(
+            [('active', '=', True)], order='sequence')
+        rule_model = self.env['hotel.rate.rule']
+        windows = []
+        for period in periods:
+            date_from, date_to = rule_model._dates_from_period(
+                period, year)
+            windows.append((period, date_from, date_to))
+        per_type = {}
+        for period, date_from, date_to in windows:
+            data = self.matrix(
+                type_ids, fields.Date.to_string(date_from),
+                fields.Date.to_string(date_to), plan_id, board)
+            for row in data['rows']:
+                entry = per_type.setdefault(row['type_id'], {
+                    'name': row['name'], 'cells': {}})
+                totals = [cell['total'] for cell in row['cells']]
+                rules = sorted({cell['rule_id'] for cell in row['cells']
+                                if cell['rule_id']})
+                entry['cells'][period.id] = {
+                    'period_id': period.id,
+                    'min': min(totals) if totals else 0.0,
+                    'max': max(totals) if totals else 0.0,
+                    'rule_ids': rules,
+                }
+        rows = []
+        for type_id in sorted(per_type):
+            entry = per_type[type_id]
+            rows.append({
+                'type_id': type_id, 'name': entry['name'],
+                'cells': [entry['cells'][period.id] for period, _f, _t
+                          in windows],
+            })
+        return {
+            'year': year,
+            'periods': [{
+                'id': period.id, 'name': period.name,
+                'date_from': fields.Date.to_string(date_from),
+                'date_to': fields.Date.to_string(date_to),
+            } for period, date_from, date_to in windows],
+            'plan_id': data.get('plan_id') if windows else False,
+            'rows': rows,
+        }
+
+    @api.model
     def _base_price(self, room, plan):
         if plan.pricelist_id:
             variant = room.product_variant_id or room

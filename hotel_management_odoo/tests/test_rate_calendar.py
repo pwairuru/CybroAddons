@@ -109,3 +109,19 @@ class TestRateCalendarMatrix(TransactionCase):
         self.assertAlmostEqual(cells['2026-12-24']['board'], 0.0)
         self.assertAlmostEqual(cells['2026-12-24']['total'],
                                cells['2026-12-24']['price'])
+
+    def test_period_matrix_range(self):
+        rtype, plan, room1, room2 = self._setup()
+        self.env['hotel.rate.rule'].create({
+            'plan_id': plan.id, 'room_type_id': rtype.id,
+            'date_from': '2026-12-20', 'date_to': '2026-12-31',
+            'rate_type': 'percent', 'adjustment_pct': 50.0,
+            'priority': 10})
+        data = self.env['hotel.rate.engine'].period_matrix(
+            2026, [rtype.id], plan.id, board='RO')
+        self.assertEqual(len(data['periods']), 12)
+        dec = [c for c in data['rows'][0]['cells']
+               if c['period_id'] == self.env.ref(
+                   'hotel_management_odoo.hotel_rate_period_12').id][0]
+        self.assertEqual(dec['min'], 10000.0)
+        self.assertEqual(dec['max'], 15000.0)
