@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import calendar
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -26,6 +28,9 @@ class HotelRatePeriod(models.Model):
                     raise ValidationError(
                         "Bad month-day %r; use MM-DD." % (val,))
                 if not 1 <= m <= 12 or not 1 <= d <= 31:
+                    raise ValidationError(
+                        "Bad month-day %r; use MM-DD." % (val,))
+                if d > calendar.monthrange(2024, m)[1]:
                     raise ValidationError(
                         "Bad month-day %r; use MM-DD." % (val,))
 

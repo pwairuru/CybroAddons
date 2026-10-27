@@ -26,6 +26,29 @@ class TestRatePeriods(TransactionCase):
                 'name': 'Bad', 'start_md': '13-01', 'end_md': '13-31',
             })
 
+    def test_february_clamps_non_leap_year(self):
+        feb = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '02-01')], limit=1)
+        self.assertEqual(feb.end_md, '02-29')
+        date_from, date_to = self.env['hotel.rate.rule']._dates_from_period(
+            feb, 2026)
+        self.assertEqual(date_from.isoformat(), '2026-02-01')
+        self.assertEqual(date_to.isoformat(), '2026-02-28')
+
+    def test_february_keeps_leap_day(self):
+        feb = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '02-01')], limit=1)
+        date_from, date_to = self.env['hotel.rate.rule']._dates_from_period(
+            feb, 2024)
+        self.assertEqual(date_from.isoformat(), '2024-02-01')
+        self.assertEqual(date_to.isoformat(), '2024-02-29')
+
+    def test_impossible_month_day_rejected(self):
+        with self.assertRaises(ValidationError):
+            self.env['hotel.rate.period'].create({
+                'name': 'Bad Feb', 'start_md': '02-30', 'end_md': '02-30',
+            })
+
     def test_covers_rejects_garbage(self):
         period = self.env['hotel.rate.period'].search(
             [('active', '=', True)], limit=1)

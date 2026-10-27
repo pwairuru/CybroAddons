@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import calendar
 from datetime import date, timedelta
 from math import ceil
 
@@ -141,11 +142,12 @@ class HotelRateRule(models.Model):
         """
         start = tuple(int(x) for x in period.start_md.split('-'))
         end = tuple(int(x) for x in period.end_md.split('-'))
-        date_from = date(int(year), start[0], start[1])
-        if end < start:
-            date_to = date(int(year) + 1, end[0], end[1])
-        else:
-            date_to = date(int(year), end[0], end[1])
+        year = int(year)
+        date_from = date(year, start[0],
+                         min(start[1], calendar.monthrange(year, start[0])[1]))
+        end_year = year + 1 if end < start else year
+        date_to = date(end_year, end[0],
+                       min(end[1], calendar.monthrange(end_year, end[0])[1]))
         return date_from, date_to
 
     @api.onchange('period_id', 'period_year')
