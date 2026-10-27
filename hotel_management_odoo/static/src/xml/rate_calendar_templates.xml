@@ -17,6 +17,7 @@
                     <option value="BB" t-att-selected="this.state.board === 'BB' ? 'selected' : false">Bed &amp; Breakfast</option>
                     <option value="HB" t-att-selected="this.state.board === 'HB' ? 'selected' : false">Half Board</option>
                     <option value="FB" t-att-selected="this.state.board === 'FB' ? 'selected' : false">Full Board</option>
+                    <option value="ALL" t-att-selected="this.state.board === 'ALL' ? 'selected' : false">All plans</option>
                 </select>
                 <button t-att-class="'btn btn-sm ' + (this.state.bulk ? 'btn-primary' : 'btn-outline-primary')" t-on-click="() => this.toggleBulk()" title="Select a date range, then apply one rule to all of it">Bulk</button>
                 <button class="btn btn-secondary btn-sm" t-on-click="() => this.reload()" title="Refresh">⟳</button>
@@ -44,30 +45,47 @@
                 </select>
                 <input class="form-control form-control-sm o_rc_value" type="number" step="any" t-att-value="this.state.bulkForm.value" t-on-change="(e) => this.onBulkField(e, 'value')" title="Adjustment % or fixed price"/>
                 <label>Priority <input class="form-control form-control-sm o_rc_value" type="number" t-att-value="this.state.bulkForm.priority" t-on-change="(e) => this.onBulkField(e, 'priority')"/></label>
+                <select class="form-select form-select-sm" t-att-value="this.state.bulkForm.periodId" t-on-change="(e) => this.onBulkField(e, 'periodId')" title="Rate period (type×period rule)">
+                    <option value="0">Date range</option>
+                    <t t-foreach="this.state.ratePeriods" t-as="rp" t-key="rp.id">
+                        <option t-att-value="rp.id"><t t-out="rp.name"/></option>
+                    </t>
+                </select>
+                <label t-if="this.state.bulkForm.periodId">Year <input class="form-control form-control-sm o_rc_value" type="number" t-att-value="this.state.bulkForm.year" t-on-change="(e) => this.onBulkField(e, 'year')"/></label>
                 <button class="btn btn-primary btn-sm" t-on-click="() => this.applyBulk()" t-att-disabled="!this.state.sel ? 'disabled' : false">Apply</button>
                 <span class="o_rc_warn" t-if="this.state.overlapWarning">Overlaps a same-priority rule with a different rate — save will be rejected.</span>
                 <span class="o_rc_notice" t-if="this.state.notice"><t t-out="this.state.notice"/></span>
             </div>
             <div class="o_rc_scroll">
                 <div class="o_rc_grid" t-att-style="'grid-template-columns: 190px repeat(' + this.state.dates.length + ', minmax(74px, 1fr));'">
-                    <div class="o_rc_corner fw-bold" style="grid-row: 1; grid-column: 1;"><span>Room type</span></div>
+                    <div class="o_rc_corner fw-bold" style="grid-row: 1 / span 2; grid-column: 1;"><span>Room type</span></div>
                     <t t-foreach="this.state.dates" t-as="d" t-key="d">
-                        <div class="o_rc_date_head" t-att-style="'grid-row: 1; grid-column: ' + this.colFor(d) + ';'">
+                        <div class="o_rc_period_head" t-att-style="'grid-row: 1; grid-column: ' + this.colFor(d) + ';'">
+                            <small class="text-muted"><t t-out="this.state.periods[d_index] || ''"/></small>
+                        </div>
+                        <div class="o_rc_date_head" t-att-style="'grid-row: 2; grid-column: ' + this.colFor(d) + ';'">
                             <div class="small text-muted"><t t-out="this.headFor(d).dow"/></div><div class="fw-bold"><t t-out="this.headFor(d).day"/><small class="text-muted"> <t t-out="this.headFor(d).mon"/></small></div>
                         </div>
                     </t>
                     <t t-foreach="this.state.rows" t-as="row" t-key="row.type_id">
-                        <div class="o_rc_room_cell" t-att-style="'grid-row: ' + (row_index + 2) + '; grid-column: 1;'" t-att-title="row.name">
+                        <div class="o_rc_room_cell" t-att-style="'grid-row: ' + (row_index + 3) + '; grid-column: 1;'" t-att-title="row.name">
                             <span class="fw-bold"><t t-out="row.name"/></span>
                         </div>
                         <t t-foreach="row.cells" t-as="cell" t-key="cell.date">
                             <div t-att-class="(this.clsFor(cell) + (this.inSel(row.type_id, cell.date) ? ' o_rc_sel' : ''))"
-                                 t-att-style="'grid-row: ' + (row_index + 2) + '; grid-column: ' + this.colFor(cell.date) + ';'"
+                                 t-att-style="'grid-row: ' + (row_index + 3) + '; grid-column: ' + this.colFor(cell.date) + ';'"
                                  t-on-click="() => this.onCell(row, cell)"
                                  t-att-data-testid="'rc-' + row.type_id + '-' + cell.date"
                                  t-att-title="this.tipFor(row, cell)">
-                                <span class="o_rc_price"><t t-out="this.state.board !== 'RO' ? cell.total : cell.price"/></span>
-                                <small class="o_rc_delta" t-att-data-testid="'rc-delta-' + row.type_id + '-' + cell.date"><t t-out="cell.delta_pct + '%'"/></small>
+                                <t t-if="this.isAll() &amp;&amp; cell.plans">
+                                    <t t-foreach="this.planEntries(cell)" t-as="pe" t-key="pe[0]">
+                                        <small class="o_rc_planline"><t t-out="pe[0]"/> <t t-out="pe[1]"/></small>
+                                    </t>
+                                </t>
+                                <t t-else="">
+                                    <span class="o_rc_price"><t t-out="this.state.board !== 'RO' ? cell.total : cell.price"/></span>
+                                    <small class="o_rc_delta" t-att-data-testid="'rc-delta-' + row.type_id + '-' + cell.date"><t t-out="cell.delta_pct + '%'"/></small>
+                                </t>
                                 <small class="o_rc_avail"><t t-out="cell.available + ' free'"/></small>
                             </div>
                         </t>

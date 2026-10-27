@@ -27,11 +27,13 @@ export class HotelRateCalendar extends Component {
         this.orm = useService('orm');
         this.action = useService('action');
         this.state = proxy({
-            dates: [], rows: [], plans: [], types: [],
+            dates: [], periods: [], rows: [], plans: [], types: [],
+            ratePeriods: [],
             planId: false, board: 'RO',
             days: 14, dateFrom: false, loading: true,
             bulk: false, sel: false, bulkForm: {
                 mode: 'percent', value: 0, priority: 10,
+                periodId: 0, year: new Date().getFullYear(),
             },
             overlapWarning: false, notice: false,
         });
@@ -40,12 +42,15 @@ export class HotelRateCalendar extends Component {
     async load() {
         this.state.loading = true;
         this.state.notice = false;
-        const [plans, types] = await Promise.all([
+        const [plans, types, ratePeriods] = await Promise.all([
             this.orm.searchRead('hotel.rate.plan', [], ['id', 'name']),
             this.orm.searchRead('hotel.room.type', [], ['id', 'name']),
+            this.orm.searchRead('hotel.rate.period',
+                [['active', '=', true]], ['id', 'name']),
         ]);
         this.state.plans = plans;
         this.state.types = types;
+        this.state.ratePeriods = ratePeriods;
         if (!this.state.planId && plans.length) {
             this.state.planId = plans[0].id;
         }
@@ -60,18 +65,29 @@ export class HotelRateCalendar extends Component {
         end.setUTCDate(end.getUTCDate() + days - 1);
         return { from: _fmtDay(start), to: _fmtDay(end) };
     }
+    isAll() { return this.state.board === 'ALL'; }
+    boardArg() { return this.isAll() ? false : this.state.board; }
     async reload() {
         const { from, to } = this._window();
         const typeIds = this.state.types.map((t) => t.id);
         const data = await this.orm.call('hotel.rate.engine', 'matrix',
-            [typeIds, from, to, this.state.planId || false, this.state.board]);
+            [typeIds, from, to, this.state.planId || false, this.boardArg()]);
         Object.assign(this.state, {
-            dates: data.dates, rows: data.rows,
+            dates: data.dates, periods: data.periods || [],
+            rows: data.rows,
             dateFrom: data.dates.length ? data.dates[0] : from,
             sel: false, overlapWarning: false,
         });
     }
     colFor(date) { return this.state.dates.indexOf(date) + 2; }
+    planEntries(cell) {
+        return Object.entries(cell.plans || {})
+            .sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    }
+    periodFor(date) {
+        const idx = this.state.dates.indexOf(date);
+        return idx >= 0 ? (this.state.periods[idx] || '') : '';
+    }
     headFor(date) {
         const d = new Date(date + 'T00:00:00Z');
         const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -91,12 +107,18 @@ export class HotelRateCalendar extends Component {
         const why = cell.rule_id
             ? 'rule #' + cell.rule_id
             : 'base rate (no rule)';
-        return row.name + ' · ' + cell.date
+        let tip = row.name + ' · ' + cell.date
+            + (cell.period ? ' (' + cell.period + ')' : '')
             + '\nprice ' + cell.price + ' (base ' + cell.base + ')'
             + '\n' + why + ' · min stay ' + cell.min_stay
             + ' · ' + cell.available + ' free'
             + (cell.board ? '\nboard +' + cell.board + ' = ' + cell.total : '')
             + (cell.closed ? '\nCLOSED' : '');
+        if (cell.plans) {
+            tip += '\n' + this.planEntries(cell)
+                .map(([code, price]) => code + ' ' + price).join(' · ');
+        }
+        return tip;
     }
     _past(date) { return date < _todayIso(); }
     _locked(cell) { return !cell || cell.closed || this._past(cell.date); }
@@ -168,20 +190,32 @@ export class HotelRateCalendar extends Component {
     async applyBulk() {
         const sel = this.state.sel;
         if (!sel || !this.state.planId) { return; }
-        await this.checkOverlap();
-        await this.orm.create('hotel.rate.rule', [{
+        const vals = {
             plan_id: this.state.planId,
             room_type_id: sel.typeId,
-            date_from: sel.from,
-            date_to: sel.to,
             rate_type: this.state.bulkForm.mode,
             fixed_price: this.state.bulkForm.mode === 'fixed'
                 ? Number(this.state.bulkForm.value) || 0 : 0,
             adjustment_pct: this.state.bulkForm.mode === 'fixed'
                 ? 0 : Number(this.state.bulkForm.value) || 0,
             priority: this.state.bulkForm.priority,
-        }]);
-        this.state.notice = 'Rule applied ' + sel.from + ' → ' + sel.to;
+        };
+        if (Number(this.state.bulkForm.periodId)) {
+            // Type x period: server fills date_from/to from the
+            // period + year and backfills the 5 meal lines on create.
+            vals.period_id = Number(this.state.bulkForm.periodId);
+            vals.period_year = Number(this.state.bulkForm.year)
+                || new Date().getFullYear();
+        } else {
+            await this.checkOverlap();
+            vals.date_from = sel.from;
+            vals.date_to = sel.to;
+        }
+        await this.orm.create('hotel.rate.rule', [vals]);
+        const label = vals.period_id
+            ? 'period #' + vals.period_id + ' ' + vals.period_year
+            : sel.from + ' → ' + sel.to;
+        this.state.notice = 'Rule applied ' + label;
         await this.reload();
     }
     async setDays(days) { this.state.days = days; await this.reload(); }

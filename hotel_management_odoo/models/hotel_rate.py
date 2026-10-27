@@ -308,13 +308,18 @@ class HotelRateEngine(models.AbstractModel):
 
         ``board`` selects a board basis: the matching board supplement
         is added as ``board`` with ``total`` = price + supplement
-        (``RO`` adds nothing). Window capped at 42 days.
+        (``RO`` adds nothing). ``board=False`` means all plans: each
+        cell also carries ``plans`` (per meal-plan code price via the
+        plan-price resolver; ``RO`` stays the legacy price) and every
+        date carries a ``period`` label (first active
+        ``hotel.rate.period`` covering the month-day by sequence,
+        else False). Window capped at 42 days.
         Company-scoped: types, plan, rooms and business days all
         resolve under ``env.company``.
-        Returns ``{dates[], plan_id, rows[{type_id, name,
+        Returns ``{dates[], periods[], plan_id, rows[{type_id, name,
         cells[]}]}`` where each cell holds ``{date, price, base,
         delta_pct, rule_id, min_stay, closed, available, board,
-        total}``.
+        total[, plans, period]}`` (``plans`` only in all-plans mode).
         """
         start = _to_date(date_from)
         end = _to_date(date_to)
@@ -340,6 +345,21 @@ class HotelRateEngine(models.AbstractModel):
              ('company_id', '=', company.id)], order='name')
         days = [start + timedelta(days=offset)
                 for offset in range((end - start).days + 1)]
+        show_all = board is False
+        meal_codes = []
+        if show_all:
+            meal_codes = self.env['hotel.meal.plan'].search(
+                [('active', '=', True)], order='code').mapped('code')
+        periods = self.env['hotel.rate.period'].search(
+            [('active', '=', True)], order='sequence')
+        period_labels = []
+        for day in days:
+            label = False
+            for period in periods:
+                if period.covers(day.month, day.day):
+                    label = period.name
+                    break
+            period_labels.append(label)
         biz = self.env['hotel.business.date']
         board_match = self.env['hotel.board.rule']._match \
             if board and board != 'RO' else None
@@ -377,7 +397,7 @@ class HotelRateEngine(models.AbstractModel):
                 ('date_to', '>=', fields.Date.to_string(start)),
             ]) if plan else self.env['hotel.rate.restriction'].browse()
             cells = []
-            for day in days:
+            for day_idx, day in enumerate(days):
                 day_str = fields.Date.to_string(day)
                 price = float(self.price_for(rep.id, day, plan.id)) \
                     if plan and rep else base
@@ -419,7 +439,7 @@ class HotelRateEngine(models.AbstractModel):
                         rtype.id, board, day,
                         plan.id if plan else None, company.id)
                     supplement = float(hit.supplement) if hit else 0.0
-                cells.append({
+                cell = {
                     'date': day_str, 'price': price, 'base': base,
                     'delta_pct': delta,
                     'rule_id': rule.id if rule else False,
@@ -427,11 +447,22 @@ class HotelRateEngine(models.AbstractModel):
                     'available': max(len(room_ids) - booked - ooo_count, 0),
                     'board': supplement,
                     'total': float(price + supplement),
-                })
+                    'period': period_labels[day_idx],
+                }
+                if show_all:
+                    # Per meal-plan price via the Task-2 resolver; RO
+                    # keeps the legacy path (equals cell price).
+                    cell['plans'] = {
+                        code: float(self.price_for(
+                            rep.id, day, plan.id, board=code))
+                        for code in meal_codes
+                    } if plan and rep else {}
+                cells.append(cell)
             rows.append({'type_id': rtype.id, 'name': rtype.name,
                          'cells': cells})
         return {
             'dates': [fields.Date.to_string(day) for day in days],
+            'periods': period_labels,
             'plan_id': plan.id if plan else False,
             'rows': rows,
         }

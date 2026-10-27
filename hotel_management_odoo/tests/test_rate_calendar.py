@@ -64,6 +64,18 @@ class TestRateCalendarMatrix(TransactionCase):
         self.assertTrue(cells['2026-12-25']['closed'])
         self.assertTrue(cells['2026-12-26']['closed'])
 
+    def test_matrix_all_plans(self):
+        rtype, plan, room1, room2 = self._setup()
+        data = self.env['hotel.rate.engine'].matrix(
+            [rtype.id], '2026-12-20', '2026-12-21', plan.id,
+            False)
+        cell = data['rows'][0]['cells'][0]
+        self.assertEqual(
+            sorted(cell['plans'].keys()), ['BB', 'DP', 'FB', 'HB', 'RO'])
+        self.assertEqual(cell['plans']['RO'], cell['price'])
+        self.assertEqual(cell['period'], 'December')
+        self.assertEqual(data['periods'][0], 'December')
+
     def test_matrix_caps_at_42_days(self):
         rtype, plan, room1, room2 = self._setup()
         data = self.env['hotel.rate.engine'].matrix(
