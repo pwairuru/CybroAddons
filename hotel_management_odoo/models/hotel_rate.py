@@ -221,8 +221,10 @@ class HotelRateRule(models.Model):
 
     @api.constrains('plan_id', 'room_type_id', 'room_template_id',
                     'priority', 'date_from', 'date_to',
-                    'rate_type', 'fixed_price', 'adjustment_pct')
+                    'rate_type', 'fixed_price', 'adjustment_pct',
+                    'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
     def _check_type_priority_overlap(self):
+        weekdays = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
         for rule in self:
             if not rule.room_type_id:
                 continue
@@ -239,6 +241,8 @@ class HotelRateRule(models.Model):
                 ('date_to', '>=', rule.date_from),
             ])
             for other in overlapping:
+                if not any(rule[day] and other[day] for day in weekdays):
+                    continue
                 if rule._effective_rate() != other._effective_rate():
                     raise ValidationError(
                         "Overlapping rules for plan %s, type %s, "
@@ -417,7 +421,11 @@ class HotelRateEngine(models.AbstractModel):
                 rule = self._matching_rule(plan, rep.id, day) \
                     if plan and rep else None
                 required = 1
+                weekday = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat',
+                           'sun'][day.weekday()]
                 for rec in rules:
+                    if not rec[weekday]:
+                        continue
                     if rec.date_from <= day <= rec.date_to and (
                             not rec.room_type_id
                             or rec.room_type_id.id == rtype.id) and (
@@ -920,6 +928,11 @@ class HotelRateEngine(models.AbstractModel):
         if closed:
             raise ValidationError("Closed dates cover this stay.")
         # Min stay = max over rules + restrictions overlapping the window.
+        # Conservative-window semantics: a rule applying to at least one
+        # night of the stay requires its min_stay for the whole stay
+        # (no per-night rework); rules applying to no night (e.g. a
+        # weekend-only rule on a Mon-Fri stay) are skipped so
+        # enforcement matches pricing via _matching_rule.
         required = 1
         rules = self.env['hotel.rate.rule'].search([
             ('plan_id', '=', plan.id),
@@ -928,11 +941,17 @@ class HotelRateEngine(models.AbstractModel):
             '|', ('room_template_id', '=', room.id),
             ('room_template_id', '=', False),
         ])
+        stay_days = [start + timedelta(days=offset) for offset in range(nights)]
+        weekdays = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
         for rec in rules:
             type_ok = (not rec.room_type_id
                        or (room.room_type_id
                            and rec.room_type_id.id == room.room_type_id.id))
             if not type_ok:
+                continue
+            if not any(rec.date_from <= day <= rec.date_to
+                       and rec[weekdays[day.weekday()]]
+                       for day in stay_days):
                 continue
             required = max(required, rec.min_stay or 1)
         restrictions = self.env['hotel.rate.restriction'].search([

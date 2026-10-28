@@ -37,6 +37,11 @@ class TestPeriodMealLines(TransactionCase):
                 'value': 5.0,
             })
 
+    def test_sql_unique_constraint_declared(self):
+        keys = [key for key, _sql, _msg in self.env[
+            'hotel.rate.period.meal.line']._sql_constraints]
+        self.assertIn('unique_period_plan', keys)
+
 
 class TestNewPlanBackfillsPeriods(TransactionCase):
     def test_new_plan_covers_all_periods(self):
@@ -198,3 +203,89 @@ class TestPeriodBoardEngine(TransactionCase):
                 self.room.id, '2027-01-05', self.plan.id,
                 adults=2, board='RO'),
             10000.0)
+
+
+class TestWeekdayOverlapGuard(TransactionCase):
+    def setUp(self):
+        super().setUp()
+        self.plan = self.env['hotel.rate.plan'].search([], limit=1)
+        self.dtype = self.env['hotel.room.type'].create({
+            'name': 'WkGuardT', 'base_rate': 10000.0})
+        self.period = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '01-01')], limit=1)
+
+    def _rule_vals(self, adjustment, weekdays):
+        vals = {
+            'plan_id': self.plan.id,
+            'room_type_id': self.dtype.id,
+            'period_id': self.period.id,
+            'period_year': 2027,
+            'rate_type': 'percent',
+            'adjustment_pct': adjustment,
+            'priority': 10,
+        }
+        vals.update(weekdays)
+        return vals
+
+    def test_complementary_masks_allow_different_rates(self):
+        weekday = self._rule_vals(10.0, {
+            'mon': True, 'tue': True, 'wed': True, 'thu': True,
+            'fri': True, 'sat': False, 'sun': False})
+        weekend = self._rule_vals(20.0, {
+            'mon': False, 'tue': False, 'wed': False,
+            'thu': False, 'fri': False,
+            'sat': True, 'sun': True})
+        rule1 = self.env['hotel.rate.rule'].create(weekday)
+        rule2 = self.env['hotel.rate.rule'].create(weekend)
+        self.assertTrue(rule1.id and rule2.id)
+        with self.assertRaises(ValidationError):
+            rule2.write({'mon': True})
+        with self.assertRaises(ValidationError):
+            self.env['hotel.rate.rule'].create(
+                self._rule_vals(30.0, {}))
+
+
+class TestWeekdayMinStay(TransactionCase):
+    def setUp(self):
+        super().setUp()
+        self.plan = self.env['hotel.rate.plan'].create({
+            'name': 'WkMinPlan'})
+        self.dtype = self.env['hotel.room.type'].create({
+            'name': 'WkMinT', 'base_rate': 10000.0})
+        self.period = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '01-01')], limit=1)
+        self.env['hotel.rate.rule'].create({
+            'plan_id': self.plan.id,
+            'room_type_id': self.dtype.id,
+            'period_id': self.period.id,
+            'period_year': 2027,
+            'rate_type': 'percent',
+            'adjustment_pct': 0.0,
+            'min_stay': 5,
+            'mon': False, 'tue': False, 'wed': False,
+            'thu': False, 'fri': False,
+            'sat': True, 'sun': True,
+        })
+        self.room = self.env['product.template'].create({
+            'name': 'RMWK1', 'is_room': True, 'room_type': 'double',
+            'num_person': 2, 'list_price': 10000.0,
+            'room_type_id': self.dtype.id})
+        self.engine = self.env['hotel.rate.engine']
+
+    def test_matrix_min_stay_ignores_weekday_mismatch(self):
+        monday = self.engine.matrix(
+            [self.dtype.id], '2027-01-18', '2027-01-18',
+            self.plan.id)
+        self.assertEqual(
+            monday['rows'][0]['cells'][0]['min_stay'], 1)
+        saturday = self.engine.matrix(
+            [self.dtype.id], '2027-01-16', '2027-01-16',
+            self.plan.id)
+        self.assertEqual(
+            saturday['rows'][0]['cells'][0]['min_stay'], 5)
+
+    def test_check_stay_allows_weekday_stay(self):
+        nights = self.engine.check_stay(
+            self.room.id, '2027-01-18', '2027-01-22',
+            self.plan.id)
+        self.assertEqual(nights, 4)

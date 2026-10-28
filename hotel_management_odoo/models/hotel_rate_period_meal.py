@@ -15,6 +15,9 @@ class HotelRatePeriodMealLine(models.Model):
     _description = "Hotel Rate Period Meal Line"
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'period_id, meal_plan_id'
+    _sql_constraints = [('unique_period_plan',
+                         'unique(period_id, meal_plan_id)',
+                         'Meal line already set for this period and plan.')]
 
     period_id = fields.Many2one('hotel.rate.period',
                                 string="Rate Period",
