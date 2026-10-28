@@ -34,11 +34,13 @@ def _all_year(env):
         [('start_md', '=', '01-01'), ('end_md', '=', '12-31')],
         order='id', limit=1)
     if not period:
+        # Sequence 999: month periods (low sequences) win pick-first
+        # loops (default_get, matrix labels); All Year stays fallback.
         period = env['hotel.rate.period'].create({
             'name': 'All Year',
             'start_md': '01-01',
             'end_md': '12-31',
-            'sequence': 0,
+            'sequence': 999,
             'priority': 0,
         })
         _logger.info("%s: created All Year period (id %s).",
@@ -161,8 +163,11 @@ def migrate(cr, version):
         final = _resolve_period(
             env, active_periods, all_year, row['old_period_id'],
             row['rule_from'], row['rule_to'], year)
-        if final is None:
+        # Empty recordset (no All Year on DB) is falsy like None:
+        # both mean the rule needs the lazily created fallback.
+        if not final:
             all_year = _all_year(env)
+            all_year.ensure_meal_lines()
             active_periods = env['hotel.rate.period'].search(
                 [('active', '=', True)], order='sequence')
             final = all_year

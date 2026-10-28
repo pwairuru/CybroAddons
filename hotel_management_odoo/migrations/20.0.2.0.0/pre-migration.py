@@ -7,12 +7,12 @@ source tables are dropped at sync, so post-migration cannot read
 them via ORM).
 
 Step 2: ``hotel.rate.rule.period_id`` becomes required. Pre-fill
-nulls so the NOT NULL lands cleanly: rules whose dates fit exactly
-one active period coverage in their year keep their old link or get
-that period; everything else points at a pre-created "All Year"
-Jan-Dec period (created here only when needed). ``period_year``
-nulls fill from the rule year or current year. Post-migration
-refines values and reports.
+nulls so the NOT NULL lands cleanly: null links point at a
+pre-created "All Year" Jan-Dec period (created here only when
+needed, sequence 999 so month periods win pick-first loops while
+All Year remains the fallback); old links are kept as-is.
+``period_year`` nulls fill from the rule year or current year.
+Coverage refinement and value writing live in post-migration.
 """
 import logging
 
@@ -60,7 +60,7 @@ def _ensure_all_year_id(cr):
         cr.execute("""
             INSERT INTO hotel_rate_period
                 (name, start_md, end_md, sequence, priority, active)
-            SELECT 'All Year', '01-01', '12-31', 0, 0, TRUE
+            SELECT 'All Year', '01-01', '12-31', 999, 0, TRUE
             WHERE NOT EXISTS (
                 SELECT 1 FROM hotel_rate_period
                 WHERE start_md = '01-01' AND end_md = '12-31')
@@ -70,7 +70,7 @@ def _ensure_all_year_id(cr):
         cr.execute("""
             INSERT INTO hotel_rate_period
                 (name, start_md, end_md, sequence, active)
-            SELECT 'All Year', '01-01', '12-31', 0, TRUE
+            SELECT 'All Year', '01-01', '12-31', 999, TRUE
             WHERE NOT EXISTS (
                 SELECT 1 FROM hotel_rate_period
                 WHERE start_md = '01-01' AND end_md = '12-31')
