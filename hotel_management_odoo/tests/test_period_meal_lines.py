@@ -101,3 +101,100 @@ class TestPeriodBoundRules(TransactionCase):
         })
         for day in ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'):
             self.assertTrue(rule[day])
+
+
+class TestPeriodBoardEngine(TransactionCase):
+    def setUp(self):
+        super().setUp()
+        self.plan = self.env['hotel.rate.plan'].search([], limit=1)
+        self.dtype = self.env['hotel.room.type'].create({
+            'name': 'EngT', 'base_rate': 10000.0})
+        bb = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        self.dtype.meal_price_ids.filtered(
+            lambda l: l.meal_plan_id.id == bb.id).write(
+                {'price': 12000.0})
+        jan = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '01-01')], limit=1)
+        jan_bb = jan.meal_line_ids.filtered(
+            lambda l: l.meal_plan_id.id == bb.id)[:1]
+        if not jan_bb:
+            # Seed periods predate period lines (backfilled in Task 6),
+            # so ensure the BB line exists instead of assuming it.
+            jan_bb = self.env['hotel.rate.period.meal.line'].create({
+                'period_id': jan.id,
+                'meal_plan_id': bb.id,
+                'rate_type': 'percent',
+                'value': 10.0,
+            })
+        else:
+            jan_bb.write({'rate_type': 'percent', 'value': 10.0})
+        self.rule = self.env['hotel.rate.rule'].create({
+            'plan_id': self.plan.id,
+            'room_type_id': self.dtype.id,
+            'period_id': jan.id,
+            'period_year': 2027,
+            'rate_type': 'percent',
+            'adjustment_pct': 0.0,
+        })
+        self.room = self.env['product.template'].create({
+            'name': 'RM201', 'is_room': True, 'room_type': 'double',
+            'num_person': 2, 'list_price': 10000.0,
+            'room_type_id': self.dtype.id})
+        self.engine = self.env['hotel.rate.engine']
+
+    def test_board_uplift_comes_from_period(self):
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-15', self.plan.id,
+                adults=2, board='BB'),
+            13200.0)
+
+    def test_ro_ignores_period_lines(self):
+        jan_bb = self.env['hotel.rate.period.meal.line'].search([
+            ('period_id', '=', self.rule.period_id.id),
+            ('meal_plan_id.code', '=', 'BB')], limit=1)
+        jan_bb.write({'rate_type': 'fixed', 'value': 99999.0})
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-15', self.plan.id,
+                adults=2, board='RO'),
+            10000.0)
+
+    def test_weekday_mask_skips_rule(self):
+        self.rule.write({'sat': False, 'sun': False})
+        # 2027-01-16 is a Saturday: no rule -> base fallback.
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-16', self.plan.id,
+                adults=2, board='RO'),
+            10000.0)
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-18', self.plan.id,
+                adults=2, board='RO'),
+            10000.0)
+
+    def test_narrower_higher_priority_wins(self):
+        promo = self.env['hotel.rate.period'].create({
+            'name': 'JanPromo', 'start_md': '01-10',
+            'end_md': '01-20', 'sequence': 100})
+        self.env['hotel.rate.rule'].create({
+            'plan_id': self.plan.id,
+            'room_type_id': self.dtype.id,
+            'period_id': promo.id,
+            'period_year': 2027,
+            'rate_type': 'percent',
+            'adjustment_pct': 50.0,
+            'priority': 60,
+        })
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-15', self.plan.id,
+                adults=2, board='RO'),
+            15000.0)
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-05', self.plan.id,
+                adults=2, board='RO'),
+            10000.0)

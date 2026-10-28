@@ -552,6 +552,7 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def _matching_rule(self, plan, room_id, day):
+        day = _to_date(day)
         room = self.env['product.template'].browse(room_id)
         room_type_id = (room.room_type_id.id
                         if room.exists() and room.room_type_id else False)
@@ -560,6 +561,8 @@ class HotelRateEngine(models.AbstractModel):
             ('date_from', '<=', day),
             ('date_to', '>=', day),
         ])
+        weekday = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'][
+            day.weekday()]
         candidates = []
         for rule in rules:
             type_ok = (not rule.room_type_id
@@ -567,7 +570,7 @@ class HotelRateEngine(models.AbstractModel):
                            and rule.room_type_id.id == room_type_id))
             tmpl_ok = (not rule.room_template_id
                        or rule.room_template_id.id == room_id)
-            if type_ok and tmpl_ok:
+            if type_ok and tmpl_ok and rule[weekday]:
                 candidates.append(rule)
         if not candidates:
             return None
@@ -688,7 +691,9 @@ class HotelRateEngine(models.AbstractModel):
         code = board.strip() if isinstance(board, str) else 'RO'
         if not rule or not code or code == 'RO':
             return False
-        return rule.meal_line_ids.filtered(
+        if not rule.period_id:
+            return False
+        return rule.period_id.meal_line_ids.filtered(
             lambda l: l.meal_plan_id.code == code)[:1]
 
     @api.model
