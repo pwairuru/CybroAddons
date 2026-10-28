@@ -40,25 +40,9 @@ class HotelMealPlan(models.Model):
     def create(self, vals_list):
         plans = super().create(vals_list)
         self.env['hotel.room.type'].search([]).ensure_meal_price_lines()
-        rules = self.env['hotel.rate.rule'].search([])
-        if plans and rules:
-            line_model = self.env['hotel.rate.rule.meal.line']
-            have = {
-                (line.rule_id.id, line.meal_plan_id.id)
-                for line in line_model.search([
-                    ('rule_id', 'in', rules.ids),
-                    ('meal_plan_id', 'in', plans.ids),
-                ])
-            }
-            missing = [{
-                'rule_id': rule.id,
-                'meal_plan_id': plan.id,
-                'rate_type': 'percent',
-                'value': 0.0,
-            } for plan in plans for rule in rules
-                if (rule.id, plan.id) not in have]
-            if missing:
-                line_model.create(missing)
+        periods = self.env['hotel.rate.period'].search([])
+        if plans and periods:
+            periods.ensure_meal_lines()
         return plans
 
 

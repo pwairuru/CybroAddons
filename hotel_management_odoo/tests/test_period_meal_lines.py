@@ -36,3 +36,17 @@ class TestPeriodMealLines(TransactionCase):
                 'rate_type': 'percent',
                 'value': 5.0,
             })
+
+
+class TestNewPlanBackfillsPeriods(TransactionCase):
+    def test_new_plan_covers_all_periods(self):
+        plan = self.env['hotel.meal.plan'].create({
+            'name': 'Test Plan', 'code': 'TP', 'sequence': 60})
+        periods = self.env['hotel.rate.period'].search([])
+        lines = self.env['hotel.rate.period.meal.line'].search([
+            ('meal_plan_id', '=', plan.id)])
+        self.assertEqual(
+            set(lines.mapped('period_id.id')), set(periods.ids))
+        self.assertTrue(all(
+            line.rate_type == 'percent' and line.value == 0.0
+            for line in lines))
