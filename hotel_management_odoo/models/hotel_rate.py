@@ -114,22 +114,28 @@ class HotelRateRule(models.Model):
         domain=[('is_room', '=', True)],
         help="Room this rule applies to; empty = all rooms.",
         ondelete="cascade", index=True, tracking=True)
-    date_from = fields.Date(string="From", required=True, tracking=True)
-    date_to = fields.Date(string="To", required=True, tracking=True)
+    date_from = fields.Date(string="From", compute='_compute_dates_from_period',
+                              store=True, readonly=True, tracking=True)
+    date_to = fields.Date(string="To", compute='_compute_dates_from_period',
+                          store=True, readonly=True, tracking=True)
     adjustment_pct = fields.Float(string="Adjustment %", default=0.0,
                                   help="e.g. 50 = +50%, -20 = -20%.",
                                   tracking=True)
     min_stay = fields.Integer(string="Min Stay (nights)", default=1,
                               tracking=True)
-    meal_line_ids = fields.One2many('hotel.rate.rule.meal.line', 'rule_id',
-                                    string="Meal Lines")
+    mon = fields.Boolean(string="Mon", default=True, tracking=True)
+    tue = fields.Boolean(string="Tue", default=True, tracking=True)
+    wed = fields.Boolean(string="Wed", default=True, tracking=True)
+    thu = fields.Boolean(string="Thu", default=True, tracking=True)
+    fri = fields.Boolean(string="Fri", default=True, tracking=True)
+    sat = fields.Boolean(string="Sat", default=True, tracking=True)
+    sun = fields.Boolean(string="Sun", default=True, tracking=True)
     period_id = fields.Many2one('hotel.rate.period', string="Period",
-                                help="Picking a period fills date_from/to "
-                                "for the chosen year; dates stay the "
-                                "source of truth for matching.",
-                                ondelete="set null", index=True,
+                                required=True,
+                                help="Dates derive from this period and year.",
+                                ondelete="restrict", index=True,
                                 tracking=True)
-    period_year = fields.Integer(string="Period Year",
+    period_year = fields.Integer(string="Period Year", required=True,
                                  default=lambda self: fields.Date.today().year,
                                  tracking=True)
 
@@ -150,66 +156,42 @@ class HotelRateRule(models.Model):
                        min(end[1], calendar.monthrange(end_year, end[0])[1]))
         return date_from, date_to
 
-    @api.onchange('period_id', 'period_year')
-    def _onchange_period_fill_dates(self):
+    @api.depends('period_id', 'period_year')
+    def _compute_dates_from_period(self):
         for rule in self:
             if rule.period_id and rule.period_year:
                 date_from, date_to = self._dates_from_period(
                     rule.period_id, rule.period_year)
                 rule.date_from = date_from
                 rule.date_to = date_to
+            else:
+                rule.date_from = False
+                rule.date_to = False
+
+    @api.constrains('period_id', 'period_year')
+    def _check_period_year_match(self):
+        for rule in self:
+            if rule.period_id.applies_year and rule.period_year \
+                    != rule.period_id.applies_year:
+                raise ValidationError(
+                    "Rule year %s does not match period %s "
+                    "applies-year %s."
+                    % (rule.period_year,
+                       rule.period_id.display_name,
+                       rule.period_id.applies_year))
 
     @api.model
     def default_get(self, fields_list):
         defaults = super().default_get(fields_list)
-        if 'meal_line_ids' in fields_list \
-                and not defaults.get('meal_line_ids'):
-            plans = self.env['hotel.meal.plan'].search(
+        if 'period_id' in fields_list \
+                and not defaults.get('period_id'):
+            today = fields.Date.today()
+            period = self.env['hotel.rate.period'].search(
                 [('active', '=', True)], order='sequence')
-            defaults['meal_line_ids'] = [
-                (0, 0, {
-                    'meal_plan_id': plan.id,
-                    'rate_type': 'percent',
-                    'value': 0.0,
-                }) for plan in plans
-            ]
+            defaults['period_id'] = next(
+                (p.id for p in period
+                 if p.covers(today.month, today.day)), False)
         return defaults
-
-    @api.model_create_multi
-    def create(self, vals_list):
-        for vals in vals_list:
-            if vals.get('period_id') and vals.get('period_year') \
-                    and (not vals.get('date_from')
-                         or not vals.get('date_to')):
-                period = self.env['hotel.rate.period'].browse(
-                    vals['period_id'])
-                if period.exists():
-                    date_from, date_to = self._dates_from_period(
-                        period, vals['period_year'])
-                    vals['date_from'] = fields.Date.to_string(date_from)
-                    vals['date_to'] = fields.Date.to_string(date_to)
-        records = super().create(vals_list)
-        plans = self.env['hotel.meal.plan'].search(
-            [('active', '=', True)])
-        if plans and records:
-            line_model = self.env['hotel.rate.rule.meal.line']
-            have = {
-                (line.rule_id.id, line.meal_plan_id.id)
-                for line in line_model.search([
-                    ('rule_id', 'in', records.ids),
-                    ('meal_plan_id', 'in', plans.ids),
-                ])
-            }
-            missing = [{
-                'rule_id': rule.id,
-                'meal_plan_id': plan.id,
-                'rate_type': 'percent',
-                'value': 0.0,
-            } for rule in records for plan in plans
-                if (rule.id, plan.id) not in have]
-            if missing:
-                line_model.create(missing)
-        return records
 
     @api.constrains('date_from', 'date_to')
     def _check_dates(self):

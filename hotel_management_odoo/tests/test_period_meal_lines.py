@@ -50,3 +50,54 @@ class TestNewPlanBackfillsPeriods(TransactionCase):
         self.assertTrue(all(
             line.rate_type == 'percent' and line.value == 0.0
             for line in lines))
+
+
+class TestPeriodBoundRules(TransactionCase):
+    def _period(self):
+        return self.env['hotel.rate.period'].search(
+            [('start_md', '=', '01-01')], limit=1)
+
+    def _plan(self):
+        return self.env['hotel.rate.plan'].search([], limit=1)
+
+    def test_period_required(self):
+        with self.assertRaises(Exception):
+            self.env['hotel.rate.rule'].create({
+                'plan_id': self._plan().id,
+                'period_id': False,
+                'rate_type': 'percent',
+                'adjustment_pct': 10.0,
+            })
+
+    def test_dates_derived_from_period(self):
+        rule = self.env['hotel.rate.rule'].create({
+            'plan_id': self._plan().id,
+            'period_id': self._period().id,
+            'period_year': 2027,
+            'rate_type': 'percent',
+            'adjustment_pct': 10.0,
+        })
+        self.assertEqual(str(rule.date_from), '2027-01-01')
+        self.assertEqual(str(rule.date_to), '2027-01-31')
+
+    def test_year_must_match_applies_year(self):
+        promo = self.env['hotel.rate.period'].create({
+            'name': 'Xmas', 'start_md': '12-24', 'end_md': '12-31',
+            'applies_year': 2026, 'sequence': 100})
+        with self.assertRaises(ValidationError):
+            self.env['hotel.rate.rule'].create({
+                'plan_id': self._plan().id,
+                'period_id': promo.id,
+                'period_year': 2027,
+                'rate_type': 'percent',
+            })
+
+    def test_weekday_mask_defaults_all_true(self):
+        rule = self.env['hotel.rate.rule'].create({
+            'plan_id': self._plan().id,
+            'period_id': self._period().id,
+            'period_year': 2027,
+            'rate_type': 'percent',
+        })
+        for day in ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'):
+            self.assertTrue(rule[day])
