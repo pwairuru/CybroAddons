@@ -159,6 +159,9 @@ class TestChannelSync(TransactionCase):
         self.env['hotel.rate.rule'].create({
             'plan_id': self.plan.id,
             'room_template_id': self.room_101.id,
+            'period_id': self.env['hotel.rate.period'].search(
+                [('start_md', '=', '12-01')], limit=1).id,
+            'period_year': 2026,
             'date_from': '2026-12-10',
             'date_to': '2026-12-12',
             'adjustment_pct': 0.0,

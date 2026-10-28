@@ -313,7 +313,9 @@ class HotelRateEngine(models.AbstractModel):
         ``closed`` flag (plan restrictions + business-day closed),
         and ``available`` (type rooms minus overlapping bookings/OOO).
 
-        ``board`` selects a board basis: the matching board supplement
+        ``board`` selects a board basis: ``price`` is the ``price_for``
+        value for that board (period-line uplift applied; ``RO`` keeps
+        the legacy base path) and the matching board supplement
         is added as ``board`` with ``total`` = price + supplement
         (``RO`` adds nothing). ``board=False`` means all plans: each
         cell also carries ``plans`` (per meal-plan code price via the
@@ -406,7 +408,9 @@ class HotelRateEngine(models.AbstractModel):
             cells = []
             for day_idx, day in enumerate(days):
                 day_str = fields.Date.to_string(day)
-                price = float(self.price_for(rep.id, day, plan.id)) \
+                price = float(self.price_for(
+                    rep.id, day, plan.id,
+                    board=board if board else 'RO')) \
                     if plan and rep else base
                 delta = round((price - base) / base * 100.0, 2) \
                     if base else 0.0

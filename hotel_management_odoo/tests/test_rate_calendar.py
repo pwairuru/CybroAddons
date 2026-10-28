@@ -14,10 +14,15 @@ class TestRateCalendarMatrix(TransactionCase):
         room2 = self.env['product.template'].create(dict(vals, name='202'))
         return rtype, plan, room1, room2
 
+    def _dec(self):
+        return self.env['hotel.rate.period'].search(
+            [('start_md', '=', '12-01')], limit=1)
+
     def test_matrix_returns_delta_and_closed(self):
         rtype, plan, room1, room2 = self._setup()
         self.env['hotel.rate.rule'].create({
             'plan_id': plan.id, 'room_type_id': rtype.id,
+            'period_id': self._dec().id, 'period_year': 2026,
             'date_from': '2026-12-24', 'date_to': '2026-12-26',
             'rate_type': 'percent', 'adjustment_pct': 50.0,
             'priority': 10})
@@ -34,6 +39,7 @@ class TestRateCalendarMatrix(TransactionCase):
         rtype, plan, room1, room2 = self._setup()
         self.env['hotel.rate.rule'].create({
             'plan_id': plan.id, 'room_type_id': rtype.id,
+            'period_id': self._dec().id, 'period_year': 2026,
             'date_from': '2026-12-24', 'date_to': '2026-12-26',
             'rate_type': 'percent', 'adjustment_pct': 0.0,
             'priority': 10, 'min_stay': 3})
@@ -114,6 +120,7 @@ class TestRateCalendarMatrix(TransactionCase):
         rtype, plan, room1, room2 = self._setup()
         self.env['hotel.rate.rule'].create({
             'plan_id': plan.id, 'room_type_id': rtype.id,
+            'period_id': self._dec().id, 'period_year': 2026,
             'date_from': '2026-12-20', 'date_to': '2026-12-31',
             'rate_type': 'percent', 'adjustment_pct': 50.0,
             'priority': 10})
@@ -123,5 +130,73 @@ class TestRateCalendarMatrix(TransactionCase):
         dec = [c for c in data['rows'][0]['cells']
                if c['period_id'] == self.env.ref(
                    'hotel_management_odoo.hotel_rate_period_12').id][0]
-        self.assertEqual(dec['min'], 10000.0)
+        # Period-bound rule covers the whole December seed period
+        # (dates derive from period), so min == max == uplifted.
+        self.assertEqual(dec['min'], 15000.0)
         self.assertEqual(dec['max'], 15000.0)
+
+
+class TestPeriodLineCalendar(TransactionCase):
+    def setUp(self):
+        super().setUp()
+        self.plan = self.env['hotel.rate.plan'].search([], limit=1)
+        self.dtype = self.env['hotel.room.type'].create({
+            'name': 'CalT', 'base_rate': 10000.0})
+        bb = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        self.dtype.meal_price_ids.filtered(
+            lambda l: l.meal_plan_id.id == bb.id).write(
+                {'price': 12000.0})
+        jan = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '01-01')], limit=1)
+        jan_bb = jan.meal_line_ids.filtered(
+            lambda l: l.meal_plan_id.id == bb.id)[:1]
+        if not jan_bb:
+            jan_bb = self.env['hotel.rate.period.meal.line'].create({
+                'period_id': jan.id,
+                'meal_plan_id': bb.id,
+                'rate_type': 'percent',
+                'value': 10.0,
+            })
+        else:
+            jan_bb.write({'rate_type': 'percent', 'value': 10.0})
+        self.rule = self.env['hotel.rate.rule'].create({
+            'plan_id': self.plan.id,
+            'room_type_id': self.dtype.id,
+            'period_id': jan.id,
+            'period_year': 2027,
+            'rate_type': 'percent',
+            'adjustment_pct': 20.0,
+        })
+        self.room = self.env['product.template'].create({
+            'name': 'RM301', 'is_room': True, 'room_type': 'double',
+            'num_person': 2, 'list_price': 10000.0,
+            'room_type_id': self.dtype.id})
+        self.engine = self.env['hotel.rate.engine']
+
+    def test_matrix_total_uses_period_line(self):
+        # RO proves the rule applied (12000 vs fallback 10000);
+        # BB proves the period line applied (13200 vs fallback 12000).
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-15', self.plan.id,
+                adults=2, board='RO'),
+            12000.0)
+        self.assertEqual(
+            self.engine.price_for(
+                self.room.id, '2027-01-15', self.plan.id,
+                adults=2, board='BB'),
+            13200.0)
+        data = self.engine.matrix(
+            [self.dtype.id], '2027-01-15', '2027-01-15',
+            self.plan.id, board='BB')
+        cell = data['rows'][0]['cells'][0]
+        self.assertEqual(cell['total'], 13200.0)
+        pdata = self.engine.period_matrix(
+            2027, [self.dtype.id], self.plan.id, board='BB')
+        jan_id = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '01-01')], limit=1).id
+        jan_cell = [c for c in pdata['rows'][0]['cells']
+                    if c['period_id'] == jan_id][0]
+        self.assertEqual(jan_cell['min'], 13200.0)
+        self.assertEqual(jan_cell['max'], 13200.0)

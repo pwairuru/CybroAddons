@@ -19,9 +19,14 @@ class TestRatePlans(TransactionCase):
             'name': 'Peak Plan',
             'company_id': self.company.id,
         })
+        dec = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '12-01')], limit=1)
+        jun = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '06-01')], limit=1)
         self.env['hotel.rate.rule'].create({
             'plan_id': self.peak_plan.id,
             'room_template_id': self.double_type.id,
+            'period_id': dec.id, 'period_year': 2026,
             'date_from': '2026-12-20',
             'date_to': '2026-12-31',
             'adjustment_pct': 50.0,
@@ -30,6 +35,7 @@ class TestRatePlans(TransactionCase):
         self.env['hotel.rate.rule'].create({
             'plan_id': self.peak_plan.id,
             'room_template_id': self.double_type.id,
+            'period_id': jun.id, 'period_year': 2026,
             'date_from': '2026-06-01',
             'date_to': '2026-06-30',
             'adjustment_pct': -20.0,
@@ -48,13 +54,17 @@ class TestRatePlans(TransactionCase):
         assert price_dec > price_low, "peak must cost more than low season"
 
     def test_min_stay_rejection(self):
+        dec = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '12-01')], limit=1)
         self.env['hotel.rate.rule'].create({
             'plan_id': self.peak_plan.id,
             'room_template_id': self.double_type.id,
+            'period_id': dec.id, 'period_year': 2026,
             'date_from': '2026-12-24',
             'date_to': '2026-12-26',
             'adjustment_pct': 0.0,
             'min_stay': 3,
+            'priority': 20,
         })
         with self.assertRaises(ValidationError):
             self.env['hotel.rate.engine'].post_stay_nights(

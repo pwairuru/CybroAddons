@@ -21,9 +21,12 @@ class TestOccupancyBoard(TransactionCase):
             'name': 'Rack',
             'company_id': self.company.id,
         })
+        dec = self.env['hotel.rate.period'].search(
+            [('start_md', '=', '12-01')], limit=1)
         self.env['hotel.rate.rule'].create({
             'plan_id': self.plan.id,
             'room_type_id': self.dtype.id,
+            'period_id': dec.id, 'period_year': 2026,
             'rate_type': 'percent',
             'adjustment_pct': 30.0,
             'priority': 50,
@@ -125,6 +128,9 @@ class TestOccupancyBoard(TransactionCase):
         self.env['hotel.rate.rule'].create({
             'plan_id': self.plan.id,
             'room_type_id': self.dtype.id,
+            'period_id': self.env['hotel.rate.period'].search(
+                [('start_md', '=', '11-01')], limit=1).id,
+            'period_year': 2026,
             'rate_type': 'percent',
             'adjustment_pct': 0.0,
             'priority': 10,
@@ -286,7 +292,10 @@ class TestOccupancyItemizedEngine(TransactionCase):
         self.env['hotel.rate.rule'].create({
             'plan_id': self.plan.id, 'room_type_id': self.dtype.id,
             'rate_type': 'percent', 'adjustment_pct': 30.0,
-            'priority': 50, 'date_from': '2026-12-20',
+            'priority': 50,
+            'period_id': self.env['hotel.rate.period'].search(
+                [('start_md', '=', '12-01')], limit=1).id,
+            'period_year': 2026, 'date_from': '2026-12-20',
             'date_to': '2026-12-31'})
         self.room = self.env['product.template'].create({
             'name': 'ENG101', 'is_room': True, 'room_type': 'double',
@@ -351,7 +360,10 @@ class TestOccupancyItemizedPosting(TransactionCase):
         self.env['hotel.rate.rule'].create({
             'plan_id': self.plan.id, 'room_type_id': self.dtype.id,
             'rate_type': 'percent', 'adjustment_pct': 30.0,
-            'priority': 50, 'date_from': '2026-12-20',
+            'priority': 50,
+            'period_id': self.env['hotel.rate.period'].search(
+                [('start_md', '=', '12-01')], limit=1).id,
+            'period_year': 2026, 'date_from': '2026-12-20',
             'date_to': '2026-12-31'})
         self.room = self.env['product.template'].create({
             'name': 'ITEM101', 'is_room': True, 'room_type': 'double',
@@ -582,7 +594,10 @@ class TestOccupancyQuote(TransactionCase):
         self.env['hotel.rate.rule'].create({
             'plan_id': plan.id, 'room_type_id': dtype.id,
             'rate_type': 'percent', 'adjustment_pct': 30.0,
-            'priority': 50, 'date_from': '2026-12-20',
+            'priority': 50,
+            'period_id': self.env['hotel.rate.period'].search(
+                [('start_md', '=', '12-01')], limit=1).id,
+            'period_year': 2026, 'date_from': '2026-12-20',
             'date_to': '2026-12-31'})
         room = self.env['product.template'].create({
             'name': 'QUOTE101', 'is_room': True, 'room_type': 'double',
