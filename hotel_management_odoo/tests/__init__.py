@@ -30,3 +30,4 @@ from . import test_meal_plan
 from . import test_rate_periods
 from . import test_rule_meal_lines
 from . import test_per_person
+from . import test_period_meal_lines
