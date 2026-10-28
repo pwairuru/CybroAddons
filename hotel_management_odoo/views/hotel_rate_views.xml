@@ -48,6 +48,7 @@
                 <field name="plan_id"/>
                 <field name="room_type_id"/>
                 <field name="room_template_id"/>
+                <field name="period_id"/>
                 <field name="rate_type"/>
                 <field name="fixed_price"/>
                 <field name="date_from"/>
@@ -78,10 +79,19 @@
                             <field name="adjustment_pct"/>
                             <field name="period_id"/>
                             <field name="period_year"/>
-                            <field name="date_from"/>
-                            <field name="date_to"/>
+                            <field name="date_from" readonly="1"/>
+                            <field name="date_to" readonly="1"/>
                             <field name="min_stay"/>
                         </group>
+                    </group>
+                    <group string="Applies On">
+                        <field name="mon"/>
+                        <field name="tue"/>
+                        <field name="wed"/>
+                        <field name="thu"/>
+                        <field name="fri"/>
+                        <field name="sat"/>
+                        <field name="sun"/>
                     </group>
                 </sheet>
                 <chatter/>
