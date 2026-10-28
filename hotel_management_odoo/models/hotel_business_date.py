@@ -217,8 +217,14 @@ class HotelNightAudit(models.Model):
                 if dup:
                     continue
                 if plan:
+                    # First-night anchor: every night posts the
+                    # check-in date price so folio matches the quote.
+                    # Restrictions/min-stay above still use the
+                    # actual day.
+                    anchor = line.checkin_date.date() \
+                        if line.checkin_date else day
                     price = engine.price_detailed(
-                        line.room_id.id, day, plan.id,
+                        line.room_id.id, anchor, plan.id,
                         adults=line.adults, children=line.children,
                         board=booking.meal_plan or 'RO',
                         booking=booking)['net']

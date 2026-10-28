@@ -167,13 +167,31 @@ class RoomBookingLine(models.Model):
                        clash.booking_id.name))
 
     @api.depends('room_id', 'booking_id.pricelist_id',
-                 'booking_id.partner_id', 'booking_id.company_id', 'uom_qty')
+                  'booking_id.partner_id', 'booking_id.company_id',
+                  'booking_id.meal_plan', 'booking_id.state',
+                  'checkin_date', 'adults', 'children', 'uom_qty')
     def _compute_price_unit(self):
-        """Compute the rent using the booking's pricelist, falling back to
-        the room's list price when there is no pricelist."""
+        """Compute the rent from the first-night anchor price.
+
+        Quote = engine resolved nightly amount for the check-in
+        date under the booking's board/pax/plan, applied flat to
+        every night (first-night-anchor policy). Recomputes while
+        the booking is draft/reserved or the line is still
+        unpriced; checked-in quotes stay frozen. Falls back to the
+        booking pricelist (then room list price) when no plan
+        matches or the engine cannot price.
+        """
         for line in self:
             if not line.room_id:
                 line.price_unit = 0
+                continue
+            state = line.booking_id.state if line.booking_id else False
+            if line.price_unit and state not in (
+                    'draft', 'reserved', False):
+                continue
+            anchor = self._anchor_price(line)
+            if anchor is not None:
+                line.price_unit = anchor
                 continue
             pricelist = line.booking_id.pricelist_id
             if pricelist:
@@ -184,6 +202,32 @@ class RoomBookingLine(models.Model):
                         fields.Date.context_today(line)))
             else:
                 line.price_unit = line.room_id.list_price
+
+    @api.model
+    def _anchor_price(self, line):
+        """Engine resolved price for the line's check-in date.
+
+        Returns None when the engine cannot price (caller falls
+        back to pricelist/list price)."""
+        booking = line.booking_id
+        if not booking or not line.checkin_date:
+            return None
+        plan = self.env['hotel.rate.plan']._plan_for_booking(booking)
+        if not plan:
+            return None
+        try:
+            detailed = self.env['hotel.rate.engine'].price_detailed(
+                line.room_id.id,
+                fields.Date.to_string(
+                    fields.Datetime.context_timestamp(
+                        line, line.checkin_date).date()),
+                plan.id, adults=line.adults or 0,
+                children=line.children or 0,
+                board=booking.meal_plan or 'RO',
+                booking=booking)
+        except Exception:
+            return None
+        return float(detailed.get('resolved', 0.0))
 
     @api.onchange("checkin_date", "checkout_date")
     def _onchange_checkin_date(self):
