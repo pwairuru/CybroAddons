@@ -8,15 +8,22 @@ class HotelRoomType(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin', 'avatar.mixin']
     _order = 'name'
 
-    name = fields.Char(required=True, tracking=True)
-    code = fields.Char(tracking=True)
+    name = fields.Char(required=True, tracking=True,
+                        help="Category guests book, e.g. Standard, Deluxe, Family. Bookings, rate lines and occupancy extras all point at the type, never at a single room.")
+    code = fields.Char(tracking=True,
+                       help="Short label shown on the tape chart and reports, e.g. DLX. Keep it unique per company.")
     company_id = fields.Many2one('res.company', required=True, index=True,
                                  default=lambda self: self.env.company,
-                                 tracking=True)
-    adult_capacity = fields.Integer(default=2, tracking=True)
-    child_capacity = fields.Integer(default=0, tracking=True)
-    max_occupants = fields.Integer(default=2, tracking=True)
-    base_rate = fields.Float(required=True, default=0.0, tracking=True)
+                                 tracking=True,
+                                 help="Hotel this type belongs to. Types, prices and rules never cross companies.")
+    adult_capacity = fields.Integer(default=2, tracking=True,
+                                    help="Adults the rent normally covers. Extra adults beyond the rate line's included count are billed on top.")
+    child_capacity = fields.Integer(default=0, tracking=True,
+                                    help="Children the rooms of this type can take. Informational: the hard limit is Max Occupants.")
+    max_occupants = fields.Integer(default=2, tracking=True,
+                                   help="Hard ceiling for adults + children together. Bookings and pricing refuse anything above this number.")
+    base_rate = fields.Float(required=True, default=0.0, tracking=True,
+                             help="Reference nightly rent for this type. Engine pricing comes from rate lines; this stays as the fallback reference.")
     charge_mode = fields.Selection(
         [('per_room', 'Per Room'), ('per_person', 'Per Person')],
         string="Charge Mode", default='per_room', required=True,
@@ -31,14 +38,19 @@ class HotelRoomType(models.Model):
     default_board = fields.Selection(
         [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
          ('HB', 'Half Board'), ('FB', 'Full Board')],
-        default='RO', required=True, tracking=True)
+        default='RO', required=True, tracking=True,
+        help="Board pre-filled on new bookings of this type. Only a suggestion: any booking can still pick another board, and a board only changes the price if a rate line exists for it.")
     meal_price_ids = fields.One2many('hotel.room.type.meal.price',
                                      'room_type_id',
-                                     string="Meal Prices")
-    website_published = fields.Boolean(default=False, tracking=True)
-    amenity_ids = fields.Many2many('hotel.amenity', string="Amenities")
-    image = fields.Image()
-    active = fields.Boolean(default=True, tracking=True)
+                                     string="Meal Prices",
+                                     help="Legacy per-board prices, no longer used for pricing since rate lines took over. Kept for history.")
+    website_published = fields.Boolean(default=False, tracking=True,
+                                       help="Show this room type on the website booking page.")
+    amenity_ids = fields.Many2many('hotel.amenity', string="Amenities",
+                                   help="Features of this type, e.g. sea view, balcony. Shown to guests, never affects price.")
+    image = fields.Image(help="Photo shown on the website and the type card.")
+    active = fields.Boolean(default=True, tracking=True,
+                            help="Archived types disappear from new bookings but keep their history on old ones.")
 
     def default_rate(self):
         self.ensure_one()

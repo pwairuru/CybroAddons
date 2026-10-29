@@ -105,9 +105,12 @@ class RoomBookingLine(models.Model):
                               help="Child guests occupying this room line.")
     toddlers = fields.Integer(string="Toddlers", default=0,
                               help="Toddler guests occupying this room line.")
-    rate_line_id = fields.Many2one('hotel.rate.line', string="Rate Line", copy=False, readonly=True)
-    rate_net = fields.Float(string="Rate Net", copy=False, readonly=True)
-    rate_breakdown = fields.Text(string="Rate Breakdown", copy=False, readonly=True)
+    rate_line_id = fields.Many2one('hotel.rate.line', string="Rate Line", copy=False, readonly=True,
+                                     help="Rate line this night was priced from. Frozen at reserve so later price edits never change this booking.")
+    rate_net = fields.Float(string="Rate Net", copy=False, readonly=True,
+                            help="Quoted total for one night: rent plus extra-guest charges. The night audit posts exactly this to the folio.")
+    rate_breakdown = fields.Text(string="Rate Breakdown", copy=False, readonly=True,
+                                 help="How the net was built: base rent plus each extra-guest line. Read-only pricing trail for disputes.")
 
     @api.constrains('adults', 'children', 'room_id')
     def _check_capacity_line(self):

@@ -11,20 +11,29 @@ class HotelRatePeriod(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'sequence'
 
-    name = fields.Char(required=True, tracking=True)
+    name = fields.Char(required=True, tracking=True,
+                        help="Season name, e.g. H1, H2, Easter Promo. Shown on the rate calendar.")
     start_md = fields.Char(string="Start (MM-DD)", required=True,
-                           tracking=True)
-    end_md = fields.Char(string="End (MM-DD)", required=True, tracking=True)
-    sequence = fields.Integer(default=10, tracking=True)
-    active = fields.Boolean(default=True, tracking=True)
+                           tracking=True,
+                           help="Season start as month-day, e.g. 01-01. Repeats every year unless Applies Year pins a single year.")
+    end_md = fields.Char(string="End (MM-DD)", required=True, tracking=True,
+                         help="Season end as month-day, e.g. 06-30. May wrap New Year (12-20 to 01-05).")
+    sequence = fields.Integer(default=10, tracking=True,
+                              help="Order when several periods cover the same day and priorities tie. Checked in this order.")
+    active = fields.Boolean(default=True, tracking=True,
+                            help="Inactive periods are ignored everywhere, as if the season did not exist.")
     meal_line_ids = fields.One2many('hotel.rate.period.meal.line',
-                                    'period_id', string="Meal Lines")
-    priority = fields.Integer(default=10, tracking=True)
+                                    'period_id', string="Meal Lines",
+                                    help="Legacy per-board uplifts, no longer used for pricing. Kept for history only.")
+    priority = fields.Integer(default=10, tracking=True,
+                              help="When periods overlap, the highest-priority period wins. Use a higher number for the exception, e.g. a holiday promo beating the base season.")
     applies_year = fields.Integer(string="Applies Year", tracking=True,
                                   help="Set for one-off promos; empty = "
                                   "recurs every year.")
-    company_id = fields.Many2one('res.company', required=True, index=True, default=lambda self: self.env.company, tracking=True)
-    rate_line_ids = fields.One2many('hotel.rate.line', 'period_id', string='Rates')
+    company_id = fields.Many2one('res.company', required=True, index=True, default=lambda self: self.env.company, tracking=True,
+                                  help="Hotel this season belongs to. Periods never apply across companies.")
+    rate_line_ids = fields.One2many('hotel.rate.line', 'period_id', string='Rates',
+                                    help="One row per room type and board priced in this season. Combinations with no row fall through to the next lower-priority period.")
 
     @api.model
     def default_get(self, fields_list):
