@@ -53,4 +53,5 @@ from . import hotel_service_ops
 from . import maintenance_request
 from . import maintenance_team
 from . import res_company
+from . import hotel_rate_line
 from . import service_booking_line
