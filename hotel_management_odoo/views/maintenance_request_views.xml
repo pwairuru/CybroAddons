@@ -152,11 +152,11 @@
             (0, 0, {'view_mode': 'list', 'view_id': ref('maintenance_request_view_tree')}),
             (0, 0, {'view_mode': 'form', 'view_id': ref('maintenance_request_view_form')})]"/>
     </record>
-    <!--    Maintenance Request Menu (operational tickets under Housekeeping;
-            team master stays under Configuration)-->
+    <!-- REMOVED per 2026-10-29 Task 7: Housekeeping top-level dropped.
     <menuitem id="maintenance_request_menu"
               name="Maintenance Request"
               sequence="15"
               parent="hotel_housekeeping_menu"
               action="maintenance_request_action"/>
+    -->
 </odoo>

@@ -305,7 +305,9 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <!-- Task 11: operational menus under Housekeeping -->
+    <!-- REMOVED per 2026-10-29 Task 7: Housekeeping top-level dropped;
+         operational children hidden (parent removed). Restore by
+         uncommenting together with hotel_housekeeping_menu.
     <menuitem id="hotel_linen_move_menu" name="Linen" sequence="20"
               parent="hotel_housekeeping_menu"
               action="hotel_linen_move_action"/>
@@ -324,6 +326,7 @@
     <menuitem id="hotel_asset_menu" name="Assets" sequence="70"
               parent="hotel_housekeeping_menu"
               action="hotel_asset_action"/>
+    -->
 
     <!-- Task 11: linen-type master lives under Configuration -->
     <record id="hotel_linen_type_action" model="ir.actions.act_window">
@@ -331,7 +334,9 @@
         <field name="res_model">hotel.linen.type</field>
         <field name="view_mode">list,form</field>
     </record>
+    <!-- REMOVED per 2026-10-29 Task 7: Linen Types hidden.
     <menuitem id="hotel_linen_type_menu" name="Linen Types" sequence="43"
               parent="hotel_config_menu"
               action="hotel_linen_type_action"/>
+    -->
 </odoo>

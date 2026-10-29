@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!-- Task 5 grouping lives under hotel_menu_folio (see
-         hotel_menu_views.xml); the Task-4 intermediate menu is removed
+    <!-- Task 7: folio/deposit/ledger menus live under Reservations
+         (room_booking_menu); the Task-4 intermediate menu is removed
          at the end of this file, after its action menu moves. -->
 
     <record id="hotel_folio_view_list" model="ir.ui.view">
@@ -177,10 +177,11 @@
         <field name="view_mode">kanban,list,form</field>
     </record>
 
+    <!-- Task 7: Folio merged into Reservations (room_booking_menu). -->
     <menuitem id="hotel_folio_menu_action"
               name="Folios"
-              sequence="10"
-              parent="hotel_menu_folio"
+              sequence="20"
+              parent="room_booking_menu"
               action="hotel_folio_action"/>
 
     <record id="hotel_deposit_view_list" model="ir.ui.view">
@@ -226,10 +227,11 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Task 7: Folio merged into Reservations (room_booking_menu). -->
     <menuitem id="hotel_deposit_menu"
               name="Deposits"
-              sequence="20"
-              parent="hotel_menu_folio"
+              sequence="30"
+              parent="room_booking_menu"
               action="hotel_deposit_action"/>
 
     <record id="hotel_city_ledger_view_list" model="ir.ui.view">
@@ -280,10 +282,11 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Task 7: Folio merged into Reservations (room_booking_menu). -->
     <menuitem id="hotel_city_ledger_menu"
               name="City Ledger"
-              sequence="30"
-              parent="hotel_menu_folio"
+              sequence="40"
+              parent="room_booking_menu"
               action="hotel_city_ledger_action"/>
 
     <!-- Task-4 intermediate menu, now empty (action moved above). No-op

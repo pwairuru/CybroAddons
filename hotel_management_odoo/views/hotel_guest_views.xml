@@ -140,10 +140,11 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Task 7: Folio merged into Reservations (room_booking_menu). -->
     <menuitem id="hotel_document_menu"
               name="Guest Documents"
-              sequence="40"
-              parent="hotel_menu_folio"
+              sequence="50"
+              parent="room_booking_menu"
               action="hotel_document_action"/>
 
     <record id="hotel_loyalty_program_action" model="ir.actions.act_window">
@@ -152,9 +153,11 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- REMOVED per 2026-10-29 Task 7: Loyalty programs hidden.
     <menuitem id="hotel_loyalty_program_menu"
               name="Loyalty Programs"
               sequence="42"
               parent="hotel_config_menu"
               action="hotel_loyalty_program_action"/>
+    -->
 </odoo>

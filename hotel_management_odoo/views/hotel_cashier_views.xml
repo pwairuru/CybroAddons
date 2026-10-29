@@ -53,9 +53,11 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- REMOVED per 2026-10-29 Task 7: Cashier top-level dropped.
     <menuitem id="hotel_cashier_shift_menu"
               name="Cashier Shifts"
               sequence="10"
               parent="hotel_cashier_menu"
               action="hotel_cashier_shift_action"/>
+    -->
 </odoo>

@@ -22,16 +22,17 @@
             </p>
         </field>
     </record>
-    <!--    Products Menu-->
+    <!-- REMOVED per 2026-10-29 Task 7: Food menu dropped from
+         Configuration (parent food_menu removed).
     <menuitem id="lunch_product_menu"
               name="Products"
               action="lunch_product_action"
               parent="food_menu"
               sequence="10"/>
-    <!--    Vendors Menu-->
     <menuitem id="lunch_supplier_menu"
               name="Vendors"
               action="lunch_supplier_action"
               parent="food_menu"
               sequence="20"/>
+    -->
 </odoo>

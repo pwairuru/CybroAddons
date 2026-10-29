@@ -163,10 +163,11 @@
         <field name="view_mode">kanban,list,form</field>
         <field name="context">{}</field>
     </record>
-    <!--Menu Cleaning Request (operational, Task 11)-->
+    <!-- REMOVED per 2026-10-29 Task 7: Housekeeping top-level dropped.
     <menuitem id="cleaning_request_menu"
               name="Cleaning Request"
               sequence="10"
               parent="hotel_housekeeping_menu"
               action="cleaning_request_action"/>
+    -->
 </odoo>

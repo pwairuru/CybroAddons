@@ -103,13 +103,13 @@
         <field name="view_mode">kanban,list,form</field>
         <field name="context">{}</field>
     </record>
-    <!--Menu Cleaning-->
+    <!-- REMOVED per 2026-10-29 Task 7: Cleaning hidden.
     <menuitem id="hotel_config_menu_cleaning"
               name="Cleaning"
               parent="hotel_config_menu" sequence="186"/>
-    <!--Menu Cleaning Team-->
     <menuitem id="cleaning_team_menu"
               name="Cleaning Team"
               parent="hotel_config_menu_cleaning"
               action="cleaning_team_action"/>
+    -->
 </odoo>

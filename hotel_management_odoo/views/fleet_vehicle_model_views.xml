@@ -37,12 +37,13 @@
             </p>
         </field>
     </record>
-    <!-- Vehicles Menu  -->
+    <!-- REMOVED per 2026-10-29 Task 7: Vehicle menu dropped from
+         Configuration; Vehicles + Manufacturers hidden.
     <menuitem id="fleet_vehicle_model_menu" name="Vehicles"
               action="fleet_vehicle_model_action" parent="fleet_vehicle_menu"
               sequence="10"/>
-    <!--     Manufacturer Menu -->
     <menuitem id="fleet_vehicle_model_brand_menu" name="Manufacturers"
               action="fleet_vehicle_model_brand_action"
               parent="fleet_vehicle_menu" sequence="20"/>
+    -->
 </odoo>

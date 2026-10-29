@@ -73,11 +73,13 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- REMOVED per 2026-10-29 Task 7: Audit top-level dropped.
     <menuitem id="hotel_night_audit_menu"
               name="Night Audit"
               sequence="10"
               parent="hotel_audit_menu"
               action="hotel_night_audit_action"/>
+    -->
 
     <record id="hotel_business_date_action" model="ir.actions.act_window">
         <field name="name">Business Dates</field>
@@ -85,9 +87,11 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- REMOVED per 2026-10-29 Task 7: Audit top-level dropped.
     <menuitem id="hotel_business_date_menu"
               name="Business Dates"
               sequence="20"
               parent="hotel_audit_menu"
               action="hotel_business_date_action"/>
+    -->
 </odoo>

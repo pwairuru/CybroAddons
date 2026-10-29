@@ -16,18 +16,23 @@
     <!--    Task 5 groupings: Rooms / Pricing / Folio. Operational menus
          live here, never under Settings. Config stays as the existing
          Configuration menu (Boards/Amenities/Floors). -->
+    <!--    Task 7: Rooms regrouped under Configuration (fewer top-levels).
+          Rate Calendar follows via parent hotel_menu_rooms. -->
     <menuitem id="hotel_menu_rooms"
               name="Rooms"
               sequence="10"
-              parent="hotel_management_menu_root"/>
+              parent="hotel_config_menu"/>
     <menuitem id="hotel_menu_pricing"
               name="Pricing"
               sequence="11"
               parent="hotel_management_menu_root"/>
+    <!-- REMOVED per 2026-10-29 Task 7: Folio merged into Reservations
+         (room.booking menu); folio/deposit/ledger/documents reparented there.
     <menuitem id="hotel_menu_folio"
               name="Folio"
               sequence="12"
               parent="hotel_management_menu_root"/>
+    -->
     <!--    Rate Calendar placeholder: Task 5 reserved the slot; Task 6
           wires it to the calendar client action. -->
     <menuitem id="hotel_rate_calendar_menu"
@@ -35,19 +40,29 @@
               sequence="30"
               parent="hotel_menu_rooms"
               action="hotel_rate_calendar_action"/>
+    <!-- REMOVED per 2026-10-29 Task 7: Housekeeping top-level dropped;
+         operational children commented out in their own view files.
     <menuitem id="hotel_housekeeping_menu"
               name="Housekeeping"
               sequence="13"
               parent="hotel_management_menu_root"/>
+    -->
+    <!-- REMOVED per 2026-10-29 Task 7: Cashier top-level dropped;
+         cashier-shift child commented out in hotel_cashier_views.xml.
     <menuitem id="hotel_cashier_menu"
               name="Cashier"
               sequence="14"
               parent="hotel_management_menu_root"/>
+    -->
+    <!-- REMOVED per 2026-10-29 Task 7: Audit top-level dropped;
+         night-audit/business-date children commented out.
     <menuitem id="hotel_audit_menu"
               name="Audit"
               sequence="15"
               parent="hotel_management_menu_root"/>
-    <!--    Food / Vehicle masters live under Configuration (Task 11)-->
+    -->
+    <!-- REMOVED per 2026-10-29 Task 7: Food/Vehicle dropped from
+         Configuration; children commented out in their own view files.
     <menuitem id="food_menu"
               name="Food"
               sequence="20"
@@ -56,4 +71,5 @@
               name="Vehicle"
               sequence="30"
               parent="hotel_config_menu"/>
+    -->
 </odoo>

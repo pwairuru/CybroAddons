@@ -105,13 +105,13 @@
             (0, 0, {'view_mode': 'list', 'view_id': ref('maintenance_team_view_tree')}),
             (0, 0, {'view_mode': 'form', 'view_id': ref('maintenance_team_view_form')})]"/>
     </record>
-    <!--    Maintenance Menu-->
+    <!-- REMOVED per 2026-10-29 Task 7: Maintenance hidden.
     <menuitem id="maintenance_menu"
               name="Maintenance"
               parent="hotel_config_menu" sequence="185"/>
-    <!--    Maintenance Team Menu-->
     <menuitem id="maintenance_team_menu"
               name="Maintenance Team"
               parent="maintenance_menu"
               action="maintenance_team_action"/>
+    -->
 </odoo>
