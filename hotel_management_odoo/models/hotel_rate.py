@@ -600,6 +600,19 @@ class HotelRateEngine(models.AbstractModel):
         return max(candidates, key=_rank)
 
     @api.model
+    def _matching_line(self, room_id, day, board='RO'):
+        room = self.env['product.template'].browse(room_id)
+        if not room.exists() or not room.room_type_id:
+            return self.env['hotel.rate.line'].browse()
+        periods = self.env['hotel.rate.period']._find_applicable(day)
+        for p in periods:
+            line = self.env['hotel.rate.line'].find_line(
+                p.id, room.room_type_id.id, board or 'RO')
+            if line.exists():
+                return line
+        return self.env['hotel.rate.line'].browse()
+
+    @api.model
     def _resolve_counts(self, pax=1, adults=None, children=0):
         """Effective (adults, children, total) for pricing.
 
@@ -712,25 +725,16 @@ class HotelRateEngine(models.AbstractModel):
     def price_detailed(self, room_template_id, date, plan_id, pax=1,
                        adults=None, children=0,
                        board='RO', booking=None):
-        """Full nightly breakdown: {net, base, resolved, adjustment,
-        occupancy, board, rule_id, lines[], basis}.
+        """Rate-line nightly breakdown.
 
-        lines[0] is the resolved stay line; following lines are one
-        per extra-occupant band beyond included. Percent extras use
-        ``basis``: resolved_rate => % of resolved, bar => % of the
-        type BAR (type base_rate), board => % of the nightly
-        per-person board supplement for the passed ``board`` (0.0
-        with reason 'no-board-price' when no board rule matches),
-        meal_plan => % of the resolved plan price (falls back to
-        resolved on the RO legacy path where no plan price exists).
-        Per-person room types (charge_mode per_person) price the
-        base line as resolved x heads / standard (heads = adults +
-        0.5 x children) with no band extra lines; caps still
-        enforced.
-        Each band line carries ``supplement`` (the nightly board
-        supplement used as reference, 0.0 for non-board bases) and
-        ``reason`` (False when priced, e.g. 'no-board-price' when the
-        band prices at zero).
+        Prices from ``hotel.rate.line`` via :meth:`_matching_line`
+        (period priority fallback) + ``compute_night``. ``plan_id``
+        is ignored except for the company check in
+        ``_validate_price_inputs``. Legacy ``hotel.rate.rule``
+        path kept only as deprecated shim in ``_matching_rule``.
+        Returns ``{net, base, resolved, adjustment, occupancy,
+        board, rule_id, line_id, lines[], basis}`` with
+        ``basis='rate_line'``.
         """
         day, room, plan = self._validate_price_inputs(
             room_template_id, date, plan_id)
@@ -748,128 +752,33 @@ class HotelRateEngine(models.AbstractModel):
                 "Room type %s fits %d; requested %d pax."
                 % (room_type.display_name, room_type.max_occupants,
                    total))
-        base = self._base_price(room, plan)
-        rule = self._matching_rule(plan, room.id, day)
-        plan_price = self._meal_plan_price(room_type, board)
-        meal_line = self._matching_meal_line(rule, board) \
-            if plan_price else False
-        if plan_price:
-            if meal_line and meal_line.rate_type == 'fixed':
-                resolved = float(round(meal_line.value or 0.0, 2))
-            elif meal_line:
-                resolved = float(round(
-                    plan_price * (1.0 + (meal_line.value or 0.0) / 100.0),
-                    2))
-            else:
-                resolved = float(plan_price)
-            adjustment = float(resolved - base)
-            rule_id = rule.id if rule else False
-            rule_basis = 'resolved_rate'
-        elif not rule:
-            resolved = float(base)
-            adjustment = 0.0
-            rule_id = False
-            rule_basis = 'bar'
-        elif rule.rate_type == 'fixed':
-            resolved = float(rule.fixed_price or 0.0)
-            adjustment = float(resolved - base)
-            rule_id = rule.id
-            rule_basis = 'resolved_rate'
-        else:
-            resolved = float(
-                base * (1.0 + (rule.adjustment_pct or 0.0) / 100.0))
-            adjustment = float(resolved - base)
-            rule_id = rule.id
-            rule_basis = 'resolved_rate'
-        type_bar = float(room_type.base_rate) \
-            if room_type else float(base)
-        if room_type and room_type.charge_mode == 'per_person':
-            standard = int(
-                room_type.standard_heads or room_type.adult_capacity
-                or 1)
-            heads = float(eff_adults) + 0.5 * float(eff_children)
-            total = float(round(float(resolved) * heads / standard, 2))
-            for band, requested in (('adult', eff_adults),
-                                    ('child', eff_children)):
-                rec = self._occupancy_record(room_type, plan, band)
-                if not rec:
-                    continue
-                if rec.max_count and requested > rec.max_count:
-                    raise ValidationError(
-                        "Band %s allows max %d; requested %d."
-                        % (band, rec.max_count, requested))
-            lines = [{
-                'band': 'base', 'qty': 1, 'amount': total,
-                'total': total, 'basis': rule_basis,
-                'mode': (rule.rate_type if rule else 'bar'),
-                'value': (rule.fixed_price if rule
-                          and rule.rate_type == 'fixed'
-                          else (rule.adjustment_pct if rule else 0.0)),
-                'rule_id': rule_id,
-            }]
-            return {
-                'net': total, 'base': float(base),
-                'resolved': float(resolved),
-                'adjustment': float(adjustment),
-                'occupancy': 0.0, 'board': 0.0,
-                'rule_id': rule_id, 'lines': lines, 'basis': rule_basis,
-            }
-        lines = [{
-            'band': 'base', 'qty': 1, 'amount': float(resolved),
-            'total': float(resolved), 'basis': rule_basis,
-            'mode': (rule.rate_type if rule else 'bar'),
-            'value': (rule.fixed_price if rule
-                      and rule.rate_type == 'fixed'
-                      else (rule.adjustment_pct if rule else 0.0)),
-            'rule_id': rule_id,
-        }]
-        occupancy_total = 0.0
-        for band, requested in (('adult', eff_adults),
-                                ('child', eff_children)):
-            rec = self._occupancy_record(room_type, plan, band)
-            if not rec:
-                continue
-            if rec.max_count and requested > rec.max_count:
-                raise ValidationError(
-                    "Band %s allows max %d; requested %d."
-                    % (band, rec.max_count, requested))
-            extra = max(0, requested - (rec.included_count or 0))
-            if not extra:
-                continue
-            qty = extra if (rec.per or 'per_guest') == 'per_guest' \
-                else ceil(extra / (rec.unit_capacity or 1))
-            supplement, reason = self._board_supplement(
-                room_type, plan, board, day, booking)
-            if rec.mode == 'fixed':
-                unit = float(rec.value or 0.0)
-            else:
-                if rec.basis == 'bar':
-                    ref = type_bar
-                elif rec.basis == 'board':
-                    ref = supplement
-                elif rec.basis == 'meal_plan':
-                    ref = float(resolved)
-                else:
-                    ref = resolved
-                unit = float(ref * (rec.value or 0.0) / 100.0)
-            if rec.basis == 'board' and not supplement:
-                reason = 'no-board-price'
-                unit = 0.0
-            lines.append({
-                'band': band, 'qty': qty, 'amount': unit,
-                'total': float(unit * qty), 'basis': rec.basis,
-                'mode': rec.mode, 'value': rec.value,
-                'supplement': supplement, 'reason': reason,
-                'occupancy_id': rec.id,
-            })
-            occupancy_total += unit * qty
-        net = float(resolved + occupancy_total)
+        line = self._matching_line(room.id, day, board)
+        if not line.exists():
+            raise ValidationError('No rate configured for this stay.')
+        calc = line.compute_night(eff_adults, eff_children)
+        base_price = float(line.price or 0.0)
+        extra_a = float(calc.get('extra_a', 0.0) or 0.0)
+        extra_c = float(calc.get('extra_c', 0.0) or 0.0)
         return {
-            'net': net, 'base': float(base),
-            'resolved': float(resolved),
-            'adjustment': float(adjustment),
-            'occupancy': float(occupancy_total), 'board': 0.0,
-            'rule_id': rule_id, 'lines': lines, 'basis': rule_basis,
+            'net': float(calc['net']),
+            'base': base_price,
+            'resolved': base_price,
+            'adjustment': 0.0,
+            'occupancy': float(extra_a + extra_c),
+            'board': 0.0,
+            'rule_id': line.id,
+            'line_id': line.id,
+            'lines': [
+                {'band': 'base', 'qty': 1,
+                 'amount': base_price, 'total': base_price},
+                {'band': 'adult',
+                 'qty': max(0, eff_adults - (line.included_adults or 0)),
+                 'amount': extra_a, 'total': extra_a},
+                {'band': 'child',
+                 'qty': max(0, eff_children - (line.included_children or 0)),
+                 'amount': extra_c, 'total': extra_c},
+            ],
+            'basis': 'rate_line',
         }
 
     @api.model
