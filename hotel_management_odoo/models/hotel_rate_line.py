@@ -39,6 +39,14 @@ class HotelRateLine(models.Model):
             if r.room_type_id and r.room_type_id.max_occupants and (r.included_adults + r.included_children) > r.room_type_id.max_occupants:
                 raise ValidationError("Included %d exceeds type max %d." % (r.included_adults + r.included_children, r.room_type_id.max_occupants))
 
+    @api.constrains('extra_adult_mode', 'extra_adult_value', 'extra_child_mode', 'extra_child_value')
+    def _check_percent(self):
+        for r in self:
+            if r.extra_adult_mode == 'percent' and (r.extra_adult_value < 0 or r.extra_adult_value > 999):
+                raise ValidationError("Extra adult percent must be between 0 and 999.")
+            if r.extra_child_mode == 'percent' and (r.extra_child_value < 0 or r.extra_child_value > 999):
+                raise ValidationError("Extra child percent must be between 0 and 999.")
+
     @api.constrains('period_id', 'room_type_id', 'company_id')
     def _check_company(self):
         Period = self.env['hotel.rate.period']

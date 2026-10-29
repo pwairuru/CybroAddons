@@ -640,6 +640,8 @@ class HotelRateEngine(models.AbstractModel):
         room = self.env['product.template'].browse(room_template_id)
         if not room.exists() or not room.is_room:
             raise ValidationError("Room %s does not exist." % room_template_id)
+        if not plan_id:
+            return day, room, self.env['hotel.rate.plan'].browse()
         plan = self.env['hotel.rate.plan'].browse(plan_id)
         if not plan.exists():
             raise ValidationError("Rate plan %s does not exist." % plan_id)
