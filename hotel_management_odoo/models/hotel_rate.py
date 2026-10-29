@@ -952,7 +952,7 @@ class HotelRateEngine(models.AbstractModel):
                 if not bline['total']:
                     continue
                 occ = self.env['hotel.rate.occupancy'].browse(
-                    bline['occupancy_id'])
+                    bline.get('occupancy_id') or False)
                 bproduct = occ.service_product_id \
                     if occ.service_product_id else False
                 if not bproduct:

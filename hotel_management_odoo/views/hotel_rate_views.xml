@@ -255,12 +255,14 @@
               name="Rate Rules"
               sequence="20"
               parent="hotel_menu_pricing"
+              groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_rate_rule_action"/>
 
     <menuitem id="hotel_rate_occupancy_menu"
               name="Occupancy"
               sequence="30"
               parent="hotel_menu_pricing"
+              groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_rate_occupancy_action"/>
 
     <menuitem id="hotel_board_rule_menu"
