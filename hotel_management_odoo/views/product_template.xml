@@ -188,5 +188,24 @@
     <menuitem id="menu_product_template" name="Rooms"
               parent="hotel_menu_rooms" sequence="20"
               action="action_room_products"/>
+    <!--    Simplified clerk form: name + type + price + capacity only.
+          Standalone view (not wired to any action); the manager flow
+          above stays untouched. -->
+    <record id="hotel_room_simple_form" model="ir.ui.view">
+        <field name="name">product.template.hotel.room.simple.form</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <form string="Room">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="room_type_id"/>
+                        <field name="list_price" widget="monetary"/>
+                        <field name="num_person"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
 
 </odoo>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="hotel_rate_line_view_list" model="ir.ui.view">
+        <field name="name">hotel.rate.line.view.list</field>
+        <field name="model">hotel.rate.line</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="period_id"/>
+                <field name="room_type_id"/>
+                <field name="meal_plan_id"/>
+                <field name="price"/>
+                <field name="included_adults"/>
+                <field name="included_children"/>
+                <field name="extra_adult_mode"/>
+                <field name="extra_adult_value"/>
+                <field name="extra_child_mode"/>
+                <field name="extra_child_value"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_rate_line_view_form" model="ir.ui.view">
+        <field name="name">hotel.rate.line.view.form</field>
+        <field name="model">hotel.rate.line</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group string="Combination">
+                            <field name="company_id"/>
+                            <field name="period_id"/>
+                            <field name="room_type_id"/>
+                            <field name="meal_plan_id"/>
+                        </group>
+                        <group string="Pricing">
+                            <field name="price"/>
+                            <field name="currency_id"/>
+                            <field name="included_adults"/>
+                            <field name="included_children"/>
+                            <field name="extra_adult_mode"/>
+                            <field name="extra_adult_value"/>
+                            <field name="extra_child_mode"/>
+                            <field name="extra_child_value"/>
+                            <field name="extra_bed_price"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_rate_line_view_search" model="ir.ui.view">
+        <field name="name">hotel.rate.line.view.search</field>
+        <field name="model">hotel.rate.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="period_id"/>
+                <field name="room_type_id"/>
+                <field name="meal_plan_id"/>
+                <filter name="active_period" string="Active Periods"
+                        domain="[('period_id.active', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="hotel_rate_line_view_pivot" model="ir.ui.view">
+        <field name="name">hotel.rate.line.view.pivot</field>
+        <field name="model">hotel.rate.line</field>
+        <field name="arch" type="xml">
+            <pivot>
+                <field name="period_id" type="col"/>
+                <field name="room_type_id" type="row"/>
+                <field name="price" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="hotel_rate_line_action" model="ir.actions.act_window">
+        <field name="name">Rate Lines</field>
+        <field name="res_model">hotel.rate.line</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Room-type smart-button target: same views, pre-filtered. -->
+    <record id="hotel_rate_line_by_type_action" model="ir.actions.act_window">
+        <field name="name">Rates</field>
+        <field name="res_model">hotel.rate.line</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('room_type_id', '=', active_id)]</field>
+        <field name="context">{'default_room_type_id': active_id}</field>
+    </record>
+
+    <menuitem id="hotel_rate_line_menu"
+              name="Rate Lines"
+              sequence="16"
+              parent="hotel_menu_pricing"
+              action="hotel_rate_line_action"/>
+</odoo>

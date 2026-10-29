@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hotel_rate_line_generator_action" model="ir.actions.act_window">
+        <field name="name">Generate Rate Lines</field>
+        <field name="res_model">hotel.rate.line.generator</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="view_hotel_rate_line_generator_form" model="ir.ui.view">
+        <field name="name">hotel.rate.line.generator.form</field>
+        <field name="model">hotel.rate.line.generator</field>
+        <field name="arch" type="xml">
+            <form string="Generate Rate Lines">
+                <sheet>
+                    <group>
+                        <group string="Combinations">
+                            <field name="company_id"
+                                   options="{'no_open': True, 'no_create': True}"/>
+                            <field name="period_ids"/>
+                            <field name="type_ids"/>
+                            <field name="meal_ids"/>
+                        </group>
+                        <group string="Defaults for new lines">
+                            <field name="price"/>
+                            <field name="included_adults"/>
+                            <field name="included_children"/>
+                            <field name="extra_adult_mode"/>
+                            <field name="extra_adult_value"/>
+                            <field name="extra_child_mode"/>
+                            <field name="extra_child_value"/>
+                            <field name="extra_bed_price"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        Existing period / room type / meal combinations are
+                        skipped; only missing lines are created.
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_generate" string="Generate"
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

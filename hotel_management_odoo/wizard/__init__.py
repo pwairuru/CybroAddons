@@ -25,3 +25,4 @@ from . import compute_bill
 from . import hotel_post_stay
 from . import hotel_folio_split
 from . import hotel_report_pack
+from . import hotel_rate_line_generator
