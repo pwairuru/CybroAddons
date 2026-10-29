@@ -380,8 +380,10 @@ class RoomBooking(models.Model):
                           ('hotel_folio_id', 'in', folio_ids)]
             else:
                 domain = [('hotel_booking_id', '=', record.id)]
-            record.invoice_count = self.env['account.move'].search_count(
-                domain)
+            # Count only (no content): the booking form renders for
+            # reception, who has no direct journal access.
+            record.invoice_count = self.env['account.move'].sudo() \
+                .search_count(domain)
 
     @api.depends('partner_id', 'company_id')
     def _compute_pricelist_id(self):
@@ -623,11 +625,15 @@ class RoomBooking(models.Model):
         rooms = self.mapped('room_line_ids.room_id')
         for room in rooms:
             if not self._room_held_elsewhere(room):
-                room.write({'status': 'available', 'is_room_avail': True})
+                # System side-effect of the booking flow (reception has
+                # no direct room write): sudo only this status flip.
+                room.sudo().write(
+                    {'status': 'available', 'is_room_avail': True})
 
     def _hold_rooms(self, status):
         for room in self.mapped('room_line_ids.room_id'):
-            room.write({'status': status, 'is_room_avail': False})
+            # Same sudo-scoped status flip as _release_rooms.
+            room.sudo().write({'status': status, 'is_room_avail': False})
 
     @api.model
     def _check_room_available(self, room, checkin, checkout,
@@ -707,6 +713,7 @@ class RoomBooking(models.Model):
                     line.room_id, line.checkin_date, line.checkout_date,
                     ignore_booking=record)
             record._hold_rooms('reserved')
+            record.room_line_ids._compute_rate_snapshot()
             record.with_context(hotel_allow_state_write=True).write(
                 {"state": "reserved"})
             record._ensure_folio()
@@ -1001,6 +1008,7 @@ class RoomBooking(models.Model):
                     line.room_id, line.checkin_date, line.checkout_date,
                     ignore_booking=record)
             record._hold_rooms('occupied')
+            record.room_line_ids._compute_rate_snapshot()
             record.with_context(hotel_allow_state_write=True).write(
                 {"state": "check_in", "is_checkin": True})
         return {
@@ -1054,7 +1062,9 @@ class RoomBooking(models.Model):
                 self.env.ref(
                     'hotel_management_odoo.maintenance_team_group_user'
                 ).id])])
-        revenues = Move.search_read(
+        # Revenue aggregates only (no journal content): the dashboard
+        # renders for reception, who has no direct journal access.
+        revenues = Move.sudo().search_read(
             [('hotel_booking_id', '!=', False),
              ('state', '=', 'posted')],
             ['amount_total', 'currency_id', 'payment_state', 'date'])
