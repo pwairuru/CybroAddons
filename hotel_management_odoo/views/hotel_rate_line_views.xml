@@ -79,7 +79,7 @@
     <record id="hotel_rate_line_action" model="ir.actions.act_window">
         <field name="name">Rate Lines</field>
         <field name="res_model">hotel.rate.line</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,form,pivot</field>
     </record>
 
     <!-- Room-type smart-button target: same views, pre-filtered. -->

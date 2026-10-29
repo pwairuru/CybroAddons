@@ -19,8 +19,12 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
+import logging
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class RoomBookingLine(models.Model):
@@ -132,7 +136,12 @@ class RoomBookingLine(models.Model):
                 continue
             try:
                 d = eng.price_detailed(line.room_id.id, fields.Date.to_string(fields.Datetime.context_timestamp(line, line.checkin_date).date()), plan.id, adults=line.adults, children=line.children, board=board, booking=booking)
-            except Exception:
+            except ValidationError:
+                raise
+            except Exception as exc:
+                _logger.warning(
+                    "Rate snapshot skipped for room %s on %s: %r",
+                    line.room_id.display_name, line.checkin_date, exc)
                 continue
             line.rate_line_id = d.get('line_id') or d.get('rule_id') or False
             line.rate_net = d.get('net', 0.0)

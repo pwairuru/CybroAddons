@@ -189,8 +189,26 @@
               parent="hotel_menu_rooms" sequence="20"
               action="action_room_products"/>
     <!--    Simplified clerk form: name + type + price + capacity only.
-          Standalone view (not wired to any action); the manager flow
-          above stays untouched. -->
+           Wired below via a minimal action + menu; the manager flow
+           above stays untouched. -->
+    <record id="action_room_simple" model="ir.actions.act_window">
+        <field name="name">Rooms (Simple)</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_room','=',True)]</field>
+        <field name="context">{'default_is_room': True}</field>
+        <field name="search_view_id" ref="product_template_search_rooms"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list',
+                    'view_id': ref('product_template_view_list_rooms')}),
+            (0, 0, {'view_mode': 'form',
+                    'view_id': ref('hotel_room_simple_form')})]"/>
+    </record>
+
+    <menuitem id="menu_room_simple" name="Rooms (Simple)"
+              parent="hotel_menu_rooms" sequence="21"
+              action="action_room_simple"/>
+
     <record id="hotel_room_simple_form" model="ir.ui.view">
         <field name="name">product.template.hotel.room.simple.form</field>
         <field name="model">product.template</field>

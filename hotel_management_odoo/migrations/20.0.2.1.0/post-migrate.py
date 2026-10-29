@@ -5,8 +5,9 @@ H1/H2 arrive via data XML; this backfills null period companies and
 seeds one ``hotel.rate.line`` per H1/H2 period x room type x meal plan
 where a price exists (meal price > 0, or RO falling back to the type
 ``base_rate``; other boards with no meal price are skipped).
-Included counts come from occupancy bands (plan-specific wins over the
-type default per band) or the type capacities; extra modes/values come
+Included counts come from occupancy bands (the rate plan matching
+the meal code wins per band, else the type default) or the type
+capacities; extra modes/values come
 from occupancy or default to fixed 0. Missing-only: existing lines are
 never overwritten (same effect as INSERT ... ON CONFLICT DO NOTHING on
 the ``hotel_rate_line_rate_line_uniq`` guard). Idempotent: reruns find
@@ -26,16 +27,33 @@ _H1H2 = (
 )
 
 
-def _band_map(env, room_type):
-    """Type-default occupancy per band; plan-specific wins."""
+def _band_map(env, room_type, plan=None):
+    """Occupancy per band for one rate plan; generic type default wins.
+
+    ``plan`` is a ``hotel.rate.plan``: its record for the band wins,
+    otherwise the plan-empty type default applies. Records for other
+    plans are ignored so each seeded line reflects its own plan.
+    """
     out = {}
     for occ in env['hotel.rate.occupancy'].search(
             [('room_type_id', '=', room_type.id)]):
+        if occ.plan_id and (not plan or occ.plan_id.id != plan.id):
+            continue
         if occ.plan_id:
             out[occ.band] = occ
         else:
             out.setdefault(occ.band, occ)
     return out
+
+
+def _rate_plan_for_meal(env, meal, company):
+    """Rate plan matching a meal code, else empty (generic bands)."""
+    if not meal or not meal.code:
+        return env['hotel.rate.plan'].browse()
+    return env['hotel.rate.plan'].search([
+        ('company_id', '=', company.id),
+        ('code', '=', meal.code),
+    ], limit=1)
 
 
 def _included(rtype, bands):
@@ -65,8 +83,24 @@ def _extras(bands):
     return vals
 
 
+_LEGACY_MONTHS = (
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+)
+
+
 def migrate(cr, version):
     env = api.Environment(cr, SUPERUSER_ID, {})
+    # Retire only the legacy monthlies by exact name: H1/H2 (kept by
+    # exclusion) and any promo override (custom names, applies_year)
+    # are never touched.
+    with cr.savepoint():
+        cr.execute(
+            "UPDATE hotel_rate_period SET active = false "
+            "WHERE active AND name IN %s", (_LEGACY_MONTHS,))
+        if cr.rowcount:
+            _logger.info("%s: retired %d legacy period(s).",
+                         _MIG_TAG, cr.rowcount)
     cr.execute(
         "UPDATE hotel_rate_period SET company_id = "
         "(SELECT id FROM res_company ORDER BY id LIMIT 1) "
@@ -98,12 +132,14 @@ def migrate(cr, version):
             if rtype.company_id.id != period.company_id.id:
                 skipped += 1
                 continue
-            bands = _band_map(env, rtype)
-            inc_a, inc_c = _included(rtype, bands)
-            extras = _extras(bands)
             currency = (period.company_id.currency_id
                         or company.currency_id)
             for plan in plans:
+                rate_plan = _rate_plan_for_meal(
+                    env, plan, period.company_id)
+                bands = _band_map(env, rtype, rate_plan)
+                inc_a, inc_c = _included(rtype, bands)
+                extras = _extras(bands)
                 mline = rtype.meal_price_ids.filtered(
                     lambda l, pid=plan.id: l.meal_plan_id.id == pid)[:1]
                 mprice = float(mline.price) if mline else 0.0

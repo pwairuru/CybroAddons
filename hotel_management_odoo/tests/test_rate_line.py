@@ -48,6 +48,23 @@ class TestRateLineMath(TransactionCase):
         eng = self.env['hotel.rate.engine']
         with self.assertRaises(ValidationError):
             eng.price_for(self.room.id, '2027-02-01', None, adults=2, board='BB')
+    def test_snapshot_raises_on_missing_line(self):
+        self.env['hotel.rate.plan'].create({'name': 'BB', 'code': 'BB', 'company_id': self.co.id})
+        booking = self.env['room.booking'].create({
+            'partner_id': self.env.company.partner_id.id,
+            'company_id': self.co.id,
+            'meal_plan': 'BB',
+            'checkin_date': '2027-02-01 14:00:00',
+            'checkout_date': '2027-02-02 11:00:00',
+        })
+        line = self.env['room.booking.line'].create({
+            'booking_id': booking.id, 'room_id': self.room.id,
+            'checkin_date': '2027-02-01 14:00:00',
+            'checkout_date': '2027-02-02 11:00:00',
+            'adults': 2,
+        })
+        with self.assertRaises(ValidationError):
+            line._compute_rate_snapshot()
     def test_over_capacity_raises(self):
         eng = self.env['hotel.rate.engine']
         self.env['hotel.rate.line'].create({'company_id':self.co.id,'period_id':self.h1.id,'room_type_id':self.type.id,'meal_plan_id':self.meal_ro.id,'price':20000.0})

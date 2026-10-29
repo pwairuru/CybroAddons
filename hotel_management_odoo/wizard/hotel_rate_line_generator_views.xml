@@ -7,6 +7,12 @@
         <field name="target">new</field>
     </record>
 
+    <menuitem id="hotel_rate_line_generator_menu"
+              name="Generate Rate Lines"
+              sequence="17"
+              parent="hotel_menu_pricing"
+              action="hotel_rate_line_generator_action"/>
+
     <record id="view_hotel_rate_line_generator_form" model="ir.ui.view">
         <field name="name">hotel.rate.line.generator.form</field>
         <field name="model">hotel.rate.line.generator</field>

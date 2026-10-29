@@ -786,15 +786,18 @@ class HotelRateEngine(models.AbstractModel):
     @api.model
     def price_for(self, room_template_id, date, plan_id, pax=1,
                   adults=None, children=0, board='RO'):
-        """Nightly price for a room template on a date under a plan.
+        """Nightly net for a room template on a date under a plan.
 
-        Keeps float return. For the full
+        Rate-line path: :meth:`_matching_line` finds the applicable
+        ``hotel.rate.line`` (period priority fallback on the room
+        type + board meal code) and ``compute_night`` prices the
+        occupancy. ``plan_id`` is only company-checked in
+        ``_validate_price_inputs``. Keeps float return; for the full
         breakdown use price_detailed(). pax stays as the legacy
         positional guest count (mapped to adults); pass adults /
-        children explicitly for occupancy pricing.
-        ``board`` selects the phase-1 type x plan price as the base
-        (with the matching rule's meal line applied); RO keeps the
-        legacy base path."""
+        children explicitly for occupancy pricing. Raises
+        ValidationError when no line covers the stay or capacity is
+        exceeded."""
         detailed = self.price_detailed(
             room_template_id, date, plan_id, pax=pax, adults=adults,
             children=children, board=board)
