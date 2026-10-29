@@ -23,6 +23,8 @@ class HotelRatePeriod(models.Model):
     applies_year = fields.Integer(string="Applies Year", tracking=True,
                                   help="Set for one-off promos; empty = "
                                   "recurs every year.")
+    company_id = fields.Many2one('res.company', required=True, index=True, default=lambda self: self.env.company, tracking=True)
+    rate_line_ids = fields.One2many('hotel.rate.line', 'period_id', string='Rates')
 
     @api.model
     def default_get(self, fields_list):
@@ -99,3 +101,17 @@ class HotelRatePeriod(models.Model):
         if start <= end:
             return start <= point <= end
         return point >= start or point <= end
+
+    @api.model
+    def _find_applicable(self, stay_date, company_id=None):
+        from datetime import date as _date
+        day = stay_date if hasattr(stay_date,'month') else fields.Date.from_string(stay_date)
+        company_id = company_id or self.env.company.id
+        cands = self.search([('active','=',True),('company_id','in',[False,company_id])], order='priority desc, sequence, id')
+        out = []
+        for p in cands:
+            if p.applies_year and int(p.applies_year) != day.year:
+                continue
+            if p.covers(day.month, day.day):
+                out.append(p)
+        return out
