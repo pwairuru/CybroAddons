@@ -101,6 +101,43 @@ class RoomBookingLine(models.Model):
                               help="Child guests occupying this room line.")
     toddlers = fields.Integer(string="Toddlers", default=0,
                               help="Toddler guests occupying this room line.")
+    rate_line_id = fields.Many2one('hotel.rate.line', string="Rate Line", copy=False, readonly=True)
+    rate_net = fields.Float(string="Rate Net", copy=False, readonly=True)
+    rate_breakdown = fields.Text(string="Rate Breakdown", copy=False, readonly=True)
+
+    @api.constrains('adults', 'children', 'room_id')
+    def _check_capacity_line(self):
+        for line in self:
+            total = (line.adults or 0) + (line.children or 0)
+            if line.room_id.num_person and total > line.room_id.num_person:
+                raise ValidationError("Room %s fits %d; requested %d." % (line.room_id.display_name, line.room_id.num_person, total))
+            rt = line.room_id.room_type_id
+            if rt and rt.max_occupants and total > rt.max_occupants:
+                raise ValidationError("Room type %s fits %d; requested %d." % (rt.display_name, rt.max_occupants, total))
+
+    def _compute_rate_snapshot(self):
+        eng = self.env['hotel.rate.engine']
+        for line in self:
+            if not line.room_id or not line.checkin_date:
+                continue
+            booking = line.booking_id
+            board = (booking.meal_plan or 'RO') if booking else 'RO'
+            if not booking:
+                continue
+            plan = self.env['hotel.rate.plan']._plan_for_booking(booking)
+            if not plan:
+                continue
+            state = booking.state if booking else False
+            if line.price_unit and state not in ('draft', 'reserved', False):
+                continue
+            try:
+                d = eng.price_detailed(line.room_id.id, fields.Date.to_string(fields.Datetime.context_timestamp(line, line.checkin_date).date()), plan.id, adults=line.adults, children=line.children, board=board, booking=booking)
+            except Exception:
+                continue
+            line.rate_line_id = d.get('line_id') or d.get('rule_id') or False
+            line.rate_net = d.get('net', 0.0)
+            line.rate_breakdown = str(d.get('lines', []))
+            line.price_unit = d.get('resolved', line.price_unit)
 
     @api.constrains('adults', 'children', 'toddlers')
     def _check_pax(self):
