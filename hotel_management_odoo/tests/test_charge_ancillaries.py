@@ -164,3 +164,23 @@ class TestChargeAncillaries(TransactionCase):
         self.assertGreater(
             svc_total, 0.0,
             "checkout invoice must include the swept service")
+
+    def test_folio_bill_print_renders(self):
+        bk = self._mk()
+        svc = self.env['hotel.service'].create(
+            {'name': 'Print Spa', 'unit_price': 40.0})
+        self.env['service.booking.line'].create(
+            {'booking_id': bk.id, 'service_id': svc.id, 'uom_qty': 1})
+        bk.action_charge_ancillaries()
+        reports = self.env['ir.actions.report']
+        folio_pdf, _ext = reports._render_qweb_pdf(
+            'hotel_management_odoo.action_report_booking_folio_bill',
+            res_ids=[bk.id])
+        self.assertTrue(folio_pdf, "booking Folio Bill must render")
+        wiz = self.env['compute.bill'].create(
+            {'booking_id': bk.id, 'bill_type': 'combined'})
+        combined_pdf, _ext = reports._render_qweb_pdf(
+            'hotel_management_odoo.action_report_combined_bill',
+            res_ids=[wiz.id])
+        self.assertTrue(
+            combined_pdf, "wizard combined bill must still render")

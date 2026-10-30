@@ -51,63 +51,8 @@
 
                         <!-- Combined Bill: all groups in one table -->
                         <t t-if="o.bill_type == 'combined'">
-                            <t t-set="bill_groups" t-value="o.booking_id.get_bill_grouped_lines()"/>
-                            <div class="oe_structure"/>
-                            <div class="table-responsive-sm overflow-visible">
-                                <table class="o_has_total_table table o_main_table table-borderless mb-0" name="bill_line_table">
-                                    <thead>
-                                        <tr>
-                                            <th name="th_description" class="text-start"><span>Description</span></th>
-                                            <th name="th_detail" class="text-start"><span>Detail / Counter</span></th>
-                                            <th name="th_date" class="text-start"><span>Date</span></th>
-                                            <th name="th_quantity" class="text-end"><span>Quantity</span></th>
-                                            <th name="th_priceunit" class="text-end"><span>Unit Price</span></th>
-                                            <th name="th_subtotal" class="text-end"><span>Amount</span></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <t t-foreach="bill_groups" t-as="g">
-                                            <tr class="fw-bold o_line_section">
-                                                <td colspan="5"><span t-out="g['label']">Rooms</span></td>
-                                                <td class="text-end o_price_total">
-                                                    <span t-out="g['subtotal']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/>
-                                                </td>
-                                            </tr>
-                                            <t t-foreach="g['rows']" t-as="r">
-                                                <tr>
-                                                    <td><span t-out="r['description']">SIMBA</span></td>
-                                                    <td><span t-out="r['detail']">1 night(s)</span></td>
-                                                    <td><span t-out="r['date']" t-options='{"widget": "datetime"}'/></td>
-                                                    <td class="text-end"><span t-out="r['qty']" class="text-nowrap">1.0</span></td>
-                                                    <td class="text-end"><span t-out="r['unit']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
-                                                    <td class="text-end o_price_total"><span t-out="r['total']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
-                                                </tr>
-                                            </t>
-                                        </t>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="row mt-4">
-                                <div class="col-7"/>
-                                <div class="col-5">
-                                    <table class="o_total_table table table-borderless avoid-page-break-inside" name="bill_total_table">
-                                        <t t-foreach="bill_groups" t-as="g">
-                                            <tr class="o_subtotal">
-                                                <td><strong><span t-out="g['label']">Rooms</span></strong></td>
-                                                <td class="text-end o_price_total">
-                                                    <span t-out="g['subtotal']" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/>
-                                                </td>
-                                            </tr>
-                                        </t>
-                                        <tr class="o_total">
-                                            <td><strong>Total</strong></td>
-                                            <td class="text-end o_price_total">
-                                                <span t-out="o.booking_id.get_bill_summary_total()" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
+                            <t t-set="booking" t-value="o.booking_id"/>
+                            <t t-call="hotel_management_odoo.report_combined_bill_body"/>
                         </t>
 
                         <!-- Isolated Bill -->
@@ -212,6 +157,114 @@
                                 </div>
                             </t>
                         </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+    <!-- Shared combined-bill body. Caller sets `booking` (a room.booking)
+         then t-calls this. Used by the compute.bill wizard report above
+         and by the booking Print-menu Folio Bill below. -->
+    <template id="report_combined_bill_body">
+        <t t-set="bill_groups" t-value="booking.get_bill_grouped_lines()"/>
+        <div class="oe_structure"/>
+        <div class="table-responsive-sm overflow-visible">
+            <table class="o_has_total_table table o_main_table table-borderless mb-0" name="bill_line_table">
+                <thead>
+                    <tr>
+                        <th name="th_description" class="text-start"><span>Description</span></th>
+                        <th name="th_detail" class="text-start"><span>Detail / Counter</span></th>
+                        <th name="th_date" class="text-start"><span>Date</span></th>
+                        <th name="th_quantity" class="text-end"><span>Quantity</span></th>
+                        <th name="th_priceunit" class="text-end"><span>Unit Price</span></th>
+                        <th name="th_subtotal" class="text-end"><span>Amount</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="bill_groups" t-as="g">
+                        <tr class="fw-bold o_line_section">
+                            <td colspan="5"><span t-out="g['label']">Rooms</span></td>
+                            <td class="text-end o_price_total">
+                                <span t-out="g['subtotal']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/>
+                            </td>
+                        </tr>
+                        <t t-foreach="g['rows']" t-as="r">
+                            <tr>
+                                <td><span t-out="r['description']">SIMBA</span></td>
+                                <td><span t-out="r['detail']">1 night(s)</span></td>
+                                <td><span t-out="r['date']" t-options='{"widget": "datetime"}'/></td>
+                                <td class="text-end"><span t-out="r['qty']" class="text-nowrap">1.0</span></td>
+                                <td class="text-end"><span t-out="r['unit']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/></td>
+                                <td class="text-end o_price_total"><span t-out="r['total']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/></td>
+                            </tr>
+                        </t>
+                    </t>
+                </tbody>
+            </table>
+        </div>
+        <div class="row mt-4">
+            <div class="col-7"/>
+            <div class="col-5">
+                <table class="o_total_table table table-borderless avoid-page-break-inside" name="bill_total_table">
+                    <t t-foreach="bill_groups" t-as="g">
+                        <tr class="o_subtotal">
+                            <td><strong><span t-out="g['label']">Rooms</span></strong></td>
+                            <td class="text-end o_price_total">
+                                <span t-out="g['subtotal']" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/>
+                            </td>
+                        </tr>
+                    </t>
+                    <tr class="o_total">
+                        <td><strong>Total</strong></td>
+                        <td class="text-end o_price_total">
+                            <span t-out="booking.get_bill_summary_total()" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </template>
+    <!-- Booking Print-menu entry: full folio as it stands, pre-invoice
+         review for the guest. Same rendering as the combined bill. -->
+    <record id="action_report_booking_folio_bill" model="ir.actions.report">
+        <field name="name">Folio Bill</field>
+        <field name="model">room.booking</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hotel_management_odoo.report_booking_folio_bill</field>
+        <field name="print_report_name">('Folio Bill - %s' % object.name)</field>
+        <field name="binding_model_id" ref="model_room_booking"/>
+        <field name="binding_type">report</field>
+    </record>
+    <template id="report_booking_folio_bill">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="layout_document_title">
+                    Folio Bill <span t-field="o.name">BOOKING/00000</span>
+                </t>
+                <t t-set="address">
+                    <address class="mb-0" t-field="o.partner_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
+                </t>
+                <t t-call="web.external_layout"
+                    layout_document_title="layout_document_title"
+                    address="address">
+                    <div class="page mb-4">
+                        <div class="oe_structure"/>
+                        <div id="informations" class="row mb-4">
+                            <div class="col" name="booking">
+                                <strong>Booking</strong>
+                                <div t-field="o.name">BOOKING/00000</div>
+                            </div>
+                            <div class="col" name="checkin">
+                                <strong>Check-in</strong>
+                                <div t-field="o.checkin_date" t-options='{"widget": "date"}'>2026-01-01</div>
+                            </div>
+                            <div class="col" name="checkout">
+                                <strong>Check-out</strong>
+                                <div t-field="o.checkout_date" t-options='{"widget": "date"}'>2026-01-02</div>
+                            </div>
+                        </div>
+                        <t t-set="booking" t-value="o"/>
+                        <t t-call="hotel_management_odoo.report_combined_bill_body"/>
                     </div>
                 </t>
             </t>
