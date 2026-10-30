@@ -891,6 +891,7 @@ class RoomBooking(models.Model):
         for record in self:
             record._check_transition('check_out')
             record._auto_post_stay_nights()
+            record._charge_pending_ancillaries(quiet=True)
             record._clear_future_folio_lines()
             record._release_rooms()
             record.with_context(hotel_allow_state_write=True).write({
@@ -1073,23 +1074,15 @@ class RoomBooking(models.Model):
             'context': "{'create': False}"
         }
 
-    def action_charge_ancillaries(self):
+    def _charge_pending_ancillaries(self, quiet=False):
         """Post unposted service/food/fleet/event lines to the open folio.
 
-        Requires check_in state and booking company == env company.
         Idempotent: only lines with folio_line_id == False are posted.
-        Zero unposted posts a 'nothing new' chatter note and still
-        returns the folio form action (no raise).
+        Returns the posted count. Chatters unless quiet (checkout
+        calls quiet so a no-ancillary stay leaves no noise); the
+        manual button announces including the nothing-new case.
         """
         self.ensure_one()
-        if self.state != 'check_in':
-            raise ValidationError(
-                _("Ancillaries can only be charged in Check-In state "
-                  "(booking %s is %s).") % (self.name, self.state))
-        if self.company_id.id != self.env.company.id:
-            raise ValidationError(
-                _("Booking %s belongs to %s; charge from that company.")
-                % (self.name, self.company_id.display_name))
         folio = self._ensure_folio()
         today = fields.Date.today()
         charger = self.env['hotel.charge.service']
@@ -1114,11 +1107,26 @@ class RoomBooking(models.Model):
                     {'tax_ids': [(6, 0, line.tax_ids.ids)]})
             line.write({'folio_line_id': folio_line.id})
             count += 1
-        if count:
+        if count and not quiet:
             self.message_post(
                 body="Charged %d ancillary line(s) to folio %s."
                 % (count, folio.id))
-        else:
+        return count
+
+    def action_charge_ancillaries(self):
+        """Manual mid-stay charge; checkout sweeps leftovers itself."""
+        self.ensure_one()
+        if self.state != 'check_in':
+            raise ValidationError(
+                _("Ancillaries can only be charged in Check-In state "
+                  "(booking %s is %s).") % (self.name, self.state))
+        if self.company_id.id != self.env.company.id:
+            raise ValidationError(
+                _("Booking %s belongs to %s; charge from that company.")
+                % (self.name, self.company_id.display_name))
+        count = self._charge_pending_ancillaries()
+        folio = self._ensure_folio()
+        if not count:
             self.message_post(
                 body="Charge Ancillaries: nothing new to post "
                      "to folio %s." % folio.id)

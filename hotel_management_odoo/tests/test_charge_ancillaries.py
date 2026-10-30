@@ -139,3 +139,28 @@ class TestChargeAncillaries(TransactionCase):
         self.assertNotEqual(bk.state, 'check_in')
         with self.assertRaises(ValidationError):
             bk.action_charge_ancillaries()
+
+    def test_checkout_sweeps_unposted_ancillaries(self):
+        bk = self._mk()
+        svc = self.env['hotel.service'].create(
+            {'name': 'Checkout Spa', 'unit_price': 40.0})
+        line = self.env['service.booking.line'].create(
+            {'booking_id': bk.id, 'service_id': svc.id, 'uom_qty': 1})
+        bk.action_checkout()  # no manual charge first
+        line.invalidate_recordset()
+        self.assertTrue(
+            line.folio_line_id,
+            "checkout must sweep unposted ancillaries to the folio")
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', bk.id), ('state', '=', 'open')])
+        self.assertTrue(folio.line_ids.filtered(
+            lambda l: l.source == 'service'))
+        posted = folio.invoice_ids.filtered(
+            lambda m: m.state == 'posted')
+        svc_total = sum(posted.invoice_line_ids.filtered(
+            lambda l: l.product_id.id
+            == line.folio_line_id.product_id.id
+        ).mapped('price_total'))
+        self.assertGreater(
+            svc_total, 0.0,
+            "checkout invoice must include the swept service")
