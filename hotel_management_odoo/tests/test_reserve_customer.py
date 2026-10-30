@@ -60,5 +60,12 @@ class TestReserveCustomer(TransactionCase):
             lambda m: m.action.res_model == 'res.partner')
         self.assertTrue(
             customer_leaves,
-            "Reservations menu must contain a Customers leaf opening "
+            "Reservations menu must contain a Guests leaf opening "
             "res.partner (no model change).")
+        menu = customer_leaves[:1]
+        self.assertEqual(menu.name, 'Guests')
+        import ast
+        ctx = ast.literal_eval(menu.action.context or '{}')
+        self.assertTrue(
+            ctx.get('default_is_hotel_guest'),
+            "Guests menu must default is_hotel_guest on create.")

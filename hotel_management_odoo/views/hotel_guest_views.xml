@@ -135,15 +135,15 @@
               action="hotel_document_type_action"/>
 
     <record id="hotel_customer_action" model="ir.actions.act_window">
-        <field name="name">Customers</field>
+        <field name="name">Guests</field>
         <field name="res_model">res.partner</field>
         <field name="view_mode">list,kanban,form</field>
         <field name="domain">[('type', '!=', 'private')]</field>
-        <field name="context">{'res_partner_search_mode': 'customer'}</field>
+        <field name="context">{'res_partner_search_mode': 'customer', 'default_is_hotel_guest': True}</field>
     </record>
 
     <menuitem id="hotel_customer_menu"
-              name="Customers"
+              name="Guests"
               sequence="10"
               parent="room_booking_menu"
               action="hotel_customer_action"/>
