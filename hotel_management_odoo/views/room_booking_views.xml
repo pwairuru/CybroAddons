@@ -31,7 +31,7 @@
                             string="Charge Ancillaries" type="object"
                             invisible="state != 'check_in'"/>
                     <button name="action_register_payment" string="Register Payment" type="object"
-                            class="btn-primary" invisible="state not in ['check_out', 'done']"/>
+                            class="btn-primary" invisible="state != 'check_out'"/>
                     <button name="action_done" string="Set as Done"
                             class="btn-primary"
                             invisible="state != 'check_out'" type="object"/>

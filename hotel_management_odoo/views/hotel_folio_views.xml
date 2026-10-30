@@ -83,7 +83,7 @@
                     <button name="action_post_invoice" string="Post"
                             invisible="state != 'open'" type="object"/>
                     <button name="action_register_payment" string="Register Payment"
-                            type="object" class="btn-primary"
+                            type="object"
                             invisible="state != 'open'"/>
                     <button name="action_apply_deposit"
                             string="Apply Deposit"
@@ -94,7 +94,7 @@
                     <button name="hotel_management_odoo.hotel_folio_split_action"
                             string="Split Bill"
                             invisible="state != 'open'"
-                            type="action" class="btn-primary"
+                            type="action"
                             context="{'default_folio_id': id}"/>
                     <button name="action_void" string="Void"
                             invisible="state != 'open'" type="object"/>

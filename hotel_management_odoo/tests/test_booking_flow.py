@@ -6,16 +6,20 @@ class TestBookingFlow(TransactionCase):
     def test_payment_carries_both_links(self):
         folio = self.env['hotel.folio'].create(
             {'partner_id': self.env.company.partner_id.id})
+        booking = self.env['room.booking'].create(
+            {'partner_id': folio.partner_id.id})
         move = folio.action_generate_draft_invoice()
         self.assertTrue(move)
+        move.write({'hotel_folio_id': folio.id,
+                    'hotel_booking_id': booking.id})
         pay = self.env['account.payment'].create({
             'payment_type': 'inbound',
             'partner_id': folio.partner_id.id,
             'amount': 10.0,
-            'hotel_folio_id': folio.id,
+            'invoice_ids': [(6, 0, move.ids)],
         })
         self.assertEqual(pay.hotel_folio_id.id, folio.id)
-        self.assertTrue(hasattr(pay, 'hotel_booking_id'))
+        self.assertEqual(pay.hotel_booking_id.id, booking.id)
 
     def test_deposit_cancel_and_refund(self):
         folio = self.env['hotel.folio'].create(
@@ -27,9 +31,12 @@ class TestBookingFlow(TransactionCase):
         dep2 = self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 1500.0})
         dep2.action_collect()
-        rev = dep2.action_refund()
+        rev = dep2.action_refund(reason="guest cancelled")
         self.assertEqual(dep2.state, 'refunded')
         self.assertTrue(rev)
+        self.assertEqual(dep2.reversal_move_id.id, rev.id)
+        again = dep2.action_refund()
+        self.assertEqual(again.id, rev.id)
 
     def _available_room(self):
         for room in self.env['product.template'].search(
@@ -71,6 +78,19 @@ class TestBookingFlow(TransactionCase):
                         "posted invoice must lock booking lines")
         with self.assertRaises(Exception):
             booking.action_done()
+        recept = self.env['res.users'].create({
+            'name': 'Flow Reception', 'login': 'flow-recept',
+            'group_ids': [(6, 0, [
+                self.env.ref('base.group_user').id,
+                self.env.ref(
+                    'hotel_management_odoo.hotel_group_reception').id,
+            ])],
+        })
+        # Gate must hold for reception (no journal access): without
+        # sudo() the move search would see nothing and unpaid Done
+        # would slip through.
+        with self.assertRaises(Exception):
+            booking.with_user(recept).action_done()
         pay = self.env['account.payment'].create({
             'payment_type': 'inbound',
             'partner_id': guest.id,
@@ -90,3 +110,4 @@ class TestBookingFlow(TransactionCase):
         self.assertIn('action_view_payments', arch)
         self.assertIn('action_register_payment', arch)
         self.assertIn('payment_count', arch)
+        self.assertIn('state != \'check_out\'', arch)

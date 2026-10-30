@@ -846,19 +846,21 @@ class RoomBooking(models.Model):
             record._check_transition('done')
             folio_ids = self.env['hotel.folio'].search(
                 [('booking_id', '=', record.id)]).ids
+            # sudo(): reception has no journal access, so a plain search
+            # would see zero moves and let an unpaid Done slip through.
             if folio_ids:
-                moves = self.env['account.move'].search(
+                moves = self.env['account.move'].sudo().search(
                     ['|', ('hotel_booking_id', '=', record.id),
                      ('hotel_folio_id', 'in', folio_ids),
                      ('move_type', '=', 'out_invoice')])
             else:
-                moves = self.env['account.move'].search(
+                moves = self.env['account.move'].sudo().search(
                     [('hotel_booking_id', '=', record.id),
                      ('move_type', '=', 'out_invoice')])
             unpaid_moves = moves.filtered(
                 lambda m: m.state == 'posted'
                 and m.payment_state in ('not_paid', 'partial'))
-            has_ledger = bool(self.env['hotel.city.ledger'].search(
+            has_ledger = bool(self.env['hotel.city.ledger'].sudo().search(
                 [('folio_id', 'in', folio_ids), ('state', '=', 'open')],
                 limit=1)) if folio_ids else False
             if unpaid_moves and not has_ledger:

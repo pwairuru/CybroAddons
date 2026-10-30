@@ -32,11 +32,15 @@ class HotelDeposit(models.Model):
                               help="Liability reversal entry posted at "
                               "settle time.")
     payment_move_id = fields.Many2one('account.move', string="Payment Entry",
-                                      readonly=True, ondelete="set null",
-                                      copy=False,
-                                      tracking=True,
-                                      help="Cash receipt posted at collect "
-                                      "time (Dr cash / Cr liability).")
+                                       readonly=True, ondelete="set null",
+                                       copy=False,
+                                       tracking=True,
+                                       help="Cash receipt posted at collect "
+                                       "time (Dr cash / Cr liability).")
+    reversal_move_id = fields.Many2one('account.move', string="Reversal Entry",
+                                       readonly=True, ondelete="set null",
+                                       copy=False,
+                                       help="Reversal posted by Refund.")
 
     @api.constrains('amount')
     def _check_amount(self):
@@ -122,19 +126,21 @@ class HotelDeposit(models.Model):
             body="Deposit %.2f cancelled." % self.amount)
         return True
 
-    def action_refund(self):
+    def action_refund(self, reason=None):
         self.ensure_one()
         if not self.payment_move_id:
             raise ValidationError("Nothing collected; cancel instead.")
         if self.state == 'refunded':
-            return self.payment_move_id
+            return self.reversal_move_id or self.payment_move_id
         rev = self.payment_move_id._reverse_moves(
             default_values_list=[{'ref': 'Deposit refund folio %s' % self.folio_id.id}])
         rev.action_post()
-        self.write({'state': 'refunded'})
-        self.folio_id.message_post(
-            body="Deposit %.2f refunded (%s)."
-            % (self.amount, rev.name or rev.id))
+        self.write({'state': 'refunded', 'reversal_move_id': rev.id})
+        msg = ("Deposit %.2f refunded (%s)."
+               % (self.amount, rev.name or rev.id))
+        if reason:
+            msg += " Reason: %s" % reason
+        self.folio_id.message_post(body=msg)
         return rev
 
     def apply(self):

@@ -51,6 +51,24 @@ class AccountPayment(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('hotel_folio_id') and vals.get('hotel_booking_id'):
+                continue
+            inv_ids = []
+            for key in ('invoice_ids', 'reconciled_invoice_ids',
+                        'reconciled_bill_ids'):
+                for cmd in vals.get(key) or []:
+                    if cmd[0] == 6:
+                        inv_ids += cmd[2]
+                    elif cmd[0] == 4:
+                        inv_ids.append(cmd[1])
+            if not inv_ids:
+                continue
+            inv = self.env['account.move'].sudo().browse(inv_ids[:1])
+            if not vals.get('hotel_folio_id') and inv.hotel_folio_id:
+                vals['hotel_folio_id'] = inv.hotel_folio_id.id
+            if not vals.get('hotel_booking_id') and inv.hotel_booking_id:
+                vals['hotel_booking_id'] = inv.hotel_booking_id.id
         recs = super().create(vals_list)
         for rec in recs:
             invs = rec.reconciled_invoice_ids
