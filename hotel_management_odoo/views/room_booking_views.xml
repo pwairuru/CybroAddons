@@ -417,4 +417,10 @@
     <menuitem id="room_booking_menu" name="Reservation" sequence="10"
               parent="hotel_management_menu_root"
               action="room_booking_action"/>
+    <!--     Leaf opening the booking view: navbar never fires parent-menu
+          actions (see navbar.xml MenuSlot/SectionMenu), so a menu with
+          children (Folios/Deposits/...) needs an explicit childless leaf. -->
+    <menuitem id="room_booking_menu_all" name="Reservations" sequence="1"
+              parent="room_booking_menu"
+              action="room_booking_action"/>
 </odoo>
