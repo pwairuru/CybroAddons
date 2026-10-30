@@ -111,3 +111,44 @@ class TestBookingFlow(TransactionCase):
         self.assertIn('action_register_payment', arch)
         self.assertIn('payment_count', arch)
         self.assertIn('state != \'check_out\'', arch)
+
+
+class TestQuoteExtras(TransactionCase):
+    def test_quote_includes_occupancy_extras(self):
+        co = self.env.company
+        rtype = self.env['hotel.room.type'].create(
+            {'name': 'QuoteFam', 'base_rate': 20000.0,
+             'adult_capacity': 2, 'child_capacity': 3,
+             'max_occupants': 5, 'charge_mode': 'per_person'})
+        rtype = self.env['hotel.room.type'].create(
+            {'name': 'QuoteFam2', 'base_rate': 20000.0,
+             'adult_capacity': 2, 'child_capacity': 3,
+             'max_occupants': 5, 'charge_mode': 'per_room'})
+        meal_ro = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        period = self.env['hotel.rate.period'].create(
+            {'name': 'QuoteH', 'start_md': '01-01', 'end_md': '12-31',
+             'sequence': 10, 'priority': 10, 'company_id': co.id})
+        self.env['hotel.rate.plan'].create(
+            {'name': 'QuoteBB', 'code': 'BB', 'company_id': co.id})
+        self.env['hotel.rate.line'].create(
+            {'company_id': co.id, 'period_id': period.id,
+             'room_type_id': rtype.id, 'meal_plan_id': meal_ro.id,
+             'price': 20000.0, 'included_adults': 2,
+             'included_children': 0, 'extra_adult_mode': 'fixed',
+             'extra_adult_value': 3000.0})
+        room = self.env['product.template'].create(
+            {'name': 'Quote-101', 'is_room': True, 'num_person': 5,
+             'list_price': 20000.0, 'room_type_id': rtype.id})
+        booking = self.env['room.booking'].create({
+            'partner_id': self.env.company.partner_id.id,
+            'company_id': co.id, 'meal_plan': 'BB',
+            'checkin_date': '2027-05-01 14:00:00',
+            'checkout_date': '2027-05-02 11:00:00'})
+        line = self.env['room.booking.line'].create({
+            'booking_id': booking.id, 'room_id': room.id,
+            'checkin_date': '2027-05-01 14:00:00',
+            'checkout_date': '2027-05-02 11:00:00',
+            'adults': 3, 'company_id': co.id})
+        self.assertEqual(line.price_unit, 23000.0)
+        self.assertEqual(line.extra_per_night, 3000.0)

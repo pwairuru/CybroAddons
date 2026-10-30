@@ -149,7 +149,8 @@ class RoomBookingLine(models.Model):
             line.rate_line_id = d.get('line_id') or d.get('rule_id') or False
             line.rate_net = d.get('net', 0.0)
             line.rate_breakdown = str(d.get('lines', []))
-            line.price_unit = d.get('resolved', line.price_unit)
+            # Quote carries the full nightly net (base + occupancy extras); posting still itemizes base via 'resolved' + band lines.
+            line.price_unit = d.get('net', line.price_unit)
 
     @api.constrains('adults', 'children', 'toddlers')
     def _check_pax(self):
@@ -276,7 +277,8 @@ class RoomBookingLine(models.Model):
                 booking=booking)
         except Exception:
             return None
-        return float(detailed.get('resolved', 0.0))
+        # Quote carries the full nightly net (base + occupancy extras); posting still itemizes base via 'resolved' + band lines.
+        return float(detailed.get('net', 0.0))
 
     @api.onchange("checkin_date", "checkout_date")
     def _onchange_checkin_date(self):
