@@ -890,6 +890,7 @@ class RoomBooking(models.Model):
         still proceeds; the cashier voids the folio separately."""
         for record in self:
             record._check_transition('check_out')
+            record._auto_post_stay_nights()
             record._clear_future_folio_lines()
             record._release_rooms()
             record.with_context(hotel_allow_state_write=True).write({
@@ -917,6 +918,46 @@ class RoomBooking(models.Model):
             record.flush_recordset()
             record.invalidate_recordset(['invoice_status'])
             record.room_line_ids._compute_locked()
+
+    def _auto_post_stay_nights(self):
+        """Post consumed room nights missing from the folio.
+
+        Runs at checkout so the invoice always covers the stay even
+        when Post Stay was never clicked. post_stay_nights dedups on
+        (folio, product, hotel date, room), so audit-posted nights
+        are skipped and re-runs are safe. Rate failures raise while
+        still check_in (rooms held, nothing stranded).
+        """
+        self.ensure_one()
+        folio = self._ensure_folio()
+        plan = self.env['hotel.rate.plan']._plan_for_booking(self)
+        if not plan:
+            self.message_post(body="Checkout auto-post skipped: no rate plan.")
+            return self.env['hotel.folio.line'].browse()
+        lines = self.env['hotel.folio.line'].browse()
+        engine = self.env['hotel.rate.engine']
+        for rline in self.room_line_ids:
+            if not rline.room_id or not rline.checkin_date \
+                    or not rline.checkout_date:
+                continue
+            try:
+                posted = engine.post_stay_nights(
+                    folio.id, rline.room_id.id,
+                    fields.Date.to_string(rline.checkin_date.date()),
+                    fields.Date.to_string(rline.checkout_date.date()),
+                    plan.id, adults=rline.adults or 0,
+                    children=rline.children or 0)
+            except ValidationError:
+                raise ValidationError(
+                    _("Checkout blocked for %s: %s has no rate "
+                      "for the stay; price it before checkout.")
+                    % (self.name, rline.room_id.display_name))
+            lines |= posted
+        if lines:
+            self.message_post(
+                body="Checkout auto-posted %d night line(s)."
+                % len(lines))
+        return lines
 
     def _clear_future_folio_lines(self):
         """Delete open-folio lines past today not yet invoiced.

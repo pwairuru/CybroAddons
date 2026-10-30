@@ -152,3 +152,62 @@ class TestQuoteExtras(TransactionCase):
             'adults': 3, 'company_id': co.id})
         self.assertEqual(line.price_unit, 23000.0)
         self.assertEqual(line.extra_per_night, 3000.0)
+
+
+class TestCheckoutAutoPost(TransactionCase):
+    def _rate_setup(self, co, rtype, meal):
+        period = self.env['hotel.rate.period'].create(
+            {'name': 'AutoH', 'start_md': '01-01', 'end_md': '12-31',
+             'sequence': 10, 'priority': 10, 'company_id': co.id})
+        self.env['hotel.rate.plan'].create(
+            {'name': 'AutoBB', 'code': 'BB', 'company_id': co.id})
+        self.env['hotel.rate.line'].create(
+            {'company_id': co.id, 'period_id': period.id,
+             'room_type_id': rtype.id, 'meal_plan_id': meal.id,
+             'price': 20000.0, 'included_adults': 2,
+             'included_children': 0, 'extra_adult_mode': 'fixed',
+             'extra_adult_value': 3000.0})
+
+    def test_checkout_posts_unposted_nights(self):
+        from datetime import timedelta
+        from odoo import fields
+        co = self.env.company
+        rtype = self.env['hotel.room.type'].create(
+            {'name': 'AutoFam', 'base_rate': 20000.0,
+             'adult_capacity': 2, 'child_capacity': 3,
+             'max_occupants': 5, 'charge_mode': 'per_room'})
+        meal = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        self._rate_setup(co, rtype, meal)
+        room = self.env['product.template'].create(
+            {'name': 'Auto-101', 'is_room': True, 'num_person': 5,
+             'list_price': 20000.0, 'room_type_id': rtype.id})
+        now = fields.Datetime.now()
+        # Stay already consumed (yesterday -> today): posted nights
+        # have hotel_date <= today so early-checkout clearing keeps
+        # them; a future stay would be cleared as un-stayed.
+        booking = self.env['room.booking'].create({
+            'partner_id': self.env.company.partner_id.id,
+            'company_id': co.id, 'meal_plan': 'BB',
+            'checkin_date': now + timedelta(days=-1),
+            'checkout_date': now})
+        self.env['room.booking.line'].create({
+            'booking_id': booking.id, 'room_id': room.id,
+            'checkin_date': now + timedelta(days=-1),
+            'checkout_date': now,
+            'adults': 2, 'company_id': co.id})
+        booking.action_reserve()
+        booking.action_checkin()
+        booking.action_checkout()
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', booking.id)], limit=1)
+        room_lines = folio.line_ids.filtered(
+            lambda l: l.product_id.id == room.product_variant_id.id)
+        self.assertTrue(room_lines, "checkout must post room nights")
+        posted = folio.invoice_ids.filtered(
+            lambda m: m.state == 'posted')
+        self.assertTrue(posted, "checkout must invoice posted nights")
+        room_total = sum(posted.invoice_line_ids.filtered(
+            lambda l: l.product_id.id == room.product_variant_id.id
+        ).mapped('price_total'))
+        self.assertGreater(room_total, 0.0)

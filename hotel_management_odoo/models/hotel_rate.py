@@ -1009,8 +1009,11 @@ class HotelRateEngine(models.AbstractModel):
                                 'board': detailed.get('board', 0.0),
                                 'net': detailed['resolved'],
                                 'tax': line.price_tax or 0.0,
-                                'source_rule_id':
-                                    detailed['rule_id'] or False,
+                                # Rate-line basis: detailed['rule_id']
+                                # holds a hotel.rate.line id, not a
+                                # hotel.rate.rule id, so leave the
+                                # rule link empty (band lines do same).
+                                'source_rule_id': False,
                             })
                         folio.message_post(body=(
                             "Base charge repriced %.2f -> %.2f on %s "
@@ -1048,7 +1051,8 @@ class HotelRateEngine(models.AbstractModel):
                     'board': detailed.get('board', 0.0),
                     'net': detailed['resolved'],
                     'tax': line.price_tax or 0.0,
-                    'source_rule_id': detailed['rule_id'] or False,
+                    # See above: rule link stays empty on rate-line basis.
+                    'source_rule_id': False,
                     'override': False,
                 })
             for bline, bproduct in bands_by_day[day]:
