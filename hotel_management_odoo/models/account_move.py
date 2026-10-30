@@ -19,7 +19,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class AccountMove(models.Model):
@@ -45,3 +45,17 @@ class AccountPayment(models.Model):
     hotel_folio_id = fields.Many2one('hotel.folio', string="Folio",
                                      index=True, ondelete="set null",
                                      help="Folio this payment applies to.")
+    hotel_booking_id = fields.Many2one('room.booking', string="Booking",
+                                       index=True, ondelete="set null",
+                                       help="Booking this payment applies to.")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        recs = super().create(vals_list)
+        for rec in recs:
+            invs = rec.reconciled_invoice_ids
+            if invs and not rec.hotel_folio_id:
+                rec.hotel_folio_id = invs[:1].hotel_folio_id
+            if invs and not rec.hotel_booking_id:
+                rec.hotel_booking_id = invs[:1].hotel_booking_id
+        return recs

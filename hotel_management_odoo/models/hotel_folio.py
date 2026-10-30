@@ -246,6 +246,35 @@ class HotelFolio(models.Model):
                 body="Invoice %s posted." % (move.name or move.id))
         return move
 
+    def _linked_payments(self):
+        self.ensure_one()
+        domain = [('hotel_folio_id', '=', self.id)]
+        if self.booking_id:
+            domain = ['|', ('hotel_folio_id', '=', self.id),
+                      ('hotel_booking_id', '=', self.booking_id.id)]
+        return self.env['account.payment'].sudo().search(domain)
+
+    def action_register_payment(self):
+        self.ensure_one()
+        moves = self.invoice_ids.filtered(
+            lambda m: m.move_type == 'out_invoice' and m.state == 'posted'
+            and m.payment_state != 'paid')
+        if not moves:
+            raise ValidationError("No unpaid posted invoice for folio %s." % self.id)
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Register Payment',
+            'res_model': 'account.payment.register',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'active_model': 'account.move',
+                'active_ids': moves.ids,
+                'default_hotel_folio_id': self.id,
+                'default_hotel_booking_id': self.booking_id.id or False,
+            },
+        }
+
     def action_apply_deposit(self):
         """Apply draft deposits via the liability account (no negatives).
 
