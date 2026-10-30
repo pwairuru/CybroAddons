@@ -111,6 +111,8 @@
                 <field name="room_type_id"/>
                 <field name="num_person"/>
                 <field name="list_price" widget="monetary"/>
+                <button name="action_reserve_room" type="object"
+                        string="Reserve" class="btn-primary"/>
             </list>
         </field>
     </record>
@@ -159,6 +161,11 @@
                                         <field name="list_price"
                                                widget="monetary"/>
                                     </strong>
+                                </div>
+                                <div>
+                                    <button name="action_reserve_room"
+                                            type="object" string="Reserve"
+                                            class="btn btn-primary btn-sm"/>
                                 </div>
                             </div>
                         </div>

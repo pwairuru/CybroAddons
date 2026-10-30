@@ -87,6 +87,23 @@ class ProductTemplate(models.Model):
             else:
                 room.avatar_128 = False
 
+    def action_reserve_room(self):
+        """Open the reservation form for this room. Navigation-only:
+        creates nothing and mutates nothing; the clerk completes the
+        booking in the form."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Reserve %s') % self.display_name,
+            'res_model': 'room.booking',
+            'view_mode': 'form',
+            'views': [(False, 'form')],
+            'target': 'current',
+            'context': {
+                'default_room_line_ids': [(0, 0, {'room_id': self.id})],
+            },
+        }
+
     @api.constrains("num_person")
     def _check_capacity(self):
         """Check capacity function"""

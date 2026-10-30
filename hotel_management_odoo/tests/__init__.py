@@ -35,3 +35,4 @@ from . import test_rate_line
 from . import test_rate_line_multiroom
 from . import test_booking_flow
 from . import test_reservation_menu
+from . import test_reserve_customer

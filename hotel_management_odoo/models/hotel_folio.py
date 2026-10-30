@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
+from odoo.addons.base.models.avatar_mixin import generate_text_avatar_svg
 from odoo.exceptions import ValidationError
 
 
@@ -73,6 +74,30 @@ class HotelFolio(models.Model):
                                   store=True, tracking=True)
     amount_due = fields.Float(string="Balance Due", compute='_compute_totals',
                                store=True, tracking=True)
+
+    @api.depends('partner_id.name', 'partner_id.avatar_128', 'image_128')
+    def _compute_avatar_128(self):
+        """Show the customer letter (partner avatar) on folio cards."""
+        for rec in self:
+            if rec.image_128:
+                rec.avatar_128 = rec.image_128
+            elif rec.partner_id and rec.partner_id.avatar_128:
+                rec.avatar_128 = rec.partner_id.avatar_128
+            elif rec.partner_id and rec.partner_id.name:
+                rec.avatar_128 = generate_text_avatar_svg(
+                    rec.partner_id.name[:1].upper(), rec.partner_id.name)
+            elif rec.name:
+                rec.avatar_128 = generate_text_avatar_svg(
+                    rec.name[:1].upper(), rec.name)
+            else:
+                rec.avatar_128 = False
+
+    def _avatar_generate_svg(self):
+        self.ensure_one()
+        name = (self.partner_id.name if self.partner_id else None) or self.name
+        if not name:
+            return super()._avatar_generate_svg()
+        return generate_text_avatar_svg(name[:1].upper(), name)
 
     @api.model_create_multi
     def create(self, vals_list):
