@@ -151,8 +151,7 @@ class PosOrder(models.Model):
         if self.booking_id.state not in ('reserved', 'check_in'):
             return FolioLine.browse()
         pays = self.payment_ids
-        if not pays or not all(
-                p.payment_method_id.is_hotel_charge for p in pays):
+        if not self._is_fully_hotel_charge():
             if self.booking_id and pays and any(
                     p.payment_method_id.is_hotel_charge for p in pays):
                 self.booking_id.message_post(
