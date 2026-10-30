@@ -610,7 +610,7 @@ class RoomBooking(models.Model):
         'draft': ('reserved', 'cancel'),
         'reserved': ('check_in', 'cancel'),
         'check_in': ('check_out',),
-        'check_out': ('done',),
+        'check_out': ('done', 'check_in'),
         'cancel': (),
         'done': (),
     }
@@ -918,6 +918,55 @@ class RoomBooking(models.Model):
             record.flush_recordset()
             record.invalidate_recordset(['invoice_status'])
             record.room_line_ids._compute_locked()
+
+    def action_reopen(self):
+        """Back out of an accidental checkout (check_out -> check_in).
+
+        Allowed only while nothing is posted: any posted linked move
+        (invoice, entry, deposit reversal) means money moved and the
+        fix is a credit note, not a state flip. Draft auto-invoices
+        are cancelled, not blocking. Rooms are re-held with a fresh
+        availability check since checkout released them.
+        """
+        self.ensure_one()
+        self._check_transition('check_in')
+        folio_ids = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id)]).ids
+        if folio_ids:
+            domain = ['|', ('hotel_booking_id', '=', self.id),
+                      ('hotel_folio_id', 'in', folio_ids)]
+        else:
+            domain = [('hotel_booking_id', '=', self.id)]
+        moves = self.env['account.move'].sudo().search(domain)
+        posted = moves.filtered(lambda m: m.state == 'posted')
+        if posted:
+            raise ValidationError(
+                _("Cannot reopen %s: %s already posted; "
+                  "credit or reverse it first.")
+                % (self.name, ', '.join(
+                    posted.mapped(lambda m: m.name or 'Draft'))))
+        for draft in moves.filtered(lambda m: m.state == 'draft'):
+            draft.button_cancel()
+        collected = self.env['hotel.deposit'].search([
+            ('folio_id', 'in', folio_ids or [0]),
+            ('payment_move_id', '!=', False),
+            ('state', '!=', 'refunded'),
+        ])
+        if collected:
+            raise ValidationError(
+                _("Cannot reopen %s: deposits already collected; "
+                  "refund them first.") % self.name)
+        for rline in self.room_line_ids:
+            self._check_room_available(
+                rline.room_id, rline.checkin_date,
+                rline.checkout_date, ignore_booking=self)
+        self._hold_rooms('occupied')
+        self.with_context(hotel_allow_state_write=True).write({
+            'state': 'check_in', 'is_checkin': True,
+            'actual_checkout_date': False,
+        })
+        self.message_post(body="Checkout reversed; back to Check-In.")
+        return True
 
     def _auto_post_stay_nights(self):
         """Post consumed room nights missing from the folio.

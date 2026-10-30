@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from odoo.exceptions import ValidationError
 from odoo.tests.common import TransactionCase
 
 
@@ -211,3 +212,77 @@ class TestCheckoutAutoPost(TransactionCase):
             lambda l: l.product_id.id == room.product_variant_id.id
         ).mapped('price_total'))
         self.assertGreater(room_total, 0.0)
+
+
+class TestCheckoutReopen(TransactionCase):
+    def _checked_out_booking(self, past=False):
+        from datetime import timedelta
+        from odoo import fields
+        co = self.env.company
+        rtype = self.env['hotel.room.type'].create(
+            {'name': 'ReopenFam', 'base_rate': 20000.0,
+             'adult_capacity': 2, 'child_capacity': 3,
+             'max_occupants': 5, 'charge_mode': 'per_room'})
+        meal = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        period = self.env['hotel.rate.period'].create(
+            {'name': 'ReopenH', 'start_md': '01-01', 'end_md': '12-31',
+             'sequence': 10, 'priority': 10, 'company_id': co.id})
+        self.env['hotel.rate.plan'].create(
+            {'name': 'ReopenBB', 'code': 'BB', 'company_id': co.id})
+        self.env['hotel.rate.line'].create(
+            {'company_id': co.id, 'period_id': period.id,
+             'room_type_id': rtype.id, 'meal_plan_id': meal.id,
+             'price': 20000.0, 'included_adults': 2,
+             'included_children': 0})
+        room = self.env['product.template'].create(
+            {'name': 'Reopen-101', 'is_room': True, 'num_person': 5,
+             'list_price': 20000.0, 'room_type_id': rtype.id})
+        now = fields.Datetime.now()
+        if past:
+            # Consumed stay: checkout auto-posts an invoice.
+            start, end = now + timedelta(days=-1), now
+        else:
+            # Future stay: nights are cleared as un-stayed, checkout
+            # posts nothing, so reopen is allowed.
+            start, end = (now + timedelta(days=1),
+                          now + timedelta(days=2))
+        booking = self.env['room.booking'].create({
+            'partner_id': self.env.company.partner_id.id,
+            'company_id': co.id, 'meal_plan': 'BB',
+            'checkin_date': start,
+            'checkout_date': end})
+        self.env['room.booking.line'].create({
+            'booking_id': booking.id, 'room_id': room.id,
+            'checkin_date': start,
+            'checkout_date': end,
+            'adults': 2, 'company_id': co.id})
+        booking.action_reserve()
+        booking.action_checkin()
+        booking.action_checkout()
+        return booking
+
+    def test_reopen_clean_checkout(self):
+        booking = self._checked_out_booking()
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', booking.id)], limit=1)
+        for move in folio.invoice_ids.filtered(
+                lambda m: m.state == 'draft'):
+            move.button_cancel()
+        self.assertTrue(booking.action_reopen())
+        self.assertEqual(booking.state, 'check_in')
+        self.assertTrue(booking.is_checkin)
+        self.assertFalse(booking.actual_checkout_date)
+        room = booking.room_line_ids.room_id
+        self.assertEqual(room.status, 'occupied')
+
+    def test_reopen_refuses_posted_invoice(self):
+        booking = self._checked_out_booking(past=True)
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', booking.id)], limit=1)
+        posted = folio.invoice_ids.filtered(
+            lambda m: m.state == 'posted')
+        self.assertTrue(posted, "checkout must have posted an invoice")
+        with self.assertRaises(ValidationError):
+            booking.action_reopen()
+        self.assertEqual(booking.state, 'check_out')

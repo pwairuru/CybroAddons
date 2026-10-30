@@ -35,6 +35,8 @@
                     <button name="action_done" string="Set as Done"
                             class="btn-primary"
                             invisible="state != 'check_out'" type="object"/>
+                    <button name="action_reopen" string="Back to Check-In" type="object"
+                            invisible="state != 'check_out'"/>
                     <button name="action_invoice" string="Create Invoice"
                             type="object" class="btn-primary"
                             invisible="1"/>
