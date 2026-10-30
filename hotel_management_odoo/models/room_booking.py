@@ -849,10 +849,12 @@ class RoomBooking(models.Model):
             if folio_ids:
                 moves = self.env['account.move'].search(
                     ['|', ('hotel_booking_id', '=', record.id),
-                     ('hotel_folio_id', 'in', folio_ids)])
+                     ('hotel_folio_id', 'in', folio_ids),
+                     ('move_type', '=', 'out_invoice')])
             else:
                 moves = self.env['account.move'].search(
-                    [('hotel_booking_id', '=', record.id)])
+                    [('hotel_booking_id', '=', record.id),
+                     ('move_type', '=', 'out_invoice')])
             unpaid_moves = moves.filtered(
                 lambda m: m.state == 'posted'
                 and m.payment_state in ('not_paid', 'partial'))
@@ -881,9 +883,9 @@ class RoomBooking(models.Model):
     def action_checkout(self):
         """Check out: clears uninvoiced future folio lines, frees rooms,
         stamps the actual checkout time, auto-posts the folio invoice.
-        The booked line dates are never mutated. An empty folio posts
-        nothing (no empty invoice) but checkout still proceeds; the
-        cashier voids the folio separately."""
+        The booked line dates are never mutated. A folio with no
+        uninvoiced charges posts nothing (no empty invoice) but checkout
+        still proceeds; the cashier voids the folio separately."""
         for record in self:
             record._check_transition('check_out')
             record._clear_future_folio_lines()
@@ -893,15 +895,26 @@ class RoomBooking(models.Model):
                 "actual_checkout_date": fields.Datetime.now(),
             })
             folio = record._ensure_folio()
-            if folio.line_ids:
+            pending = folio.line_ids.filtered(
+                lambda l: (l.quantity - (l.invoiced_qty or 0.0)) > 0.0)
+            if pending:
                 posted_move = folio.action_post_invoice()
                 record.message_post(
                     body="Checkout posted %s."
                     % (posted_move.name or posted_move.id))
             else:
                 record.message_post(
-                    body="Checkout with no folio charges; "
+                    body="Checkout with no uninvoiced charges; "
                          "no invoice posted.")
+            # invoice_status is non-stored so the stored room-line
+            # locked flag won't recompute on its own; flush it here.
+            # First post is the only False->True transition. Settle
+            # pending recomputes first (while lines are unlocked) so a
+            # later flush never trips _check_locked, then invalidate the
+            # possibly-cached pre-post status before flushing the lock.
+            record.flush_recordset()
+            record.invalidate_recordset(['invoice_status'])
+            record.room_line_ids._compute_locked()
 
     def _clear_future_folio_lines(self):
         """Delete open-folio lines past today not yet invoiced.

@@ -67,6 +67,8 @@ class TestBookingFlow(TransactionCase):
         self.assertTrue(posted, "checkout must auto-post an invoice")
         booking.invalidate_recordset()
         self.assertEqual(booking.invoice_status, 'invoiced')
+        self.assertTrue(all(line.locked for line in booking.room_line_ids),
+                        "posted invoice must lock booking lines")
         with self.assertRaises(Exception):
             booking.action_done()
         pay = self.env['account.payment'].create({
