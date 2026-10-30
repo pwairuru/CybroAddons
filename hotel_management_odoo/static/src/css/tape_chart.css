@@ -20,3 +20,6 @@
 .o_ahb_hk_pill { font-size: 10px; background: #f1f5f9; border-radius: 8px; padding: 1px 6px; color: #64748b; }
 .o_ahb_seg { border-radius: 6px; padding: 4px 8px; margin: 3px 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; cursor: pointer; min-height: 24px; }
 .o_ahb_seg_label { overflow: hidden; text-overflow: ellipsis; }
+.o_ahb_empty { min-height: 30px; border-bottom: 1px solid #f1f5f9; cursor: pointer; background: rgba(0, 0, 0, 0); z-index: 1; }
+.o_ahb_empty:hover { background: rgba(15, 23, 42, 0.08); }
+.o_ahb_seg { position: relative; z-index: 2; }

@@ -69,6 +69,18 @@ export class HotelTapeChart extends Component {
             res_model: 'room.booking', views: [[false, 'form']],
             res_id: bookingId, target: 'current' });
     }
+    openNewBooking(roomId, date) {
+        if (!roomId || !date) { return; }
+        const ci = date + ' 14:00:00';
+        const d = new Date(date + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() + 1);
+        const co = d.toISOString().slice(0, 10) + ' 12:00:00';
+        this.action.doAction({ type: 'ir.actions.act_window', name: 'Booking',
+            res_model: 'room.booking', views: [[false, 'form']],
+            target: 'current',
+            context: { default_checkin_date: ci, default_checkout_date: co,
+                default_room_line_ids: [[0, 0, { room_id: roomId, checkin_date: ci, checkout_date: co }]] } });
+    }
 }
 HotelTapeChart.template = 'HotelTapeChart';
 registry.category('actions').add('hotel_tape_chart', HotelTapeChart);
