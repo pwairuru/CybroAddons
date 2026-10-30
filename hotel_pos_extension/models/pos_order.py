@@ -52,6 +52,28 @@ class PosOrder(models.Model):
                 order.hotel_pos_status = order.state
 
 
+    def _is_fully_hotel_charge(self):
+        self.ensure_one()
+        pays = self.payment_ids
+        return bool(pays) and all(
+            p.payment_method_id.is_hotel_charge for p in pays)
+
+    def _ensure_hotel_invoice_flag(self):
+        """Folio is the sole bill for fully room-charged orders.
+
+        Suppresses the POS invoice (to_invoice=False) only when every
+        payment is a hotel-charge and the order is booking-linked.
+        Split tenders keep normal POS invoicing and are never
+        auto-posted (allocation ambiguous) — see
+        _post_hotel_folio_lines.
+        """
+        for order in self:
+            if order.booking_id and order._is_fully_hotel_charge():
+                if order.to_invoice:
+                    order.with_context(
+                        skip_hotel_invoice_flag=True).write(
+                            {'to_invoice': False})
+
     def _ensure_hotel_pos_line(self):
         """Ensure the booking shows the POS order under the 'POS Orders' tab.
 
@@ -87,12 +109,15 @@ class PosOrder(models.Model):
         """Create Hotel POS Line if the order is charged to a room"""
         orders = super().create(vals_list)
         orders._ensure_hotel_pos_line()
+        orders._ensure_hotel_invoice_flag()
         return orders
 
     def write(self, vals):
         """Update POS order and ensure booking linkage."""
         res = super().write(vals)
         self._ensure_hotel_pos_line()
+        if not self.env.context.get('skip_hotel_invoice_flag'):
+            self._ensure_hotel_invoice_flag()
         return res
 
     @api.model
@@ -125,8 +150,16 @@ class PosOrder(models.Model):
             return FolioLine.browse()
         if self.booking_id.state not in ('reserved', 'check_in'):
             return FolioLine.browse()
-        if not any(p.payment_method_id.is_hotel_charge
-                   for p in self.payment_ids):
+        pays = self.payment_ids
+        if not pays or not all(
+                p.payment_method_id.is_hotel_charge for p in pays):
+            if self.booking_id and pays and any(
+                    p.payment_method_id.is_hotel_charge for p in pays):
+                self.booking_id.message_post(
+                    body="POS %s has split tender (part room-charge); "
+                         "nothing auto-posted — split the ticket or "
+                         "charge the room part manually."
+                    % (self.pos_reference or self.name))
             return FolioLine.browse()
         folio = self.booking_id._ensure_folio()
         posted = FolioLine.browse()

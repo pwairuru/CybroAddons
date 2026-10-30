@@ -187,3 +187,92 @@ class TestHotelPosFolio(TransactionCase):
         self.assertAlmostEqual(
             sum(g['subtotal'] for g in groups),
             bk.get_bill_summary_total())
+
+    def test_fully_hotel_charge_suppresses_pos_invoice(self):
+        guest = self.env['res.partner'].create({'name': 'Suppress Guest'})
+        room = self._available_room()
+        bk = self.env['room.booking'].create({
+            'partner_id': guest.id,
+            'room_line_ids': [(0, 0, {'room_id': room.id,
+                                      'checkin_date': '2026-11-01 14:00:00',
+                                      'checkout_date': '2026-11-02 11:00:00'})],
+        })
+        bk.action_reserve()
+        bk.action_checkin()
+        pm = self.env['pos.payment.method'].search(
+            [('is_hotel_charge', '=', True)], limit=1)
+        sess = self.env['pos.session'].search(
+            [('state', '=', 'opened')], limit=1)
+        prod = self.env['product.product'].search(
+            [('available_in_pos', '=', True)], limit=1)
+        order = self._create_pos_order({
+            'session_id': sess.id, 'partner_id': guest.id,
+            'booking_id': bk.id, 'company_id': self.env.company.id,
+            'to_invoice': True,
+            'amount_tax': 0.0, 'amount_total': 10.0,
+            'amount_paid': 0.0, 'amount_return': 0.0,
+            'lines': [(0, 0, {'product_id': prod.id, 'qty': 2,
+                              'price_unit': 5.0, 'price_subtotal': 10.0,
+                              'price_subtotal_incl': 10.0})]})
+        order.add_payment({'pos_order_id': order.id,
+                           'payment_method_id': pm.id, 'amount': 10.0})
+        order.action_pos_order_paid()
+        self.assertFalse(order.to_invoice,
+                         "fully hotel-charge booking orders must not "
+                         "generate a POS invoice (folio is the sole bill)")
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', bk.id), ('state', '=', 'open')])
+        posted = self.env['hotel.folio.line'].search(
+            [('folio_id', '=', folio.id),
+             ('pos_order_id', '=', order.id)])
+        self.assertEqual(len(posted), 1)
+
+    def test_mixed_tender_posts_nothing_and_warns(self):
+        guest = self.env['res.partner'].create({'name': 'Mixed Guest'})
+        room = self._available_room()
+        bk = self.env['room.booking'].create({
+            'partner_id': guest.id,
+            'room_line_ids': [(0, 0, {'room_id': room.id,
+                                      'checkin_date': '2026-11-01 14:00:00',
+                                      'checkout_date': '2026-11-02 11:00:00'})],
+        })
+        bk.action_reserve()
+        bk.action_checkin()
+        pm = self.env['pos.payment.method'].search(
+            [('is_hotel_charge', '=', True)], limit=1)
+        sess = self.env['pos.session'].search(
+            [('state', '=', 'opened')], limit=1)
+        cash_pm = sess.config_id.payment_method_ids.filtered(
+            lambda m: not m.is_hotel_charge)[:1]
+        if not cash_pm:
+            cash_pm = self.env['pos.payment.method'].search(
+                [('is_hotel_charge', '=', False)], limit=1)
+            sess.config_id.write(
+                {'payment_method_ids': [(4, cash_pm.id)]})
+        self.assertTrue(cash_pm, "test needs a non-hotel POS payment method")
+        prod = self.env['product.product'].search(
+            [('available_in_pos', '=', True)], limit=1)
+        order = self._create_pos_order({
+            'session_id': sess.id, 'partner_id': guest.id,
+            'booking_id': bk.id, 'company_id': self.env.company.id,
+            'to_invoice': True,
+            'amount_tax': 0.0, 'amount_total': 10.0,
+            'amount_paid': 0.0, 'amount_return': 0.0,
+            'lines': [(0, 0, {'product_id': prod.id, 'qty': 2,
+                              'price_unit': 5.0, 'price_subtotal': 10.0,
+                              'price_subtotal_incl': 10.0})]})
+        order.add_payment({'pos_order_id': order.id,
+                           'payment_method_id': cash_pm.id, 'amount': 6.0})
+        order.add_payment({'pos_order_id': order.id,
+                           'payment_method_id': pm.id, 'amount': 4.0})
+        order.action_pos_order_paid()
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', bk.id), ('state', '=', 'open')])
+        posted = self.env['hotel.folio.line'].search(
+            [('folio_id', '=', folio.id),
+             ('pos_order_id', '=', order.id)])
+        self.assertFalse(posted,
+                         "split-tender orders must not auto-post "
+                         "(allocation is ambiguous)")
+        self.assertTrue(order.to_invoice,
+                        "split-tender orders keep normal POS invoicing")
