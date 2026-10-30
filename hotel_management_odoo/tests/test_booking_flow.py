@@ -82,3 +82,11 @@ class TestBookingFlow(TransactionCase):
         booking.invalidate_recordset()
         self.assertGreaterEqual(booking.payment_count, 1)
         self.assertGreater(booking.amount_due, 0.0)
+
+    def test_booking_views_have_payment_flow(self):
+        view = self.env.ref(
+            'hotel_management_odoo.room_booking_view_form')
+        arch = view.arch_db
+        self.assertIn('action_view_payments', arch)
+        self.assertIn('action_register_payment', arch)
+        self.assertIn('payment_count', arch)

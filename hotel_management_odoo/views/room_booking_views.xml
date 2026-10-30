@@ -12,26 +12,26 @@
                             class="btn-primary"/>
                     <button name="action_compute_bill" string="COMPUTE BILL"
                             invisible="state not in ['check_in', 'check_out', 'done']"
-                            type="object" class="btn-primary"/>
+                            type="object"/>
                     <button name="hotel_management_odoo.hotel_post_stay_action" string="Post Stay"
                             invisible="state not in ['reserved', 'check_in']"
-                            type="action" class="btn-primary"
+                            type="action"
                             context="{'default_booking_id': id}"/>
                     <button name="action_checkin" string="Check-In"
                             class="btn-primary"
-                            invisible="state not in ['draft', 'reserved']"
+                            invisible="state != 'reserved'"
                             type="object"/>
                     <button name="action_maintenance_request"
                             string="Maintenance Request" type="object"
-                            class="btn-primary"
                             invisible=" maintenance_request_sent == True or ( state not in ['check_in', 'reserved'])"/>
                     <button name="action_checkout" string="Check-Out"
                             class="btn-primary" invisible="state != 'check_in'"
                             type="object"/>
                     <button name="action_charge_ancillaries"
                             string="Charge Ancillaries" type="object"
-                            class="btn-primary"
                             invisible="state != 'check_in'"/>
+                    <button name="action_register_payment" string="Register Payment" type="object"
+                            class="btn-primary" invisible="state not in ['check_out', 'done']"/>
                     <button name="action_done" string="Set as Done"
                             class="btn-primary"
                             invisible="state != 'check_out'" type="object"/>
@@ -43,17 +43,21 @@
                             type="object" class="btn-secondary"/>
                     <field name="state" select="2" widget="statusbar"
                            statusbar_visible="draft,check_in,check_out,done"/>
-                    <field name="invoice_status" select="2" widget="statusbar"
-                           invisible="1"/>
+                    <field name="invoice_status" select="2" widget="statusbar"/>
                 </header>
                 <sheet>
                     <div name="button_box" position="inside">
                         <button class="oe_stat_button" type="object"
                                 name="action_view_invoices"
-                                invisible="invoice_status != 'invoiced'"
+                                invisible="invoice_count == 0"
                                 icon="fa-edit">
                             <field string="Invoices" name="invoice_count"
                                    widget="statinfo"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_payments"
+                                invisible="payment_count == 0" icon="fa-money">
+                            <field string="Payments" name="payment_count" widget="statinfo"/>
                         </button>
                         <button class="oe_stat_button" type="object"
                                 name="action_view_folio"

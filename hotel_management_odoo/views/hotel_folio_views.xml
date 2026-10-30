@@ -82,6 +82,9 @@
                             invisible="state != 'open'" type="object"/>
                     <button name="action_post_invoice" string="Post"
                             invisible="state != 'open'" type="object"/>
+                    <button name="action_register_payment" string="Register Payment"
+                            type="object" class="btn-primary"
+                            invisible="state != 'open'"/>
                     <button name="action_apply_deposit"
                             string="Apply Deposit"
                             invisible="state != 'open'" type="object"/>
