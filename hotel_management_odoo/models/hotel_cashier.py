@@ -14,8 +14,10 @@ class HotelDeposit(models.Model):
                                required=True, ondelete="cascade", index=True,
                                tracking=True)
     amount = fields.Float(string="Amount", required=True, tracking=True)
-    state = fields.Selection([('draft', 'Draft'), ('applied', 'Applied')],
-                             default='draft', required=True, tracking=True)
+    state = fields.Selection(
+        [('draft', 'Draft'), ('applied', 'Applied'),
+         ('cancelled', 'Cancelled'), ('refunded', 'Refunded')],
+        default='draft', required=True, tracking=True)
     company_id = fields.Many2one('res.company', string="Company",
                                  required=True, index=True,
                                  default=lambda self: self.env.company)
@@ -107,6 +109,33 @@ class HotelDeposit(models.Model):
             body="Deposit collected: %.2f (move %s)."
             % (self.amount, move.name or move.id))
         return move
+
+    def action_cancel_draft(self):
+        self.ensure_one()
+        if self.state != 'draft':
+            raise ValidationError("Only draft deposits can be cancelled.")
+        if self.payment_move_id:
+            raise ValidationError(
+                "Deposit already collected; use Refund instead.")
+        self.write({'state': 'cancelled'})
+        self.folio_id.message_post(
+            body="Deposit %.2f cancelled." % self.amount)
+        return True
+
+    def action_refund(self):
+        self.ensure_one()
+        if not self.payment_move_id:
+            raise ValidationError("Nothing collected; cancel instead.")
+        if self.state == 'refunded':
+            return self.payment_move_id
+        rev = self.payment_move_id._reverse_moves(
+            default_values_list=[{'ref': 'Deposit refund folio %s' % self.folio_id.id}])
+        rev.action_post()
+        self.write({'state': 'refunded'})
+        self.folio_id.message_post(
+            body="Deposit %.2f refunded (%s)."
+            % (self.amount, rev.name or rev.id))
+        return rev
 
     def apply(self):
         """Mark this deposit applied against its folio."""
