@@ -356,7 +356,7 @@ class RoomBookingLine(models.Model):
     @api.depends('booking_id.invoice_status')
     def _compute_locked(self):
         for line in self:
-            locked = line.booking_id.invoice_status == 'invoiced'
+            locked = line.booking_id.invoice_status in ('invoiced', 'paid')
             line.locked = locked
             line.booking_line_visible = locked
 

@@ -90,8 +90,9 @@ class RoomBooking(models.Model):
         selection=[('no_invoice', 'Nothing To Invoice'),
                    ('to_invoice', 'To Invoice'),
                    ('invoiced', 'Invoiced'),
-                   ], string="Invoice Status",
+                   ('paid', 'Paid')], string="Invoice Status",
         help="Status of the Invoice",
+        compute='_compute_invoice_count',
         default='no_invoice', tracking=True)
     hotel_invoice_id = fields.Many2one("account.move",
                                        string="Invoice",
@@ -208,6 +209,14 @@ class RoomBooking(models.Model):
                                    string="Invoice "
                                           "Count",
                                    help="The number of invoices created")
+    payment_count = fields.Integer(compute='_compute_invoice_count',
+                                   string="Payment Count",
+                                   help="Payments linked to this booking "
+                                        "or its folios.")
+    amount_due = fields.Float(compute='_compute_invoice_count',
+                              string="Amount Due",
+                              help="Residual of posted invoices linked "
+                                   "to this booking or its folios.")
     account_move = fields.Integer(string='Invoice Id',
                                   help="Id of the invoice created")
     amount_untaxed = fields.Monetary(string="Total Untaxed Amount",
@@ -369,12 +378,23 @@ class RoomBooking(models.Model):
             % (folio.id, folio.policy_snapshot or '-'))
         return folio
 
+    def _payment_domain(self):
+        """Domain covering payments/moves linked to this booking directly
+        or via any of its folios."""
+        self.ensure_one()
+        folio_ids = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id)]).ids
+        if folio_ids:
+            return ['|', ('hotel_booking_id', '=', self.id),
+                    ('hotel_folio_id', 'in', folio_ids)]
+        return [('hotel_booking_id', '=', self.id)]
+
     def _compute_invoice_count(self):
-        """Compute the invoice count via booking + folio links."""
+        """Compute invoice/payment counts, amount due and invoice status
+        via booking + folio links."""
         for record in self:
             folio_ids = self.env['hotel.folio'].search(
                 [('booking_id', '=', record.id)]).ids
-            domain = ['|', ('hotel_booking_id', '=', record.id)]
             if folio_ids:
                 domain = ['|', ('hotel_booking_id', '=', record.id),
                           ('hotel_folio_id', 'in', folio_ids)]
@@ -382,8 +402,23 @@ class RoomBooking(models.Model):
                 domain = [('hotel_booking_id', '=', record.id)]
             # Count only (no content): the booking form renders for
             # reception, who has no direct journal access.
-            record.invoice_count = self.env['account.move'].sudo() \
+            Move = self.env['account.move'].sudo()
+            record.invoice_count = Move.search_count(domain)
+            posted = Move.search(domain + [('move_type', '=', 'out_invoice'),
+                                           ('state', '=', 'posted')])
+            record.payment_count = self.env['account.payment'].sudo() \
                 .search_count(domain)
+            record.amount_due = sum(posted.mapped('amount_residual'))
+            if posted:
+                if all(m.payment_state == 'paid' for m in posted):
+                    record.invoice_status = 'paid'
+                else:
+                    record.invoice_status = 'invoiced'
+            elif folio_ids and self.env['hotel.folio.line'].search_count(
+                    [('folio_id', 'in', folio_ids)]):
+                record.invoice_status = 'to_invoice'
+            else:
+                record.invoice_status = 'no_invoice'
 
     @api.depends('partner_id', 'company_id')
     def _compute_pricelist_id(self):
@@ -819,8 +854,12 @@ class RoomBooking(models.Model):
                 moves = self.env['account.move'].search(
                     [('hotel_booking_id', '=', record.id)])
             unpaid_moves = moves.filtered(
-                lambda m: m.payment_state == 'not_paid')
-            if unpaid_moves:
+                lambda m: m.state == 'posted'
+                and m.payment_state in ('not_paid', 'partial'))
+            has_ledger = bool(self.env['hotel.city.ledger'].search(
+                [('folio_id', 'in', folio_ids), ('state', '=', 'open')],
+                limit=1)) if folio_ids else False
+            if unpaid_moves and not has_ledger:
                 invoice_names = ', '.join(
                     unpaid_moves.mapped(lambda m: m.name or 'Draft'))
                 raise ValidationError(
@@ -841,8 +880,10 @@ class RoomBooking(models.Model):
 
     def action_checkout(self):
         """Check out: clears uninvoiced future folio lines, frees rooms,
-        stamps the actual checkout time. The booked line dates are
-        never mutated."""
+        stamps the actual checkout time, auto-posts the folio invoice.
+        The booked line dates are never mutated. An empty folio posts
+        nothing (no empty invoice) but checkout still proceeds; the
+        cashier voids the folio separately."""
         for record in self:
             record._check_transition('check_out')
             record._clear_future_folio_lines()
@@ -851,6 +892,16 @@ class RoomBooking(models.Model):
                 "state": "check_out",
                 "actual_checkout_date": fields.Datetime.now(),
             })
+            folio = record._ensure_folio()
+            if folio.line_ids:
+                posted_move = folio.action_post_invoice()
+                record.message_post(
+                    body="Checkout posted %s."
+                    % (posted_move.name or posted_move.id))
+            else:
+                record.message_post(
+                    body="Checkout with no folio charges; "
+                         "no invoice posted.")
 
     def _clear_future_folio_lines(self):
         """Delete open-folio lines past today not yet invoiced.
@@ -993,6 +1044,27 @@ class RoomBooking(models.Model):
             'domain': domain,
             'context': "{'create': False}"
         }
+
+    def action_view_payments(self):
+        """Open payments linked to this booking directly or via folios."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Payments',
+            'view_mode': 'list,form',
+            'res_model': 'account.payment',
+            'domain': self._payment_domain(),
+            'context': "{'create': False}"
+        }
+
+    def action_register_payment(self):
+        """Booking-level Register Payment: delegates to the open folio."""
+        self.ensure_one()
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', self.id), ('state', '=', 'open')], limit=1)
+        if not folio:
+            raise ValidationError("Reserve first: no open folio.")
+        return folio.action_register_payment()
 
     def action_checkin(self):
         """
