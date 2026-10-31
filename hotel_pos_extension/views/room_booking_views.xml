@@ -47,4 +47,37 @@
             </xpath>
         </field>
     </record>
+    <!-- Cards/lists show Combined Total (quote + POS), the same bottom
+         line the form shows. Lives here (not base) because
+         amount_total_combined is defined by this module: base views
+         cannot reference dependent-module fields. -->
+    <record id="room_booking_view_tree_inherit_hotel_pos" model="ir.ui.view">
+        <field name="name">room.booking.view.tree.inherit.hotel.pos</field>
+        <field name="model">room.booking</field>
+        <field name="inherit_id"
+               ref="hotel_management_odoo.room_booking_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='amount_total']" position="replace">
+                <field name="amount_total_combined" string="Total"
+                       widget="monetary"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="room_booking_view_kanban_inherit_hotel_pos" model="ir.ui.view">
+        <field name="name">room.booking.view.kanban.inherit.hotel.pos</field>
+        <field name="model">room.booking</field>
+        <field name="inherit_id"
+               ref="hotel_management_odoo.room_booking_view_kanban"/>
+        <field name="arch" type="xml">
+            <xpath expr="/kanban/field[@name='amount_total']"
+                   position="replace">
+                <field name="amount_total_combined"/>
+            </xpath>
+            <xpath expr="//t[@t-name='card']//field[@name='amount_total']"
+                   position="replace">
+                <field name="amount_total_combined" string="Total"
+                       widget="monetary"/>
+            </xpath>
+        </field>
+    </record>
 </odoo>

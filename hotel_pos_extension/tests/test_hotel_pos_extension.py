@@ -88,3 +88,23 @@ class TestHotelPosExtension(TransactionCase):
             install_mode=True
         )._is_write_forbidden(['name'])
         self.assertFalse(result)
+
+
+@tagged('post_install', '-at_install')
+class TestReservationCardTotals(TransactionCase):
+    """Reservation kanban/list must render Combined Total (quote + POS),
+    the same bottom line the reservation form shows."""
+
+    def _effective_arch(self, xmlid):
+        view = self.env.ref(xmlid)
+        return self.env['room.booking'].get_view(view.id)['arch']
+
+    def test_kanban_card_shows_combined_total(self):
+        arch = self._effective_arch(
+            'hotel_management_odoo.room_booking_view_kanban')
+        self.assertIn('amount_total_combined', arch)
+
+    def test_list_shows_combined_total(self):
+        arch = self._effective_arch(
+            'hotel_management_odoo.room_booking_view_tree')
+        self.assertIn('amount_total_combined', arch)
