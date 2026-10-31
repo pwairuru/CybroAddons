@@ -19,7 +19,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import api, fields, models, tools, _
+from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
@@ -27,15 +27,8 @@ class ServiceBookingLine(models.Model):
     """Model that handles the service booking form"""
     _name = "service.booking.line"
     _description = "Hotel service Line"
+    _inherit = ['hotel.booking.line.mixin']
 
-    @tools.ormcache()
-    def _get_default_uom_id(self):
-        """Returns default product uom unit"""
-        return self.env.ref('uom.product_uom_unit')
-
-    booking_id = fields.Many2one("room.booking", string="Booking",
-                                 help="Indicates the Room Booking",
-                                 ondelete="cascade")
     service_id = fields.Many2one('hotel.service', string="Service",
                                  help="Indicates the Service")
     description = fields.Char(string='Description', related='service_id.name',
@@ -46,7 +39,7 @@ class ServiceBookingLine(models.Model):
     uom_id = fields.Many2one('uom.uom', readonly=True,
                              string="Unit of Measure",
                              help="This will set the unit of measure used",
-                             default=_get_default_uom_id)
+                             default=lambda self: self._get_default_unit_uom())
     price_unit = fields.Float(string='Price', related='service_id.unit_price',
                               digits='Product Price',
                               help="The price of the selected service.")
@@ -57,73 +50,16 @@ class ServiceBookingLine(models.Model):
                                help="Default taxes used when selling the "
                                     "services.",
                                domain=[('type_tax_use', '=', 'sale')])
-    currency_id = fields.Many2one(string='Currency',
-                                  related='booking_id.pricelist_id.currency_id',
-                                  help='The currency used')
-    price_subtotal = fields.Float(string="Subtotal",
-                                  compute='_compute_price_subtotal',
-                                  help="Total Price Excluding Tax",
-                                  store=True)
-    price_tax = fields.Float(string="Total Tax",
-                             compute='_compute_price_subtotal',
-                             help="Tax Amount",
-                             store=True)
-    price_total = fields.Float(string="Total",
-                               compute='_compute_price_subtotal',
-                               help="Total Price Including Tax",
-                               store=True)
-    state = fields.Selection(related='booking_id.state',
-                             string="Order Status",
-                             help=" Status of the Order",
-                             copy=False)
-    booking_line_visible = fields.Boolean(default=False,
-                                          string="Booking Line Visible",
-                                          help="If true, Booking line will be"
-                                               " visible")
-    folio_line_id = fields.Many2one('hotel.folio.line', string="Folio Line",
-                                    readonly=True, copy=False,
-                                    ondelete='set null',
-                                    help="Folio charge posted for this line.")
-
     def _charge_product(self):
         """Sellable product for folio charges."""
         self.ensure_one()
-        product = self.service_id.product_id
-        if not product:
+        if not self.service_id or not self.service_id.product_id:
             raise ValidationError(
                 _("Service line %s has no product (service %s).")
                 % (self.id, self.service_id.display_name or '-'))
-        return product
+        return self._charge_product_from_field('service_id.product_id')
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):
         """Compute the amounts of the room booking line."""
-        for line in self:
-            base_line = line._prepare_base_line_for_taxes_computation()
-            self.env['account.tax']._add_tax_details_in_base_line(base_line, self.env.company)
-            self.env['account.tax']._round_base_lines_tax_details([base_line], self.env.company)
-            line.price_subtotal = base_line['tax_details']['total_excluded_currency']
-            line.price_total = base_line['tax_details']['total_included_currency']
-            line.price_tax = line.price_total - line.price_subtotal
-            if self.env.context.get('import_file',
-                                    False) and not self.env.user. \
-                    user_has_groups('account.group_account_manager'):
-                line.tax_ids.invalidate_recordset(
-                    ['invoice_repartition_line_ids'])
-
-    def _prepare_base_line_for_taxes_computation(self):
-        """ Convert the current record to a dictionary in order to use the generic taxes computation method
-        defined on account.tax.
-
-        :return: A python dictionary.
-        """
-        self.ensure_one()
-        return self.env['account.tax']._prepare_base_line_for_taxes_computation(
-            self,
-            **{
-                'tax_ids': self.tax_ids,
-                'quantity': self.uom_qty,
-                'partner_id': self.booking_id.partner_id,
-                'currency_id': self.currency_id or self.env.company.currency_id,
-            },
-        )
+        self._compute_booking_line_amounts()

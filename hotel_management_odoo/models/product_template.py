@@ -26,12 +26,6 @@ class ProductTemplate(models.Model):
     _inherit = "product.template"
     _description = "Product Template"
 
-    @api.model
-    def _get_default_uom_id(self):
-        """Method for getting the default uom id"""
-        return self.env.ref('uom.product_uom_unit',
-                            raise_if_not_found=False)
-
     is_room = fields.Boolean(string="Room", help="is room", tracking=True)
     status = fields.Selection([("available", "Available"),
                                ("reserved", "Reserved"),

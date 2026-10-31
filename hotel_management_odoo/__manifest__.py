@@ -52,6 +52,7 @@
         'views/fleet_vehicle_model_views.xml',
         'wizard/hotel_post_stay_views.xml',
         'wizard/hotel_folio_split_views.xml',
+        'views/booking_line_lists.xml',
         'views/room_booking_views.xml',
         'views/maintenance_team_views.xml',
         'views/maintenance_request_views.xml',

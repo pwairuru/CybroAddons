@@ -19,7 +19,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import api, fields, models, tools, _
+from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
@@ -28,15 +28,8 @@ class FleetBookingLine(models.Model):
     _name = "fleet.booking.line"
     _description = "Hotel Fleet Line"
     _rec_name = 'fleet_id'
+    _inherit = ['hotel.booking.line.mixin']
 
-    @tools.ormcache()
-    def _get_default_uom_id(self):
-        """Method for getting the default uom id"""
-        return self.env.ref('uom.product_uom_km')
-
-    booking_id = fields.Many2one("room.booking", string="Booking",
-                                 ondelete="cascade",
-                                 help="Shows the room Booking")
     fleet_id = fields.Many2one('fleet.vehicle.model',
                                string="Vehicle",
                                help='Indicates the Vehicle')
@@ -48,9 +41,9 @@ class FleetBookingLine(models.Model):
                                 "the product")
     uom_id = fields.Many2one('uom.uom', readonly=True,
                              string="Unit of Measure",
-                             default=_get_default_uom_id, help="This will set "
-                                                               "the unit of"
-                                                               " measure used")
+                             default=lambda self: self._get_default_km_uom(), help="This will set "
+                                                              "the unit of"
+                                                              " measure used")
     price_unit = fields.Float(string='Rent/KM',
                               related='fleet_id.price_per_km',
                               digits='Product Price',
@@ -62,30 +55,6 @@ class FleetBookingLine(models.Model):
                                help="Default taxes used when renting the fleet"
                                     "models.",
                                domain=[('type_tax_use', '=', 'sale')])
-    currency_id = fields.Many2one(
-        related='booking_id.pricelist_id.currency_id',
-        string="Currency", help='The currency used')
-    price_subtotal = fields.Float(string="Subtotal",
-                                  compute='_compute_price_subtotal',
-                                  help="Total price excluding tax",
-                                  store=True)
-    price_tax = fields.Float(string="Total Tax",
-                             compute='_compute_price_subtotal',
-                             help="Total tax amount",
-                             store=True)
-    price_total = fields.Float(string="Total",
-                               compute='_compute_price_subtotal',
-                               help="Total Price Including Tax",
-                               store=True)
-    state = fields.Selection(related='booking_id.state',
-                             string="Order Status",
-                             help=" Status of the Order",
-                             copy=False)
-    folio_line_id = fields.Many2one('hotel.folio.line', string="Folio Line",
-                                    readonly=True, copy=False,
-                                    ondelete='set null',
-                                    help="Folio charge posted for this line.")
-
     def _charge_product(self):
         """Sellable product for folio charges.
 
@@ -97,59 +66,13 @@ class FleetBookingLine(models.Model):
         if not vehicle:
             raise ValidationError(
                 _("Fleet line %s has no vehicle selected.") % self.id)
-        company = self.booking_id.company_id or self.env.company
-        name = "Hotel: %s" % (vehicle.display_name or vehicle.name or '-')
-        product = self.env['product.product'].search([
-            ('name', '=', name),
-            ('company_id', 'in', (False, company.id)),
-            ('type', '=', 'service'),
-        ], limit=1)
-        if not product:
-            product = self.env['product.product'].create({
-                'name': name,
-                'type': 'service',
-                'list_price': self.price_unit or 0.0,
-                'sale_ok': True,
-                'purchase_ok': False,
-                'company_id': company.id,
-            })
-        if not product:
-            raise ValidationError(
-                _("Fleet line %s has no product.") % self.id)
-        return product
+        return self._charge_product_search_or_create(
+            'fleet', vehicle.display_name or vehicle.name or '-')
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):
         """Compute the amounts of the room booking line."""
-        for line in self:
-            base_line = line._prepare_base_line_for_taxes_computation()
-            self.env['account.tax']._add_tax_details_in_base_line(base_line, self.env.company)
-            self.env['account.tax']._round_base_lines_tax_details([base_line], self.env.company)
-            line.price_subtotal = base_line['tax_details']['total_excluded_currency']
-            line.price_total = base_line['tax_details']['total_included_currency']
-            line.price_tax = line.price_total - line.price_subtotal
-            if self.env.context.get('import_file',
-                                    False) and not self.env.user. \
-                    user_has_groups('account.group_account_manager'):
-                line.tax_ids.invalidate_recordset(
-                    ['invoice_repartition_line_ids'])
-
-    def _prepare_base_line_for_taxes_computation(self):
-        """ Convert the current record to a dictionary in order to use the generic taxes computation method
-        defined on account.tax.
-
-        :return: A python dictionary.
-        """
-        self.ensure_one()
-        return self.env['account.tax']._prepare_base_line_for_taxes_computation(
-            self,
-            **{
-                'tax_ids': self.tax_ids,
-                'quantity': self.uom_qty,
-                'partner_id': self.booking_id.partner_id,
-                'currency_id': self.currency_id or self.env.company.currency_id,
-            },
-        )
+        self._compute_booking_line_amounts()
 
     def search_available_vehicle(self):
         """Returns list of booked vehicles"""

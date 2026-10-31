@@ -2,6 +2,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .hotel_booking_line_mixin import _assign_tax_amounts
 from .hotel_business_date import _to_date
 
 ROUTINGS = ('to_guest', 'to_master', 'to_personal', 'to_company')
@@ -78,11 +79,7 @@ class HotelFolioLine(models.Model):
             self.env['account.tax']._round_base_lines_tax_details(
                 [base_line],
                 line.folio_id.company_id or self.env.company)
-            line.price_subtotal = base_line['tax_details'][
-                'total_excluded_currency']
-            line.price_total = base_line['tax_details'][
-                'total_included_currency']
-            line.price_tax = line.price_total - line.price_subtotal
+            _assign_tax_amounts(line, base_line)
 
     def _prepare_base_line_for_taxes_computation(self):
         self.ensure_one()

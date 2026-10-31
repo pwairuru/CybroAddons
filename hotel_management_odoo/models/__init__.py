@@ -19,6 +19,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
+from . import hotel_booking_line_mixin
 from . import room_booking
 from . import room_booking_line
 from . import product_template

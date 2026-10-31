@@ -32,14 +32,11 @@ class RoomBookingLine(models.Model):
     _name = "room.booking.line"
     _description = "Hotel Folio Line"
     _rec_name = 'room_id'
+    _inherit = ['hotel.booking.line.mixin']
 
     @api.model
     def _set_default_uom_id(self):
         return self.env.ref('uom.product_uom_day', raise_if_not_found=False)
-
-    booking_id = fields.Many2one("room.booking", string="Booking",
-                                 help="Indicates the Room",
-                                 ondelete="cascade")
     checkin_date = fields.Datetime(string="Check In",
                                    help="You can choose the date,"
                                         " Otherwise sets to current Date",
@@ -76,25 +73,6 @@ class RoomBookingLine(models.Model):
                                string='Taxes',
                                help="Default taxes used when selling the room."
                                , domain=[('type_tax_use', '=', 'sale')])
-    currency_id = fields.Many2one(string='Currency',
-                                  related='booking_id.pricelist_id.currency_id'
-                                  , help='The currency used')
-    price_subtotal = fields.Float(string="Subtotal",
-                                  compute='_compute_price_subtotal',
-                                  help="Total Price excluding Tax",
-                                  store=True)
-    price_tax = fields.Float(string="Total Tax",
-                             compute='_compute_price_subtotal',
-                             help="Tax Amount",
-                             store=True)
-    price_total = fields.Float(string="Total",
-                               compute='_compute_price_subtotal',
-                               help="Total Price including Tax",
-                               store=True)
-    state = fields.Selection(related='booking_id.state',
-                             string="Order Status",
-                             help=" Status of the Order",
-                             copy=False)
     company_id = fields.Many2one('res.company', string="Company",
                                  help="Choose the Company",
                                  required=True, index=True,
@@ -301,35 +279,7 @@ class RoomBookingLine(models.Model):
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):
         """Compute the amounts of the room booking line."""
-        for line in self:
-            base_line = line._prepare_base_line_for_taxes_computation()
-            self.env['account.tax']._add_tax_details_in_base_line(base_line, self.env.company)
-            self.env['account.tax']._round_base_lines_tax_details([base_line], self.env.company)
-            line.price_subtotal = base_line['tax_details']['total_excluded_currency']
-            line.price_total = base_line['tax_details']['total_included_currency']
-            line.price_tax = line.price_total - line.price_subtotal
-            if self.env.context.get('import_file',
-                                    False) and not self.env.user. \
-                    user_has_groups('account.group_account_manager'):
-                line.tax_ids.invalidate_recordset(
-                    ['invoice_repartition_line_ids'])
-
-    def _prepare_base_line_for_taxes_computation(self):
-        """ Convert the current record to a dictionary in order to use the generic taxes computation method
-        defined on account.tax.
-
-        :return: A python dictionary.
-        """
-        self.ensure_one()
-        return self.env['account.tax']._prepare_base_line_for_taxes_computation(
-            self,
-            **{
-                'tax_ids': self.tax_ids,
-                'quantity': self.uom_qty,
-                'partner_id': self.booking_id.partner_id,
-                'currency_id': self.currency_id or self.env.company.currency_id,
-            },
-        )
+        self._compute_booking_line_amounts()
 
     @api.depends('room_id', 'company_id', 'booking_id.company_id')
     def _compute_tax_ids(self):

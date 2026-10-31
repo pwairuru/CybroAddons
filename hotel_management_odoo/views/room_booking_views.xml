@@ -180,29 +180,7 @@
                         </page>
                         <page name="food" string="Food"
                               invisible="need_food == False ">
-                            <field name="food_order_line_ids" colspan="4"
-                                   string="Food Lines">
-                                <list editable="bottom">
-                                    <field name="food_id" string="Product"
-                                           required="1"
-                                           options="{'no_open': True,'no_create': True}"/>
-                                    <field name="description"/>
-                                    <field name="uom_qty" string="Qty"
-                                           force_save="1"/>
-                                    <field name="uom_id"
-                                           string="Unit of Measure"
-                                           options="{'no_open': True,'no_create': True}"/>
-                                    <field name="price_unit"/>
-                                    <field name="tax_ids"
-                                           options="{'no_create': True}"
-                                           widget="many2many_tags"/>
-                                    <field name="price_subtotal"
-                                           widget="monetary"/>
-                                    <field groups="account.group_account_manager"
-                                           name="price_total"
-                                           widget="monetary"/>
-                                </list>
-                            </field>
+                            <field name="food_order_line_ids" colspan="4" string="Food Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
                                 <field name="amount_untaxed_food"
@@ -218,29 +196,7 @@
                         </page>
                         <page name="service" string="Service"
                               invisible="need_service == False">
-                            <field name="service_line_ids" colspan="4"
-                                   string="Service Lines">
-                                <list editable="bottom">
-                                    <field name="service_id" string="Service"
-                                           required="1"
-                                           options="{'no_open': True,'no_create': True}"/>
-                                    <field name="description"/>
-                                    <field name="uom_qty" string="Qty"
-                                           force_save="1"/>
-                                    <field name="uom_id"
-                                           string="Unit of Measure"
-                                           options="{'no_open': True,'no_create': True}"/>
-                                    <field name="price_unit"/>
-                                    <field name="tax_ids"
-                                           options="{'no_create': True}"
-                                           widget="many2many_tags"/>
-                                    <field name="price_subtotal"
-                                           widget="monetary"/>
-                                    <field groups="account.group_account_manager"
-                                           name="price_total"
-                                           widget="monetary"/>
-                                </list>
-                            </field>
+                            <field name="service_line_ids" colspan="4" string="Service Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
                                 <field name="amount_untaxed_service"
@@ -256,29 +212,7 @@
                         </page>
                         <page name="fleet" string="Fleet"
                               invisible="need_fleet == False">
-                            <field name="vehicle_line_ids" colspan="4"
-                                   string="Fleet Lines">
-                                <list editable="bottom">
-                                    <field name="fleet_id" string="Vehicle"
-                                           required="1"
-                                           options="{'no_open': True,'no_create': True}"/>
-                                    <field name="description"/>
-                                    <field name="uom_qty" string="Allotted KM"
-                                           force_save="1"/>
-                                    <field name="uom_id"
-                                           string="Unit of Measure"
-                                           options="{'no_open': True, 'no_create': True}"/>
-                                    <field name="price_unit"/>
-                                    <field name="tax_ids"
-                                           options="{'no_create': True}"
-                                           widget="many2many_tags"/>
-                                    <field name="price_subtotal"
-                                           widget="monetary"/>
-                                    <field groups="account.group_account_manager"
-                                           name="price_total"
-                                           widget="monetary"/>
-                                </list>
-                            </field>
+                            <field name="vehicle_line_ids" colspan="4" string="Fleet Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
                                 <field name="amount_untaxed_fleet"
@@ -294,31 +228,7 @@
                         </page>
                         <page name="event" string="Events"
                               invisible=" need_event == False ">
-                            <field name="event_line_ids" colspan="4"
-                                   string="Event Lines">
-                                <list editable="bottom">
-                                    <field name="event_id" string="Event"
-                                           required="1"
-                                           options="{'no_open': True,'no_create': True}"/>
-                                    <field name="description"/>
-                                    <field name="ticket_id" string="Ticket"
-                                           required="1"/>
-                                    <field name="uom_qty" string="Qty"
-                                           force_save="1"/>
-                                    <field name="uom_id"
-                                           string="Unit of Measure"
-                                           options="{'no_open': True, 'no_create': True}"/>
-                                    <field name="price_unit"/>
-                                    <field name="tax_ids"
-                                           options="{'no_create': True}"
-                                           widget="many2many_tags"/>
-                                    <field name="price_subtotal"
-                                           widget="monetary"/>
-                                    <field groups="account.group_account_manager"
-                                           name="price_total"
-                                           widget="monetary"/>
-                                </list>
-                            </field>
+                            <field name="event_line_ids" colspan="4" string="Event Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
                                 <field name="amount_untaxed_event"
