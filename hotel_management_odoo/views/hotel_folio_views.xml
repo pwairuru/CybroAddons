@@ -45,46 +45,38 @@
                 <field name="amount_due"/>
                 <field name="state"/>
                 <templates>
+                    <t t-name="menu">
+                        <a role="menuitem" class="dropdown-item"
+                           type="object" name="action_generate_draft_invoice"
+                           invisible="state != 'open'">Generate Draft</a>
+                        <a role="menuitem" class="dropdown-item"
+                           type="object" name="action_post_invoice"
+                           invisible="state != 'open'">Post Invoice</a>
+                        <a role="menuitem" class="dropdown-item"
+                           type="object" name="action_register_payment"
+                           invisible="state != 'open'">Register Payment</a>
+                        <a role="menuitem" class="dropdown-item"
+                           type="object" name="action_apply_deposit"
+                           invisible="state != 'open'">Apply Deposit</a>
+                        <a role="menuitem" class="dropdown-item"
+                           type="object" name="action_settle"
+                           invisible="state != 'open'">Settle</a>
+                        <a role="menuitem" class="dropdown-item"
+                           type="action"
+                           name="%(hotel_management_odoo.hotel_folio_split_action)d"
+                           invisible="state != 'open'">Split Bill</a>
+                        <a role="menuitem" class="dropdown-item"
+                           type="object" name="action_view_payments">View Payments</a>
+                        <a role="menuitem" class="dropdown-item"
+                           type="action"
+                           name="%(hotel_management_odoo.action_report_hotel_folio_statement)d">Folio Statement</a>
+                        <div role="separator" class="dropdown-divider"></div>
+                        <a role="menuitem" class="dropdown-item"
+                           type="object" name="action_void"
+                           invisible="state != 'open'">Void</a>
+                    </t>
                     <t t-name="card">
-                        <div class="position-relative">
-                            <div class="o_dropdown_kanban dropdown position-absolute top-0 end-0 p-1">
-                                <a class="dropdown-toggle o-no-caret btn btn-light btn-sm px-1 py-0"
-                                   data-bs-toggle="dropdown" href="#"
-                                   aria-label="Quick actions" title="Quick actions"
-                                   role="button">
-                                    <i class="fa fa-ellipsis-v text-muted"/>
-                                </a>
-                                <div class="dropdown-menu dropdown-menu-end" role="menu">
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="object" name="action_generate_draft_invoice"
-                                       invisible="state != 'open'">Generate Draft</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="object" name="action_post_invoice"
-                                       invisible="state != 'open'">Post Invoice</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="object" name="action_register_payment"
-                                       invisible="state != 'open'">Register Payment</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="object" name="action_apply_deposit"
-                                       invisible="state != 'open'">Apply Deposit</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="object" name="action_settle"
-                                       invisible="state != 'open'">Settle</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="action"
-                                       name="%(hotel_management_odoo.hotel_folio_split_action)d"
-                                       invisible="state != 'open'">Split Bill</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="object" name="action_view_payments">View Payments</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="action"
-                                       name="%(hotel_management_odoo.action_report_hotel_folio_statement)d">Folio Statement</a>
-                                    <a role="menuitem" class="dropdown-item"
-                                       type="object" name="action_void"
-                                       invisible="state != 'open'">Void</a>
-                                </div>
-                            </div>
-                        <div class="oe_kanban_global_click d-flex pe-4">
+                        <div class="oe_kanban_global_click d-flex">
                             <field name="avatar_128" widget="image"
                                    class="o_kanban_avatar me-2"
                                    style="width:64px;height:64px;"/>
@@ -135,7 +127,6 @@
                                             invisible="state != 'open'"/>
                                 </div>
                             </div>
-                        </div>
                         </div>
                     </t>
                 </templates>
