@@ -316,7 +316,45 @@
                 <field name="state"/>
                 <templates>
                     <t t-name="card">
-                        <div class="oe_kanban_global_click d-flex">
+                        <div class="position-relative">
+                            <div class="o_dropdown_kanban dropdown position-absolute top-0 end-0 p-1">
+                                <a class="dropdown-toggle o-no-caret btn btn-light btn-sm px-1 py-0"
+                                   data-bs-toggle="dropdown" href="#"
+                                   aria-label="Quick actions" title="Quick actions"
+                                   role="button">
+                                    <i class="fa fa-ellipsis-v text-muted"/>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end" role="menu">
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="object" name="action_reserve"
+                                       invisible="state != 'draft'">Reserve</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="object" name="action_checkin"
+                                       invisible="state != 'reserved'">Check-In</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="object" name="action_checkout"
+                                       invisible="state != 'check_in'">Check-Out</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="action"
+                                       name="%(hotel_management_odoo.hotel_post_stay_action)d"
+                                       invisible="state not in ['reserved', 'check_in']">Post Stay</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="object" name="action_view_folio">View Folio</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="object" name="action_print_combined_bill"
+                                       invisible="state not in ['check_in', 'check_out', 'done']">Combined Bill</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="object" name="action_print_isolate_bill"
+                                       invisible="state not in ['check_in', 'check_out', 'done']">Isolate Bill</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="action"
+                                       name="%(hotel_management_odoo.action_report_room_booking)d">Reservation Slip</a>
+                                    <a role="menuitem" class="dropdown-item"
+                                       type="object" name="action_cancel"
+                                       invisible="state not in ['draft', 'reserved']">Cancel</a>
+                                </div>
+                            </div>
+                        <div class="oe_kanban_global_click d-flex pe-4">
                             <field name="avatar_128" widget="image"
                                    class="o_kanban_avatar me-2"
                                    style="width:64px;height:64px;"/>
@@ -333,43 +371,6 @@
                                                decoration-warning="state == 'check_out'"
                                                decoration-danger="state == 'cancel'"/>
                                     </span>
-                                    <div class="o_dropdown_kanban dropdown ms-auto">
-                                        <a class="dropdown-toggle o-no-caret btn p-0"
-                                           data-bs-toggle="dropdown" href="#"
-                                           aria-label="Quick actions" title="Quick actions"
-                                           role="button">
-                                            <i class="fa fa-ellipsis-v"/>
-                                        </a>
-                                        <div class="dropdown-menu" role="menu">
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="object" name="action_reserve"
-                                               invisible="state != 'draft'">Reserve</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="object" name="action_checkin"
-                                               invisible="state != 'reserved'">Check-In</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="object" name="action_checkout"
-                                               invisible="state != 'check_in'">Check-Out</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="action"
-                                               name="%(hotel_management_odoo.hotel_post_stay_action)d"
-                                               invisible="state not in ['reserved', 'check_in']">Post Stay</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="object" name="action_view_folio">View Folio</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="object" name="action_print_combined_bill"
-                                               invisible="state not in ['check_in', 'check_out', 'done']">Combined Bill</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="object" name="action_print_isolate_bill"
-                                               invisible="state not in ['check_in', 'check_out', 'done']">Isolate Bill</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="action"
-                                               name="%(hotel_management_odoo.action_report_room_booking)d">Reservation Slip</a>
-                                            <a role="menuitem" class="dropdown-item"
-                                               type="object" name="action_cancel"
-                                               invisible="state not in ['draft', 'reserved']">Cancel</a>
-                                        </div>
-                                    </div>
                                 </div>
                                 <div class="o_kanban_record_subtitle">
                                     <field name="partner_id"/>
@@ -379,7 +380,7 @@
                                     →
                                     <field name="checkout_date"/>
                                 </div>
-                                <hr class="my-1 opacity-50"/>
+                                <hr class="my-1" style="opacity: 0.12;"/>
                                 <div class="d-flex justify-content-between">
                                     <span>Total:
                                         <strong>
@@ -412,6 +413,7 @@
                                             invisible="state != 'check_in'"/>
                                 </div>
                             </div>
+                        </div>
                         </div>
                     </t>
                 </templates>
