@@ -69,4 +69,71 @@
             </list>
         </field>
     </record>
+    <!-- Room nights (standalone reporting): list + pivot + graph for
+         dashboard 3-dot menus. No menu — opened from dashboard/reports. -->
+    <record id="room_booking_line_view_search" model="ir.ui.view">
+        <field name="name">room.booking.line.view.search</field>
+        <field name="model">room.booking.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="room_id"/>
+                <field name="booking_id"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <group expand="0" string="Group By">
+                    <filter name="by_room" string="Room"
+                            domain="[]" context="{'group_by': 'room_id'}"/>
+                    <filter name="by_checkin" string="Check-In Month"
+                            domain="[]"
+                            context="{'group_by': 'checkin_date:month'}"/>
+                    <filter name="by_booking" string="Booking"
+                            domain="[]" context="{'group_by': 'booking_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="room_booking_line_view_list" model="ir.ui.view">
+        <field name="name">room.booking.line.view.list</field>
+        <field name="model">room.booking.line</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="booking_id"/>
+                <field name="room_id"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <field name="uom_qty"/>
+                <field name="price_subtotal" widget="monetary"/>
+                <field name="price_total" widget="monetary"/>
+            </list>
+        </field>
+    </record>
+    <record id="room_booking_line_view_pivot" model="ir.ui.view">
+        <field name="name">room.booking.line.view.pivot</field>
+        <field name="model">room.booking.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Room Nights">
+                <field name="checkin_date" interval="month" type="row"/>
+                <field name="room_id" type="col"/>
+                <field name="price_total" type="measure" string="Revenue"/>
+                <field name="uom_qty" type="measure" string="Nights"/>
+            </pivot>
+        </field>
+    </record>
+    <record id="room_booking_line_view_graph" model="ir.ui.view">
+        <field name="name">room.booking.line.view.graph</field>
+        <field name="model">room.booking.line</field>
+        <field name="arch" type="xml">
+            <graph string="Room Nights" type="bar">
+                <field name="room_id"/>
+                <field name="price_total" type="measure" string="Revenue"/>
+            </graph>
+        </field>
+    </record>
+    <record id="room_booking_line_action" model="ir.actions.act_window">
+        <field name="name">Room Nights</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">room.booking.line</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="search_view_id" ref="room_booking_line_view_search"/>
+    </record>
 </odoo>

@@ -126,6 +126,187 @@ html .o_web_client > .o_action_manager {
 .icon-rose   { background: #fff1f2; color: #f43f5e; }
 .icon-slate  { background: #f1f5f9; color: #64748b; }
 
+/* ---- POS-style condensed cards ---- */
+.pos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 1200px) {
+    .pos-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 576px) {
+    .pos-grid { grid-template-columns: 1fr; }
+}
+
+.pos-card {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    transition: box-shadow 0.22s ease;
+}
+
+.pos-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.pos-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pos-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: #5D718D;
+}
+
+.pos-card-title .dash-icon-bubble {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+    border-radius: 8px;
+}
+
+.pos-menu-wrap { position: relative; }
+
+.pos-dots {
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #8492a6;
+}
+
+.pos-dots:hover { background: #f1f5f9; color: #4A4A55; }
+
+.pos-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 20;
+    min-width: 170px;
+    background: #fff;
+    border: 1px solid #e8eef5;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+}
+
+.pos-menu button {
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.pos-menu button:hover { background: #f1f5f9; }
+
+.pos-card-body {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pos-main {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: #4A4A55;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pos-sub {
+    font-size: 11px;
+    color: #8492a6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pos-spark {
+    width: 100%;
+    height: 36px;
+    margin-top: 4px;
+}
+
+.pos-spark polyline { vector-effect: non-scaling-stroke; }
+
+/* ---- POS stat rows + Chart.js canvas ---- */
+.pos-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 2px;
+}
+
+.pos-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    color: #8492a6;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.pos-row strong {
+    color: #4A4A55;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pos-chart {
+    position: relative;
+    width: 100%;
+    height: 52px;
+    margin-top: 4px;
+}
+
+.pos-card-foot button {
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4371DB;
+    cursor: pointer;
+    text-align: left;
+}
+
+.pos-card-foot button:hover { text-decoration: underline; }
+
 /* ---- Tape chart embed ---- */
 .tape-embed {
     background: #fff;

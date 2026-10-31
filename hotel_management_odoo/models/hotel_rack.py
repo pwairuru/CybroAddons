@@ -232,6 +232,10 @@ class HotelDailyInventory(models.AbstractModel):
         occupancy = round(100.0 * occupied / sellable, 1) if sellable else 0.0
         adr = round(revenue / occupied, 2) if occupied else 0.0
         revpar = round(revenue / sellable, 2) if sellable else 0.0
+        open_folios = self.env['hotel.folio'].search_count([
+            ('company_id', '=', self.env.company.id),
+            ('state', '=', 'open'),
+        ])
         return {
             'date': day_str,
             'total_rooms': total,
@@ -247,6 +251,102 @@ class HotelDailyInventory(models.AbstractModel):
             'ooo': len(ooo_room_ids),
             'room_revenue': round(revenue, 2),
             'currency_symbol': self.env.company.currency_id.symbol,
+            'open_folios': open_folios,
+        }
+
+    @api.model
+    def get_dashboard_series(self, date_from=None, days=14):
+        """POS-style sparkline series for [start, start+days).
+
+        One scan of room.booking.line for the window, then per-day
+        occupancy/arrivals/departures/revenue math (same nightly-split
+        rules as get_tiles). Read-only.
+        """
+        days = min(max(int(days or 14), 1), 28)
+        today = fields.Date.context_today(self)
+        start = fields.Date.from_string(date_from) if date_from else today
+        end = start + timedelta(days=days)
+        rooms = self._rooms()
+        total = len(rooms)
+        ooo_ids = self._ooo_room_ids()
+        ooo_room_ids = ooo_ids & set(rooms.ids)
+        sellable = max(total - len(ooo_room_ids), 0)
+        target_currency = self.env.company.currency_id
+        window_start = fields.Datetime.to_string(
+            datetime.combine(start, datetime.min.time()))
+        window_end = fields.Datetime.to_string(
+            datetime.combine(end, datetime.min.time()))
+        lines = self.env['room.booking.line'].search([
+            ('booking_id.company_id', '=', self.env.company.id),
+            ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('checkin_date', '<', window_end),
+            ('checkout_date', '>', window_start),
+        ])
+        # Food orders per booking check-in day (same window/state filter).
+        food_per_day = {}
+        for fl in self.env['food.booking.line'].search([
+                ('booking_id.company_id', '=', self.env.company.id),
+                ('booking_id.state', 'in', ('reserved', 'check_in')),
+        ]):
+            ci = _to_date(fl.booking_id.checkin_date)
+            if ci and start <= ci < end:
+                key = fields.Date.to_string(ci)
+                food_per_day[key] = food_per_day.get(key, 0) + 1
+        dates = [fields.Date.to_string(start + timedelta(days=i))
+                 for i in range(days)]
+        occupancy, arrivals, departures = [], [], []
+        room_revenue, adr_list, revpar_list, available = [], [], [], []
+        food_orders = []
+        for i in range(days):
+            day = start + timedelta(days=i)
+            occupied_ids = set()
+            revenue = 0.0
+            arr = dep = 0
+            for line in lines:
+                ci = _to_date(line.checkin_date)
+                co = _to_date(line.checkout_date)
+                if not (ci and co):
+                    continue
+                state = line.booking_id.state
+                if ci == day and state in ('reserved', 'check_in'):
+                    arr += 1
+                if co == day and state == 'check_in':
+                    dep += 1
+                if ci <= day < co and state == 'check_in':
+                    occupied_ids.add(line.room_id.id)
+                    nightly = (line.price_total or 0.0) / (_nights(ci, co) or 1)
+                    line_currency = line.currency_id or target_currency
+                    revenue += line_currency._convert(
+                        nightly, target_currency,
+                        line.company_id or self.env.company, day)
+            occupied = len(occupied_ids)
+            occ_pct = round(100.0 * occupied / sellable, 1) if sellable else 0.0
+            adr = round(revenue / occupied, 2) if occupied else 0.0
+            revpar = round(revenue / sellable, 2) if sellable else 0.0
+            occupancy.append(occ_pct)
+            arrivals.append(arr)
+            departures.append(dep)
+            room_revenue.append(round(revenue, 2))
+            adr_list.append(adr)
+            revpar_list.append(revpar)
+            available.append(max(sellable - occupied, 0))
+            food_orders.append(food_per_day.get(
+                fields.Date.to_string(day), 0))
+        return {
+            'date_from': fields.Date.to_string(start),
+            'days': days,
+            'dates': dates,
+            'occupancy': occupancy,
+            'arrivals': arrivals,
+            'departures': departures,
+            'room_revenue': room_revenue,
+            'adr': adr_list,
+            'revpar': revpar_list,
+            'available': available,
+            'food_orders': food_orders,
+            'sellable_rooms': sellable,
+            'total_rooms': total,
+            'currency_symbol': target_currency.symbol,
         }
 
     @api.model

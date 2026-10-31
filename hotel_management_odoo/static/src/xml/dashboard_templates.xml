@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!--Dashboard template-->
+<!--POS-style condensed dashboard: one register-like card per area,
+    each with 3-4 stats, an interactive Chart.js in-card chart (same
+    look as point_of_sale kanban_dashboard_graph) and a 3-dot menu
+    to list/pivot/graph.-->
 <template>
     <t t-name="CustomDashBoard">
         <div class="oh_dashboards">
@@ -9,276 +12,180 @@
         </div>
     </t>
 
+    <t t-name="PosCardChart">
+        <div class="pos-chart"><canvas t-ref="this.chart.ref"/></div>
+    </t>
+
     <t t-name="HotelOrder">
-        <!-- ── Today at a Glance (Task 4: occupancy/ADR/RevPAR/arrivals/departures/dirty) ── -->
         <div class="dash-section-title">Today at a Glance</div>
-        <div class="dash-grid dash-grid-tiles">
-            <div class="dash-card tile-occupancy" data-testid="tile-occupancy" t-on-click="(e) => this.openOccupancy(e)">
-                <div class="dash-icon-bubble icon-teal">
-                    <i class="oi" data-icon="bed"/>
+        <div class="pos-grid">
+            <!-- Occupancy -->
+            <div class="pos-card" data-testid="tile-occupancy">
+                <div class="pos-card-head">
+                    <div class="pos-card-title">
+                        <div class="dash-icon-bubble icon-teal"><i class="oi" data-icon="bed"/></div>
+                        <span>Occupancy</span>
+                    </div>
+                    <div class="pos-menu-wrap">
+                        <button class="pos-dots" title="Reports" aria-label="Occupancy reports" t-on-click="(e) => this.toggleMenu(e, 'occupancy')">⋮</button>
+                        <div class="pos-menu" t-if="this.ui.menu === 'occupancy'">
+                            <button t-on-click="(e) => this.openOccupancy(e)">In-House list</button>
+                            <button t-on-click="(e) => this.openBookingPivot(e)">Reservations pivot</button>
+                            <button t-on-click="(e) => this.openBookingGraph(e)">Reservations graph</button>
+                            <button t-on-click="(e) => this.openLinePivot(e)">Room nights pivot</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Occupancy</div>
-                    <div class="dash-count"><t t-out="this.occupancy"/></div>
+                <div class="pos-card-body" t-on-click="(e) => this.openOccupancy(e)">
+                    <div class="pos-main"><t t-out="this.occupancy"/></div>
+                    <div class="pos-rows">
+                        <div class="pos-row"><span>In-house</span><strong><t t-out="this.occupied"/> of <t t-out="this.sellable"/></strong></div>
+                        <div class="pos-row"><span>Reserved · Dirty</span><strong><t t-out="this.reservedCount"/> · <t t-out="this.dirty"/></strong></div>
+                    </div>
+                    <PosCardChart values="this.seriesOccupancy" labels="this.seriesDates" color="'#14b8a6'" label="'Occupancy %'"/>
                 </div>
-            </div>
-            <div class="dash-card tile-adr" data-testid="tile-adr">
-                <div class="dash-icon-bubble icon-blue">
-                    <i class="oi" data-icon="payments"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">ADR</div>
-                    <div class="dash-count"><t t-out="this.adr"/></div>
-                </div>
-            </div>
-            <div class="dash-card tile-revpar" data-testid="tile-revpar">
-                <div class="dash-icon-bubble icon-purple">
-                    <i class="oi" data-icon="monitoring"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">RevPAR</div>
-                    <div class="dash-count"><t t-out="this.revpar"/></div>
-                </div>
-            </div>
-            <div class="dash-card tile-arrivals" data-testid="tile-arrivals" t-on-click="(e) => this.openArrivals(e)">
-                <div class="dash-icon-bubble icon-green">
-                    <i class="oi" data-icon="login"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Arrivals</div>
-                    <div class="dash-count"><t t-out="this.arrivals"/></div>
-                </div>
-            </div>
-            <div class="dash-card tile-departures" data-testid="tile-departures" t-on-click="(e) => this.openDepartures(e)">
-                <div class="dash-icon-bubble icon-orange">
-                    <i class="oi" data-icon="logout"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Departures</div>
-                    <div class="dash-count"><t t-out="this.departures"/></div>
-                </div>
-            </div>
-            <div class="dash-card tile-dirty" data-testid="tile-dirty" t-on-click="(e) => this.openDirty(e)">
-                <div class="dash-icon-bubble icon-red">
-                    <i class="oi" data-icon="warning"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Dirty Rooms</div>
-                    <div class="dash-count"><t t-out="this.dirty"/></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Rooms Section ── -->
-        <div class="dash-section-title">Rooms</div>
-        <div class="dash-grid">
-
-            <!-- Total Rooms -->
-            <div class="dash-card" t-on-click="(e) => this.total_rooms(e)">
-                <div class="dash-icon-bubble icon-blue">
-                    <i class="oi" data-icon="bed"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Total Rooms</div>
-                    <div class="dash-count"><t t-out="this.total_room"/></div>
-                </div>
+                <div class="pos-card-foot"><button t-on-click="(e) => this.openOccupancy(e)">In-House list</button></div>
             </div>
 
-            <!-- Available Rooms -->
-            <div class="dash-card" t-on-click="(e) => this.available_rooms(e)">
-                <div class="dash-icon-bubble icon-green">
-                    <i class="oi" data-icon="check_circle"/>
+            <!-- Rates -->
+            <div class="pos-card" data-testid="tile-adr">
+                <div class="pos-card-head">
+                    <div class="pos-card-title">
+                        <div class="dash-icon-bubble icon-blue"><i class="oi" data-icon="payments"/></div>
+                        <span>Rates</span>
+                    </div>
+                    <div class="pos-menu-wrap">
+                        <button class="pos-dots" title="Reports" aria-label="Rate reports" t-on-click="(e) => this.toggleMenu(e, 'rates')">⋮</button>
+                        <div class="pos-menu" t-if="this.ui.menu === 'rates'">
+                            <button t-on-click="(e) => this.openBookingPivot(e)">Revenue pivot</button>
+                            <button t-on-click="(e) => this.openBookingGraph(e)">Revenue graph</button>
+                            <button t-on-click="(e) => this.openLineGraph(e)">Nights graph</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Available Rooms</div>
-                    <div class="dash-count"><t t-out="this.available_room"/></div>
+                <div class="pos-card-body" t-on-click="(e) => this.openBookingPivot(e)">
+                    <div class="pos-main"><t t-out="this.adr"/></div>
+                    <div class="pos-rows">
+                        <div class="pos-row"><span>RevPAR</span><strong><t t-out="this.revpar"/></strong></div>
+                        <div class="pos-row"><span>Room revenue today</span><strong><t t-out="this.roomRevenueToday"/></strong></div>
+                    </div>
+                    <PosCardChart values="this.seriesRevpar" labels="this.seriesDates" color="'#3b82f6'" label="'RevPAR'"/>
                 </div>
+                <div class="pos-card-foot"><button t-on-click="(e) => this.openBookingPivot(e)">Revenue pivot</button></div>
             </div>
 
-            <!-- Check In -->
-            <div class="dash-card" t-on-click="(e) => this.check_ins(e)">
-                <div class="dash-icon-bubble icon-teal">
-                    <i class="oi" data-icon="login"/>
+            <!-- Front desk -->
+            <div class="pos-card" data-testid="tile-arrivals">
+                <div class="pos-card-head">
+                    <div class="pos-card-title">
+                        <div class="dash-icon-bubble icon-green"><i class="oi" data-icon="login"/></div>
+                        <span>Front Desk</span>
+                    </div>
+                    <div class="pos-menu-wrap">
+                        <button class="pos-dots" title="Reports" aria-label="Front desk reports" t-on-click="(e) => this.toggleMenu(e, 'frontdesk')">⋮</button>
+                        <div class="pos-menu" t-if="this.ui.menu === 'frontdesk'">
+                            <button t-on-click="(e) => this.openArrivals(e)">Arrivals list</button>
+                            <button t-on-click="(e) => this.openDepartures(e)">Departures list</button>
+                            <button t-on-click="(e) => this.reservations(e)">Reservations list</button>
+                            <button t-on-click="(e) => this.openBookingGraph(e)">Reservations graph</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Check In</div>
-                    <div class="dash-count"><t t-out="this.check_in"/></div>
+                <div class="pos-card-body" t-on-click="(e) => this.openArrivals(e)">
+                    <div class="pos-main"><t t-out="this.arrivals"/> / <t t-out="this.departures"/></div>
+                    <div class="pos-rows">
+                        <div class="pos-row"><span>Arrivals / Departures</span><strong><t t-out="this.arrivals"/> / <t t-out="this.departures"/></strong></div>
+                        <div class="pos-row"><span>In-house · Reserved</span><strong><t t-out="this.check_in"/> · <t t-out="this.reservation"/></strong></div>
+                    </div>
+                    <PosCardChart values="this.seriesArrivals" labels="this.seriesDates" color="'#22c55e'" label="'Arrivals'" values2="this.seriesDepartures" color2="'#f97316'" label2="'Departures'"/>
                 </div>
+                <div class="pos-card-foot"><button t-on-click="(e) => this.openArrivals(e)">Arrivals list</button></div>
             </div>
 
-            <!-- Today's Check Out -->
-            <div class="dash-card" t-on-click="(e) => this.check_outs(e)">
-                <div class="dash-icon-bubble icon-orange">
-                    <i class="oi" data-icon="logout"/>
+            <!-- Rooms -->
+            <div class="pos-card" data-testid="tile-rooms">
+                <div class="pos-card-head">
+                    <div class="pos-card-title">
+                        <div class="dash-icon-bubble icon-purple"><i class="oi" data-icon="bookmark"/></div>
+                        <span>Rooms</span>
+                    </div>
+                    <div class="pos-menu-wrap">
+                        <button class="pos-dots" title="Reports" aria-label="Room reports" t-on-click="(e) => this.toggleMenu(e, 'rooms')">⋮</button>
+                        <div class="pos-menu" t-if="this.ui.menu === 'rooms'">
+                            <button t-on-click="(e) => this.total_rooms(e)">All rooms</button>
+                            <button t-on-click="(e) => this.available_rooms(e)">Available rooms</button>
+                            <button t-on-click="(e) => this.openDirty(e)">Dirty rooms</button>
+                            <button t-on-click="(e) => this.openLinePivot(e)">Room nights pivot</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Today's Check Out</div>
-                    <div class="dash-count"><t t-out="this.check_out"/></div>
+                <div class="pos-card-body" t-on-click="(e) => this.total_rooms(e)">
+                    <div class="pos-main"><t t-out="this.available_room"/> / <t t-out="this.total_room"/></div>
+                    <div class="pos-rows">
+                        <div class="pos-row"><span>Available / Total</span><strong><t t-out="this.available_room"/> / <t t-out="this.total_room"/></strong></div>
+                        <div class="pos-row"><span>Dirty · OOO</span><strong><t t-out="this.dirty"/> · <t t-out="this.oooCount"/></strong></div>
+                    </div>
+                    <PosCardChart values="this.seriesAvailable" labels="this.seriesDates" color="'#a855f7'" label="'Available'"/>
                 </div>
+                <div class="pos-card-foot"><button t-on-click="(e) => this.available_rooms(e)">Available rooms</button></div>
             </div>
 
-            <!-- Total Reservations -->
-            <div class="dash-card" t-on-click="(e) => this.reservations(e)">
-                <div class="dash-icon-bubble icon-purple">
-                    <i class="oi" data-icon="bookmark"/>
+            <!-- Revenue & Folios -->
+            <div class="pos-card" data-testid="tile-revenue">
+                <div class="pos-card-head">
+                    <div class="pos-card-title">
+                        <div class="dash-icon-bubble icon-orange"><i class="oi" data-icon="monitoring"/></div>
+                        <span>Revenue</span>
+                    </div>
+                    <div class="pos-menu-wrap">
+                        <button class="pos-dots" title="Reports" aria-label="Revenue reports" t-on-click="(e) => this.toggleMenu(e, 'revenue')">⋮</button>
+                        <div class="pos-menu" t-if="this.ui.menu === 'revenue'">
+                            <button t-on-click="(e) => this.openFolioList(e)">Open folios</button>
+                            <button t-on-click="(e) => this.openFolioPivot(e)">Folio pivot</button>
+                            <button t-on-click="(e) => this.openFolioGraph(e)">Folio graph</button>
+                            <button t-on-click="(e) => this.openLinePivot(e)">Room nights pivot</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Total Reservations</div>
-                    <div class="dash-count"><t t-out="this.reservation"/></div>
+                <div class="pos-card-body" t-on-click="(e) => this.openFolioList(e)">
+                    <div class="pos-main"><t t-out="this.today_revenue"/></div>
+                    <div class="pos-rows">
+                        <div class="pos-row"><span>Total paid</span><strong><t t-out="this.total_revenue"/></strong></div>
+                        <div class="pos-row"><span>Pending · Open folios</span><strong><t t-out="this.pending_payment"/> · <t t-out="this.openFolios"/></strong></div>
+                    </div>
+                    <PosCardChart values="this.seriesRevenue" labels="this.seriesDates" color="'#f97316'" label="'Room revenue'"/>
                 </div>
+                <div class="pos-card-foot"><button t-on-click="(e) => this.openFolioList(e)">Open folios</button></div>
             </div>
 
+            <!-- Food -->
+            <div class="pos-card" data-testid="tile-food">
+                <div class="pos-card-head">
+                    <div class="pos-card-title">
+                        <div class="dash-icon-bubble icon-amber"><i class="oi" data-icon="restaurant"/></div>
+                        <span>Food</span>
+                    </div>
+                    <div class="pos-menu-wrap">
+                        <button class="pos-dots" title="Reports" aria-label="Food reports" t-on-click="(e) => this.toggleMenu(e, 'food')">⋮</button>
+                        <div class="pos-menu" t-if="this.ui.menu === 'food'">
+                            <button t-on-click="(e) => this.fetch_food_item(e)">Food items</button>
+                            <button t-on-click="(e) => this.fetch_food_order(e)">Food orders</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="pos-card-body" t-on-click="(e) => this.fetch_food_order(e)">
+                    <div class="pos-main"><t t-out="this.food_order"/></div>
+                    <div class="pos-rows">
+                        <div class="pos-row"><span>Open orders</span><strong><t t-out="this.food_order"/></strong></div>
+                        <div class="pos-row"><span>Menu items</span><strong><t t-out="this.food_items"/></strong></div>
+                    </div>
+                    <PosCardChart values="this.seriesFood" labels="this.seriesDates" color="'#f59e0b'" label="'Food orders'" kind="'bar'"/>
+                </div>
+                <div class="pos-card-foot"><button t-on-click="(e) => this.fetch_food_order(e)">Food orders</button></div>
+            </div>
         </div>
 
         <div class="dash-section-title">Tape Chart <button class="btn btn-sm btn-outline-secondary tape-expand-btn" data-testid="tape-expand" title="Open full tape chart" aria-label="Open full tape chart" t-on-click="(e) => this.openTapeFull(e)">⤢</button></div>
         <div class="tape-embed"><HotelTapeChart/></div>
-
-        <!--
-        <div class="dash-section-title">Staff &amp; Fleet</div>
-        <div class="dash-grid">
-
-            ── Total Staff ──
-            <div class="dash-card" t-on-click="(e) => this.fetch_total_staff(e)">
-                <div class="dash-icon-bubble icon-indigo">
-                    <i class="oi" data-icon="group"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.staff"/></div>
-                    <div class="dash-label">Total Staff</div>
-                </div>
-            </div>
-
-            ── Total Vehicles ──
-            <div class="dash-card" t-on-click="(e) => this.fetch_total_vehicle(e)">
-                <div class="dash-icon-bubble icon-slate">
-                    <i class="oi" data-icon="directions_car"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.total_vehicle"/></div>
-                    <div class="dash-label">Total Vehicles</div>
-                </div>
-            </div>
-
-            ── Available Vehicles ──
-            <div class="dash-card" t-on-click="(e) => this.fetch_available_vehicle(e)">
-                <div class="dash-icon-bubble icon-lime">
-                    <i class="oi" data-icon="directions_car"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.available_vehicle"/></div>
-                    <div class="dash-label">Available Vehicles</div>
-                </div>
-            </div>
-
-        </div>
-        -->
-
-        <!--
-        <div class="dash-section-title">Events</div>
-        <div class="dash-grid">
-
-            ── Total Events ──
-            <div class="dash-card" t-on-click="(e) => this.view_total_events(e)">
-                <div class="dash-icon-bubble icon-cyan">
-                    <i class="oi" data-icon="event_available"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.total_event"/></div>
-                    <div class="dash-label">Total Events</div>
-                </div>
-            </div>
-
-            ── Today's Events ──
-            <div class="dash-card" t-on-click="(e) => this.fetch_today_events(e)">
-                <div class="dash-icon-bubble icon-yellow">
-                    <i class="oi" data-icon="event_available"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.today_events"/></div>
-                    <div class="dash-label">Today's Events</div>
-                </div>
-            </div>
-
-            ── Pending Events ──
-            <div class="dash-card" t-on-click="(e) => this.fetch_pending_events(e)">
-                <div class="dash-icon-bubble icon-red">
-                    <i class="oi" data-icon="warning"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.pending_events"/></div>
-                    <div class="dash-label">Pending Events</div>
-                </div>
-            </div>
-
-        </div>
-        -->
-
-        <!-- ── Food Section ── -->
-        <div class="dash-section-title">Food</div>
-        <div class="dash-grid">
-
-            <!-- Food Items -->
-            <div class="dash-card" t-on-click="(e) => this.fetch_food_item(e)">
-                <div class="dash-icon-bubble icon-amber">
-                    <i class="oi" data-icon="restaurant"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Food Items</div>
-                    <div class="dash-count"><t t-out="this.food_items"/></div>
-                </div>
-            </div>
-
-            <!-- Food Orders -->
-            <div class="dash-card" t-on-click="(e) => this.fetch_food_order(e)">
-                <div class="dash-icon-bubble icon-rose">
-                    <i class="oi" data-icon="shopping_cart"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-label">Food Orders</div>
-                    <div class="dash-count"><t t-out="this.food_order"/></div>
-                </div>
-            </div>
-
-        </div>
-
-        <!--
-        <div class="dash-section-title">Revenue</div>
-        <div class="dash-grid">
-
-            ── Total Revenue ──
-            <div class="dash-card">
-                <div class="dash-icon-bubble icon-green">
-                    <i class="oi" data-icon="monitoring"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.total_revenue"/></div>
-                    <div class="dash-label">Total Revenue</div>
-                </div>
-            </div>
-
-            ── Today's Revenue ──
-            <div class="dash-card">
-                <div class="dash-icon-bubble icon-teal">
-                    <i class="oi" data-icon="payments"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.today_revenue"/></div>
-                    <div class="dash-label">Today's Revenue</div>
-                </div>
-            </div>
-
-            ── Pending Payment ──
-            <div class="dash-card">
-                <div class="dash-icon-bubble icon-pink">
-                    <i class="oi" data-icon="credit_card"/>
-                </div>
-                <div class="dash-card-body">
-                    <div class="dash-count"><t t-out="this.pending_payment"/></div>
-                    <div class="dash-label">Pending Payment</div>
-                </div>
-            </div>
-
-        </div>
-        -->
     </t>
 </template>

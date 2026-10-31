@@ -411,12 +411,66 @@
             </kanban>
         </field>
     </record>
+    <!--     Room Booking Search (pivot/graph grouping) -->
+    <record id="room_booking_view_search" model="ir.ui.view">
+        <field name="name">room.booking.view.search</field>
+        <field name="model">room.booking</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="date_order"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
+                <separator/>
+                <filter name="reserved" string="Reserved"
+                        domain="[('state', '=', 'reserved')]"/>
+                <filter name="in_house" string="In-House"
+                        domain="[('state', '=', 'check_in')]"/>
+                <filter name="done" string="Done"
+                        domain="[('state', '=', 'done')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="by_state" string="State"
+                            domain="[]" context="{'group_by': 'state'}"/>
+                    <filter name="by_month" string="Order Month"
+                            domain="[]"
+                            context="{'group_by': 'date_order:month'}"/>
+                    <filter name="by_customer" string="Customer"
+                            domain="[]" context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <!--     Room Booking Pivot (revenue / counts by state + month) -->
+    <record id="room_booking_view_pivot" model="ir.ui.view">
+        <field name="name">room.booking.view.pivot</field>
+        <field name="model">room.booking</field>
+        <field name="arch" type="xml">
+            <pivot string="Reservations">
+                <field name="date_order" interval="month" type="row"/>
+                <field name="state" type="col"/>
+                <field name="amount_total" type="measure" string="Revenue"/>
+            </pivot>
+        </field>
+    </record>
+    <!--     Room Booking Graph (revenue by state) -->
+    <record id="room_booking_view_graph" model="ir.ui.view">
+        <field name="name">room.booking.view.graph</field>
+        <field name="model">room.booking</field>
+        <field name="arch" type="xml">
+            <graph string="Reservations" type="bar">
+                <field name="state"/>
+                <field name="amount_total" type="measure" string="Revenue"/>
+            </graph>
+        </field>
+    </record>
     <!--     Room Booking Menu action -->
     <record id="room_booking_action" model="ir.actions.act_window">
         <field name="name">Room Booking</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">room.booking</field>
-        <field name="view_mode">kanban,list,form</field>
+        <field name="view_mode">kanban,list,pivot,graph,form</field>
+        <field name="search_view_id" ref="room_booking_view_search"/>
         <field name="help" type="html">
             <p class="oe_view_nocontent_create">
                 Book your rooms here!

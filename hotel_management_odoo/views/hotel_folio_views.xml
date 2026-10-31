@@ -244,10 +244,55 @@
         </field>
     </record>
 
+    <record id="hotel_folio_view_search" model="ir.ui.view">
+        <field name="name">hotel.folio.view.search</field>
+        <field name="model">hotel.folio</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="booking_id"/>
+                <separator/>
+                <filter name="open" string="Open"
+                        domain="[('state', '=', 'open')]"/>
+                <filter name="settled" string="Settled"
+                        domain="[('state', '=', 'settled')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="by_state" string="State"
+                            domain="[]" context="{'group_by': 'state'}"/>
+                    <filter name="by_customer" string="Customer"
+                            domain="[]" context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="hotel_folio_view_pivot" model="ir.ui.view">
+        <field name="name">hotel.folio.view.pivot</field>
+        <field name="model">hotel.folio</field>
+        <field name="arch" type="xml">
+            <pivot string="Folios">
+                <field name="state" type="col"/>
+                <field name="partner_id" type="row"/>
+                <field name="amount_total" type="measure" string="Total"/>
+                <field name="amount_due" type="measure" string="Due"/>
+            </pivot>
+        </field>
+    </record>
+    <record id="hotel_folio_view_graph" model="ir.ui.view">
+        <field name="name">hotel.folio.view.graph</field>
+        <field name="model">hotel.folio</field>
+        <field name="arch" type="xml">
+            <graph string="Folios" type="bar">
+                <field name="state"/>
+                <field name="amount_total" type="measure" string="Total"/>
+            </graph>
+        </field>
+    </record>
     <record id="hotel_folio_action" model="ir.actions.act_window">
         <field name="name">Folios</field>
         <field name="res_model">hotel.folio</field>
-        <field name="view_mode">kanban,list,form</field>
+        <field name="view_mode">kanban,list,pivot,graph,form</field>
+        <field name="search_view_id" ref="hotel_folio_view_search"/>
     </record>
 
     <!-- Task 7: Folio merged into Reservations (room_booking_menu). -->
