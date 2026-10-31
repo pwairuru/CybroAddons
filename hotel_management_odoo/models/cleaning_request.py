@@ -33,7 +33,8 @@ HK_TASKS = [('departure', 'Departure Clean'), ('stayover', 'Stayover'),
 class CleaningRequest(models.Model):
     """Class for creating and assigning Cleaning Request"""
     _name = "cleaning.request"
-    _inherit = ["mail.thread", "mail.activity.mixin", "avatar.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "avatar.mixin",
+                "hotel.state.guarded"]
     _rec_name = "sequence"
     _description = "Cleaning Request"
     _avatar_name_field = "sequence"
@@ -113,13 +114,6 @@ class CleaningRequest(models.Model):
         'support': ('ongoing', 'done'),
         'done': (),
     }
-
-    def _check_request_transition(self, target):
-        for rec in self:
-            if target not in self._STATE_FLOW.get(rec.state, ()):
-                raise ValidationError(
-                    _('Cannot move cleaning request %s from %s to %s.')
-                    % (rec.sequence, rec.state, target))
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -269,22 +263,6 @@ class CleaningRequest(models.Model):
             vals['hotel_maintenance'] = self.hotel
         self.env['maintenance.request'].with_company(
             self.company_id).sudo().create(vals)
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'type': 'success',
-                'message': "Maintenance Request Sent Successfully",
-                'next': {'type': 'ir.actions.act_window_close'},
-            }
-        }
-        if self.cleaning_type == 'room':
-            vals['room_maintenance_ids'] = [(6, 0, self.room_id.ids)]
-        elif self.cleaning_type == 'vehicle':
-            vals['vehicle_maintenance_id'] = self.vehicle_id.id
-        elif self.cleaning_type == 'hotel':
-            vals['hotel_maintenance'] = self.hotel
-        self.env['maintenance.request'].sudo().create(vals)
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',

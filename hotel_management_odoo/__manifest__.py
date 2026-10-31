@@ -44,6 +44,7 @@
         'views/hotel_menu_views.xml',
         'views/hotel_rate_line_views.xml',
         'views/hotel_room_type_views.xml',
+        'views/hotel_kanban_card_templates.xml',
         'views/product_template.xml',
         'views/hotel_amenity_views.xml',
         'views/hotel_service_views.xml',

@@ -4,6 +4,8 @@ import calendar
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .hotel_state_guarded import ensure_active_plan_lines
+
 
 class HotelRatePeriod(models.Model):
     _name = 'hotel.rate.period'
@@ -58,26 +60,9 @@ class HotelRatePeriod(models.Model):
         return periods
 
     def ensure_meal_lines(self):
-        plans = self.env['hotel.meal.plan'].search(
-            [('active', '=', True)])
-        if plans and self:
-            line_model = self.env['hotel.rate.period.meal.line']
-            have = {
-                (line.period_id.id, line.meal_plan_id.id)
-                for line in line_model.search([
-                    ('period_id', 'in', self.ids),
-                    ('meal_plan_id', 'in', plans.ids),
-                ])
-            }
-            missing = [{
-                'period_id': period.id,
-                'meal_plan_id': plan.id,
-                'rate_type': 'percent',
-                'value': 0.0,
-            } for period in self for plan in plans
-                if (period.id, plan.id) not in have]
-            if missing:
-                line_model.create(missing)
+        return ensure_active_plan_lines(
+            self, 'hotel.rate.period.meal.line', 'period_id',
+            defaults={'rate_type': 'percent', 'value': 0.0})
 
     @api.constrains('start_md', 'end_md')
     def _check_md(self):

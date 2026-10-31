@@ -376,12 +376,7 @@ class HotelRateEngine(models.AbstractModel):
         biz = self.env['hotel.business.date']
         board_match = self.env['hotel.board.rule']._match \
             if board and board != 'RO' else None
-        ooo_ids = set()
-        for req in self.env['maintenance.request'].search([
-                ('type', '=', 'room'),
-                ('company_id', '=', company.id),
-                ('state', 'not in', ('done', 'cancel'))]):
-            ooo_ids.update(req.room_maintenance_ids.ids)
+        ooo_ids = self.env['hotel.daily.inventory']._ooo_room_ids()
         lines = self.env['room.booking.line'].search([
             ('booking_id.company_id', '=', company.id),
             ('booking_id.state', 'in', ('reserved', 'check_in')),
@@ -556,13 +551,6 @@ class HotelRateEngine(models.AbstractModel):
         }
 
     @api.model
-    def _base_price(self, room, plan):
-        if plan.pricelist_id:
-            variant = room.product_variant_id or room
-            return plan.pricelist_id._get_product_price(variant, 1.0)
-        return room.list_price
-
-    @api.model
     def _matching_rule(self, plan, room_id, day):
         day = _to_date(day)
         room = self.env['product.template'].browse(room_id)
@@ -668,60 +656,6 @@ class HotelRateEngine(models.AbstractModel):
             if not rec.plan_id:
                 return rec
         return None
-
-    @api.model
-    def _board_supplement(self, room_type, plan, board, day, booking=None):
-        """Nightly per-person board supplement.
-
-        Returns (supplement, False); the caller assigns reason codes
-        (e.g. 'no-board-price' only applies to board-basis bands, set
-        in price_detailed, never here)."""
-        if board and board != 'RO':
-            rule = self.env['hotel.board.rule']._match(
-                room_type.id if room_type else False, board, day,
-                plan.id if plan else None,
-                company_id=self.env.company.id)
-            if rule:
-                return float(rule.supplement or 0.0), False
-        if booking and hasattr(booking, 'meal_plan_supplement'):
-            try:
-                fallback = float(booking.meal_plan_supplement() or 0.0)
-            except Exception:
-                fallback = 0.0
-            if fallback:
-                return fallback, False
-        return 0.0, False
-
-    @api.model
-    def _meal_plan_price(self, room_type, board):
-        """Phase-1 type x plan price for the booking board.
-
-        Returns False for RO (legacy base path) or when no usable
-        table price exists, so legacy behavior stays untouched.
-        """
-        code = board.strip() if isinstance(board, str) else 'RO'
-        # RO stays on the legacy path intentionally: RO has no meal
-        # component and the phase-1 RO table price duplicates
-        # base_rate authority, so routing it through meal lines
-        # would change live RO pricing.
-        if not room_type or not code or code == 'RO':
-            return False
-        line = room_type.meal_price_ids.filtered(
-            lambda l: l.meal_plan_id.code == code)[:1]
-        if not line or not line.price:
-            return False
-        return float(line.price)
-
-    @api.model
-    def _matching_meal_line(self, rule, board):
-        """The matching rule's line for the booking board."""
-        code = board.strip() if isinstance(board, str) else 'RO'
-        if not rule or not code or code == 'RO':
-            return False
-        if not rule.period_id:
-            return False
-        return rule.period_id.meal_line_ids.filtered(
-            lambda l: l.meal_plan_id.code == code)[:1]
 
     @api.model
     def price_detailed(self, room_template_id, date, plan_id, pax=1,
@@ -997,12 +931,8 @@ class HotelRateEngine(models.AbstractModel):
             detailed = detailed_by_day[day]
             orphan = float(orphan_by_day.get(day, 0.0))
             base_price = float(detailed['resolved']) + orphan
-            dup = self.env['hotel.folio.line'].search([
-                ('folio_id', '=', folio.id),
-                ('product_id', '=', product.id),
-                ('hotel_date', '=', day),
-                ('room_template_id', '=', room.id),
-            ], limit=1)
+            dup = self.env['hotel.folio.line'].find_stay_line(
+                folio.id, product.id, day, room.id)
             if dup:
                 lines |= dup
                 line = dup
@@ -1070,12 +1000,8 @@ class HotelRateEngine(models.AbstractModel):
                     'override': False,
                 })
             for bline, bproduct in bands_by_day[day]:
-                dup_band = self.env['hotel.folio.line'].search([
-                    ('folio_id', '=', folio.id),
-                    ('product_id', '=', bproduct.id),
-                    ('hotel_date', '=', day),
-                    ('room_template_id', '=', room.id),
-                ], limit=1)
+                dup_band = self.env['hotel.folio.line'].find_stay_line(
+                    folio.id, bproduct.id, day, room.id)
                 if dup_band:
                     lines |= dup_band
                     band_line = dup_band
@@ -1105,3 +1031,26 @@ class HotelRateEngine(models.AbstractModel):
                         'source_rule_id': False, 'override': False,
                     })
         return lines
+
+
+class HotelFolioLine(models.Model):
+    """Stay-night dedup finder (single canonical domain).
+
+    NOTE: lives here (not hotel_charge_service.py, touched by WS1)
+    as an _inherit extension so the method still lands on
+    hotel.folio.line. Business-date call sites are read-only/banned
+    and keep their inline domains for now.
+    """
+    _inherit = 'hotel.folio.line'
+
+    @api.model
+    def find_stay_line(self, folio_id, product_id, day, room_id):
+        folio = folio_id.id if hasattr(folio_id, 'id') else folio_id
+        product = product_id.id if hasattr(product_id, 'id') else product_id
+        room = room_id.id if hasattr(room_id, 'id') else room_id
+        return self.search([
+            ('folio_id', '=', folio),
+            ('product_id', '=', product),
+            ('hotel_date', '=', day),
+            ('room_template_id', '=', room),
+        ], limit=1)

@@ -20,6 +20,7 @@
 #
 #############################################################################
 from . import hotel_booking_line_mixin
+from . import hotel_state_guarded
 from . import room_booking
 from . import room_booking_line
 from . import product_template

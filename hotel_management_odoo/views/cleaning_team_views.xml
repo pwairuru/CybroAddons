@@ -24,11 +24,12 @@
                 <field name="max_rooms_per_day"/>
                 <templates>
                     <t t-name="card">
-                        <div class="oe_kanban_global_click d-flex">
-                            <field name="avatar_128" widget="image"
-                                   class="o_kanban_avatar me-2"
-                                   style="width:64px;height:64px;"/>
-                            <div class="oe_kanban_details flex-grow-1">
+                        <t t-call="hotel_management_odoo.hotel_kanban_card_shell">
+                            <t t-set="avatar">
+                                <field name="avatar_128" widget="image"
+                                       class="o_kanban_avatar me-2"
+                                       style="width:64px;height:64px;"/>
+                            </t>
                                 <div class="oe_kanban_record_heading">
                                     <strong>
                                         <field name="name"/>
@@ -41,8 +42,7 @@
                                 <div class="text-muted">
                                     <field name="area"/>
                                 </div>
-                            </div>
-                        </div>
+                        </t>
                     </t>
                 </templates>
             </kanban>

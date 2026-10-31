@@ -27,7 +27,7 @@ class MaintenanceRequest(models.Model):
     """Model that handles the maintenance requests"""
 
     _inherit = ['maintenance.request', 'mail.thread', 'mail.activity.mixin',
-                'avatar.mixin']
+                'avatar.mixin', 'hotel.state.guarded']
     _rec_name = 'sequence'
     _description = "Maintenance Request"
 
@@ -105,13 +105,6 @@ class MaintenanceRequest(models.Model):
         'done': (),
         'cancel': (),
     }
-
-    def _check_request_transition(self, target):
-        for rec in self:
-            if target not in self._STATE_FLOW.get(rec.state, ()):
-                raise ValidationError(
-                    "Cannot move maintenance request %s from %s to %s."
-                    % (rec.sequence or rec.name, rec.state, target))
 
     @api.model_create_multi
     def create(self, vals_list):

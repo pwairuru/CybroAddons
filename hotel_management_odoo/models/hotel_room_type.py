@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
 
+from .hotel_state_guarded import ensure_active_plan_lines
+
 
 class HotelRoomType(models.Model):
     _name = 'hotel.room.type'
@@ -58,19 +60,9 @@ class HotelRoomType(models.Model):
 
     def ensure_meal_price_lines(self):
         """Create the missing per-plan price lines (0.0)."""
-        plans = self.env['hotel.meal.plan'].search(
-            [('active', '=', True)])
-        line_model = self.env['hotel.room.type.meal.price']
-        for rtype in self:
-            have = set(rtype.meal_price_ids.mapped('meal_plan_id.id'))
-            for plan in plans:
-                if plan.id not in have:
-                    line_model.create({
-                        'room_type_id': rtype.id,
-                        'meal_plan_id': plan.id,
-                        'price': 0.0,
-                    })
-        return True
+        return ensure_active_plan_lines(
+            self, 'hotel.room.type.meal.price', 'room_type_id',
+            defaults={'price': 0.0})
 
     @api.model_create_multi
     def create(self, vals_list):

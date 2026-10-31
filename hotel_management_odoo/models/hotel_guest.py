@@ -50,21 +50,30 @@ class ResPartner(models.Model):
             partner.loyalty_points = sum(
                 partner.loyalty_entry_ids.mapped('points'))
 
-    def _compute_stays(self):
+    def _stay_bookings_folios(self, order_bookings=False,
+                              order_folios=False):
+        """Shared stay search: bookings + folios for allowed companies."""
+        self.ensure_one()
         allowed = self.env.companies.ids
+        bookings = self.env['room.booking'].search(
+            [('partner_id', '=', self.id),
+             ('company_id', 'in', allowed)],
+            order=order_bookings or None)
+        folios = self.env['hotel.folio'].search(
+            [('partner_id', '=', self.id),
+             ('company_id', 'in', allowed)],
+            order=order_folios or None)
+        return bookings, folios
+
+    def _compute_stays(self):
         for partner in self:
-            bookings = self.env['room.booking'].search(
-                [('partner_id', '=', partner.id),
-                 ('company_id', 'in', allowed)])
+            bookings, folios = partner._stay_bookings_folios()
             nights = 0
             for booking in bookings:
                 if booking.checkin_date and booking.checkout_date:
                     delta = (booking.checkout_date.date()
                              - booking.checkin_date.date()).days
                     nights += max(delta, 0)
-            folios = self.env['hotel.folio'].search(
-                [('partner_id', '=', partner.id),
-                 ('company_id', 'in', allowed)])
             partner.stay_count = len(bookings)
             partner.total_nights = nights
             # folio.total is the ledger truth (gross + tax - deposits),
@@ -76,13 +85,8 @@ class ResPartner(models.Model):
 
         Company-scoped to the current allowed companies."""
         self.ensure_one()
-        allowed = self.env.companies.ids
-        bookings = self.env['room.booking'].search(
-            [('partner_id', '=', self.id),
-             ('company_id', 'in', allowed)], order='checkin_date desc')
-        folios = self.env['hotel.folio'].search(
-            [('partner_id', '=', self.id),
-             ('company_id', 'in', allowed)], order='id desc')
+        bookings, folios = self._stay_bookings_folios(
+            order_bookings='checkin_date desc', order_folios='id desc')
         return {
             'booking_ids': bookings.ids,
             'bookings': [{

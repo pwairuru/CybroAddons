@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="hotel_kanban_card_shell">
+        <div class="oe_kanban_global_click d-flex">
+            <t t-out="avatar"/>
+            <div class="oe_kanban_details flex-grow-1">
+                <t t-out="0"/>
+            </div>
+        </div>
+    </template>
+</odoo>

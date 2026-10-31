@@ -176,12 +176,8 @@ class HotelChannelMessage(models.Model):
             return self._fail(
                 "Room %s fits %d; requested %d pax."
                 % (room.display_name, room.num_person, norm['pax']))
-        ooo = self.env['maintenance.request'].search_count([
-            ('type', '=', 'room'),
-            ('state', 'not in', ('done', 'cancel')),
-            ('room_maintenance_ids', 'in', room.id),
-        ])
-        if ooo:
+        ooo_ids = self.env['hotel.daily.inventory']._ooo_room_ids()
+        if room.id in ooo_ids:
             return self._fail(
                 "Room %s is out of order for these dates."
                 % room.display_name)

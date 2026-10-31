@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .hotel_business_date import _nights
+
 _RACK_STATUSES = ('available', 'reserved', 'occupied', 'dirty',
                    'ooo', 'conflict')
 _DISPLAY = {
@@ -29,6 +31,9 @@ _DISPLAY = {
 
 
 def _to_date(value):
+    # NOTE: kept local on purpose — business-date _to_date maps falsy
+    # input to today, while rack needs None for missing line dates
+    # (callers skip when ci/co are falsy). Import _nights only.
     if not value:
         return None
     if isinstance(value, str):
@@ -37,11 +42,6 @@ def _to_date(value):
     if isinstance(value, datetime):
         return value.date()
     return value
-
-
-def _nights(checkin_day, checkout_day):
-    """Nights in a stay; minimum 1 so same-day/day-use splits sanely."""
-    return max((checkout_day - checkin_day).days, 1)
 
 
 class HotelDailyInventory(models.AbstractModel):
@@ -60,8 +60,11 @@ class HotelDailyInventory(models.AbstractModel):
 
     @api.model
     def _ooo_room_ids(self):
+        # Canonical OOO helper: open room-maintenance requests.
+        # Company-scoped so rate/channel reuse stays correct.
         reqs = self.env['maintenance.request'].search([
             ('type', '=', 'room'),
+            ('company_id', '=', self.env.company.id),
             ('state', 'not in', ('done', 'cancel')),
         ])
         ids = set()
@@ -203,7 +206,7 @@ class HotelDailyInventory(models.AbstractModel):
             if not (ci and co):
                 continue
             if ci <= today < co:
-                nightly = (line.price_total or 0.0) / _nights(ci, co)
+                nightly = (line.price_total or 0.0) / (_nights(ci, co) or 1)
                 # Lines price in the booking pricelist currency; tiles
                 # report in company currency, so convert per line.
                 line_currency = line.currency_id or target_currency

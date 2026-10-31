@@ -257,12 +257,8 @@ class RoomBookingFamily(models.Model):
                     else self.meal_plan_supplement()
                 if not unit:
                     continue
-                dup = self.env['hotel.folio.line'].search([
-                    ('folio_id', '=', folio.id),
-                    ('product_id', '=', product.id),
-                    ('hotel_date', '=', day),
-                    ('room_template_id', '=', room.id),
-                ], limit=1)
+                dup = self.env['hotel.folio.line'].find_stay_line(
+                    folio.id, product.id, day, room.id)
                 if dup:
                     lines |= dup
                     continue
