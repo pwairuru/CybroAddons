@@ -761,6 +761,10 @@ class HotelRateEngine(models.AbstractModel):
         base_price = float(line.price or 0.0)
         extra_a = float(calc.get('extra_a', 0.0) or 0.0)
         extra_c = float(calc.get('extra_c', 0.0) or 0.0)
+        occ_adult = self._occupancy_record(room_type, plan, 'adult') \
+            if room_type else False
+        occ_child = self._occupancy_record(room_type, plan, 'child') \
+            if room_type else False
         return {
             'net': float(calc['net']),
             'base': base_price,
@@ -775,10 +779,12 @@ class HotelRateEngine(models.AbstractModel):
                  'amount': base_price, 'total': base_price},
                 {'band': 'adult',
                  'qty': max(0, eff_adults - (line.included_adults or 0)),
-                 'amount': extra_a, 'total': extra_a},
+                 'amount': extra_a, 'total': extra_a,
+                 'occupancy_id': occ_adult.id if occ_adult else False},
                 {'band': 'child',
                  'qty': max(0, eff_children - (line.included_children or 0)),
-                 'amount': extra_c, 'total': extra_c},
+                 'amount': extra_c, 'total': extra_c,
+                 'occupancy_id': occ_child.id if occ_child else False},
             ],
             'basis': 'rate_line',
         }
@@ -939,6 +945,7 @@ class HotelRateEngine(models.AbstractModel):
         days = [start + timedelta(days=offset) for offset in range(nights)]
         detailed_by_day = {}
         bands_by_day = {}
+        orphan_by_day = {}
         for day in days:
             charge._check_open_day(day, folio_company)
             detailed = self.price_detailed(
@@ -957,7 +964,7 @@ class HotelRateEngine(models.AbstractModel):
                 occ = self.env['hotel.rate.occupancy'].browse(
                     bline.get('occupancy_id') or False)
                 bproduct = occ.service_product_id \
-                    if occ.service_product_id else False
+                    if occ else False
                 if not bproduct:
                     shared = [l2 for l2 in detailed['lines'][1:]
                               if l2['total']]
@@ -967,7 +974,14 @@ class HotelRateEngine(models.AbstractModel):
                             "itemized posting (booking %s)."
                             % (bline['band'],
                                folio.booking_id.name or folio.id))
-                    bproduct = product
+                    # No service product for this band: fold its amount
+                    # into the base line (the quote net already includes
+                    # it). Posting it on the room product would
+                    # dup-collide with the base charge below and the
+                    # money would silently vanish.
+                    orphan_by_day[day] = orphan_by_day.get(day, 0.0) \
+                        + float(bline['total'])
+                    continue
                 if bproduct.id in seen:
                     raise ValidationError(
                         "Bands %s and %s share service product %s for "
@@ -981,6 +995,8 @@ class HotelRateEngine(models.AbstractModel):
         lines = self.env['hotel.folio.line']
         for day in days:
             detailed = detailed_by_day[day]
+            orphan = float(orphan_by_day.get(day, 0.0))
+            base_price = float(detailed['resolved']) + orphan
             dup = self.env['hotel.folio.line'].search([
                 ('folio_id', '=', folio.id),
                 ('product_id', '=', product.id),
@@ -990,14 +1006,12 @@ class HotelRateEngine(models.AbstractModel):
             if dup:
                 lines |= dup
                 line = dup
-                if bands_by_day[day] and \
-                        float(line.price_unit or 0.0) != \
-                        float(detailed['resolved']):
+                if (bands_by_day[day] or orphan) and \
+                        float(line.price_unit or 0.0) != base_price:
                     if (not line.locked) and (not line.invoiced_qty) \
                             and folio.state == 'open':
                         old_price = float(line.price_unit or 0.0)
-                        line.write(
-                            {'price_unit': detailed['resolved']})
+                        line.write({'price_unit': base_price})
                         bsnap = snapshots.search([
                             ('folio_line_id', '=', line.id),
                         ], limit=1)
@@ -1005,9 +1019,9 @@ class HotelRateEngine(models.AbstractModel):
                             bsnap.write({
                                 'base': detailed['base'],
                                 'adjustment': detailed['adjustment'],
-                                'occupancy': 0.0,
+                                'occupancy': orphan,
                                 'board': detailed.get('board', 0.0),
-                                'net': detailed['resolved'],
+                                'net': base_price,
                                 'tax': line.price_tax or 0.0,
                                 # Rate-line basis: detailed['rule_id']
                                 # holds a hotel.rate.line id, not a
@@ -1018,7 +1032,7 @@ class HotelRateEngine(models.AbstractModel):
                         folio.message_post(body=(
                             "Base charge repriced %.2f -> %.2f on %s "
                             "(itemized repost)."
-                            % (old_price, detailed['resolved'], day)))
+                            % (old_price, base_price, day)))
                     else:
                         raise ValidationError(
                             "Folio %s line %s is locked/invoiced/settled; "
@@ -1026,7 +1040,7 @@ class HotelRateEngine(models.AbstractModel):
                             "itemized repost." % (folio.id, line.id))
             else:
                 line = charge.post_charge(
-                    folio.id, product.id, 1, detailed['resolved'],
+                    folio.id, product.id, 1, base_price,
                     'to_guest', hotel_date=day,
                     room_template_id=room.id,
                     booking_line_id=False)
@@ -1047,9 +1061,9 @@ class HotelRateEngine(models.AbstractModel):
                     'folio_line_id': line.id,
                     'base': detailed['base'],
                     'adjustment': detailed['adjustment'],
-                    'occupancy': 0.0,
+                    'occupancy': orphan,
                     'board': detailed.get('board', 0.0),
-                    'net': detailed['resolved'],
+                    'net': base_price,
                     'tax': line.price_tax or 0.0,
                     # See above: rule link stays empty on rate-line basis.
                     'source_rule_id': False,

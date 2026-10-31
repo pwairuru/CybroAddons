@@ -286,3 +286,106 @@ class TestCheckoutReopen(TransactionCase):
         with self.assertRaises(ValidationError):
             booking.action_reopen()
         self.assertEqual(booking.state, 'check_out')
+
+
+class TestPostBands(TransactionCase):
+    """Occupancy extras must reach the folio, not vanish between
+    quote (net folds extras) and posting (bands itemize).
+
+    Regression: BOOKING/05818 quoted 23000 (20000 + 3000 child
+    extra) but folio/invoice/pay carried only 20000 — the child
+    band had no occupancy_id, fell back to the room product, and
+    dup-collided with the base line.
+    """
+
+    def _setup(self, with_occupancy_product=True):
+        from datetime import timedelta
+        from odoo import fields
+        co = self.env.company
+        rtype = self.env['hotel.room.type'].create(
+            {'name': 'BandFam', 'base_rate': 20000.0,
+             'adult_capacity': 2, 'child_capacity': 3,
+             'max_occupants': 5, 'charge_mode': 'per_room'})
+        meal = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        period = self.env['hotel.rate.period'].create(
+            {'name': 'BandH', 'start_md': '01-01', 'end_md': '12-31',
+             'sequence': 10, 'priority': 10, 'company_id': co.id})
+        plan = self.env['hotel.rate.plan'].create(
+            {'name': 'BandBB', 'code': 'BB', 'company_id': co.id})
+        self.env['hotel.rate.line'].create(
+            {'company_id': co.id, 'period_id': period.id,
+             'room_type_id': rtype.id, 'meal_plan_id': meal.id,
+             'price': 20000.0, 'included_adults': 1,
+             'included_children': 0, 'extra_child_mode': 'fixed',
+             'extra_child_value': 1500.0})
+        extra_prod = False
+        if with_occupancy_product:
+            tmpl = self.env['product.template'].create(
+                {'name': 'Band Extra Child', 'type': 'service',
+                 'list_price': 1500.0})
+            extra_prod = tmpl.product_variant_id
+            self.env['hotel.rate.occupancy'].create(
+                {'room_type_id': rtype.id, 'band': 'child',
+                 'mode': 'fixed', 'value': 1500.0,
+                 'service_product_id': extra_prod.id})
+        room = self.env['product.template'].create(
+            {'name': 'Band-101', 'is_room': True, 'num_person': 5,
+             'list_price': 20000.0, 'room_type_id': rtype.id})
+        now = fields.Datetime.now()
+        booking = self.env['room.booking'].create({
+            'partner_id': co.partner_id.id,
+            'company_id': co.id, 'meal_plan': 'BB',
+            'checkin_date': now + timedelta(days=-1),
+            'checkout_date': now})
+        self.env['room.booking.line'].create({
+            'booking_id': booking.id, 'room_id': room.id,
+            'checkin_date': now + timedelta(days=-1),
+            'checkout_date': now,
+            'adults': 1, 'children': 1, 'company_id': co.id})
+        return booking, room, plan, extra_prod
+
+    def test_bands_carry_occupancy_id(self):
+        from odoo import fields
+        booking, room, plan, _extra = self._setup()
+        detailed = self.env['hotel.rate.engine'].price_detailed(
+            room.id, fields.Date.today(), plan.id,
+            adults=1, children=1, board='BB', booking=booking)
+        child = [b for b in detailed['lines']
+                 if b['band'] == 'child'][0]
+        self.assertTrue(child['total'], "fixture must yield a child extra")
+        self.assertTrue(child.get('occupancy_id'),
+                        "band must link its occupancy record")
+
+    def test_band_with_product_posts_itemized(self):
+        booking, room, plan, extra_prod = self._setup(
+            with_occupancy_product=True)
+        booking.action_reserve()
+        booking.action_checkin()
+        booking.action_checkout()
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', booking.id)], limit=1)
+        band_lines = folio.line_ids.filtered(
+            lambda l: l.product_id.id == extra_prod.id)
+        self.assertTrue(band_lines, "child extra must post itemized")
+        base_lines = folio.line_ids.filtered(
+            lambda l: l.product_id.id == room.product_variant_id.id)
+        self.assertEqual(sum(folio.line_ids.mapped('price_subtotal')),
+                         sum(base_lines.mapped('price_subtotal'))
+                         + sum(band_lines.mapped('price_subtotal')))
+        self.assertEqual(sum(base_lines.mapped('price_unit')), 20000.0)
+
+    def test_band_without_product_folds_into_base(self):
+        booking, room, plan, _extra = self._setup(
+            with_occupancy_product=False)
+        booking.action_reserve()
+        booking.action_checkin()
+        booking.action_checkout()
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', booking.id)], limit=1)
+        base_lines = folio.line_ids.filtered(
+            lambda l: l.product_id.id == room.product_variant_id.id)
+        self.assertTrue(base_lines, "base room line must exist")
+        self.assertEqual(sum(base_lines.mapped('price_unit')), 21500.0,
+                         "extra with no service product must fold "
+                         "into the base line, not vanish")
