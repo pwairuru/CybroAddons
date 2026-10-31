@@ -37,7 +37,7 @@ patch(PaymentScreen.prototype, {
             if (!order.partner_id) {
                 this.dialog.add(AlertDialog, {
                     title: _t("Customer Required"),
-                    body: _t("Please select a customer before using the hotel charge payment method as an invoice will be created."),
+                    body: _t("Please select a customer before using the hotel charge payment method as it will be billed to the room folio."),
                 });
                 return false;
             }

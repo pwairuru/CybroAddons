@@ -138,12 +138,13 @@ class TestHotelPosFolio(TransactionCase):
         bk.invalidate_recordset()
         lines = bk.get_bill_summary_lines()
         self.assertEqual(bk.amount_total_pos, 10.0)
-        self.assertEqual(bk.amount_total_combined,
-                         bk.amount_total + 10.0)
+        # Total already includes settled POS: combined is the Total,
+        # and the combined bill matches it.
+        self.assertEqual(bk.amount_total_combined, bk.amount_total)
         self.assertAlmostEqual(bk.get_bill_summary_total(),
                                sum(l['total'] for l in lines))
         self.assertAlmostEqual(bk.get_bill_summary_total(),
-                               bk.amount_total + bk.amount_total_pos)
+                               bk.amount_total)
 
     def test_pay_at_checkout_stays_due_until_folio_settle(self):
         guest = self.env['res.partner'].create({'name': 'Due Guest'})

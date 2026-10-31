@@ -531,7 +531,25 @@ class RoomBooking(models.Model):
                                  + record.amount_taxed_fleet
                                  + record.amount_taxed_event
                                  + record.amount_taxed_service)
+            # Modules roll further charges in here (POS extension adds
+            # settled outlet orders) so the headline Total always
+            # matches the combined bill.
+            extra_untaxed, extra_tax = record._additional_amounts()
+            record.amount_untaxed += extra_untaxed
+            record.amount_tax += extra_tax
             record.amount_total = record.amount_untaxed + record.amount_tax
+
+    def _additional_amounts(self):
+        """Extra (untaxed, tax) rolled into the booking headline totals.
+
+        Base contributes nothing. hotel_pos_extension overrides this
+        to add settled POS orders so Total matches the combined bill.
+        Plain method (no compute): the caller compute declares the
+        triggers; extenders re-declare _compute_amount_untaxed with
+        their own depends.
+        """
+        self.ensure_one()
+        return 0.0, 0.0
 
     def _to_invoice_lines(self):
         """Booking lines minus what hotel_booking_id invoices already

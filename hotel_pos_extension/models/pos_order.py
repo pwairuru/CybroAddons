@@ -61,11 +61,12 @@ class PosOrder(models.Model):
     def _ensure_hotel_invoice_flag(self):
         """Folio is the sole bill for fully room-charged orders.
 
-        Suppresses the POS invoice (to_invoice=False) only when every
+        Early write-path hint (to_invoice=False) only when every
         payment is a hotel-charge and the order is booking-linked.
         Split tenders keep normal POS invoicing and are never
         auto-posted (allocation ambiguous) — see
-        _post_hotel_folio_lines.
+        _post_hotel_folio_lines. The deterministic enforcement lives
+        in _generate_order_invoice (order-sync races this flag).
         """
         for order in self:
             if order.booking_id and order._is_fully_hotel_charge():
@@ -184,6 +185,28 @@ class PosOrder(models.Model):
                 % (self.pos_reference or self.name, len(posted)))
         return posted
 
+    def _generate_order_invoice(self):
+        """Folio is the sole bill for fully room-charged orders.
+
+        Deterministic suppression (the write-path flag in
+        _ensure_hotel_invoice_flag races order-sync: the invoice was
+        already generated before the flag flipped). Fully
+        hotel-charged + booking-linked orders never get an outlet
+        invoice — the folio invoice carries these lines, so a POSS
+        invoice would bill the guest twice. Split tenders keep
+        normal invoicing. NOTE: the hotel-charge method is
+        pay_later-typed so standard forces to_invoice=True; skipping
+        super() is the only reliable suppression.
+        """
+        hotel_only = self.filtered(
+            lambda o: o.booking_id and o._is_fully_hotel_charge())
+        if hotel_only:
+            hotel_only.write({'to_invoice': False})
+        rest = self - hotel_only
+        if not rest:
+            return True
+        return super(PosOrder, rest)._generate_order_invoice()
+
     def action_pos_order_paid(self):
         """Pay the order, then post hotel-charge lines to the folio.
 
@@ -203,6 +226,9 @@ class PosOrder(models.Model):
     def _generate_pos_order_invoice(self):
         """Override to forcefully keep the invoice 'Not Paid' for hotel charges.
         We use a context flag that is caught by our AccountMoveLine.reconcile override.
+        Hotel links are stamped so the booking's Invoices / Payments /
+        Bar-Restaurant buttons stay complete for these outlet bills
+        (split tender or any other path that still generates one).
         """
         is_hotel_charge = any(p.payment_method_id.is_hotel_charge for p in self.payment_ids)
         if is_hotel_charge:
@@ -221,9 +247,28 @@ class PosOrder(models.Model):
 
             move.sudo()._compute_amount()
             move._compute_payment_state()
+            self._stamp_hotel_invoice_links(move)
             return move
-            
+
         return super()._generate_pos_order_invoice()
+
+    def _stamp_hotel_invoice_links(self, move):
+        """Stamp booking/folio on a hotel-charge outlet invoice.
+
+        Lets the booking pick the invoice (and its payments, via the
+        payment backfill) up in its Invoices / Payments totals.
+        """
+        self.ensure_one()
+        if not move or not self.booking_id:
+            return
+        vals = {'hotel_booking_id': self.booking_id.id}
+        folio = self.env['hotel.folio'].search([
+            ('booking_id', '=', self.booking_id.id),
+            ('state', '=', 'open'),
+        ], limit=1)
+        if folio:
+            vals['hotel_folio_id'] = folio.id
+        move.write(vals)
 
     def _reconcile_invoice_payments(self, invoice, payment_moves):
         """Secondary layer to skip reconciliation for hotel room charges in Odoo 19."""

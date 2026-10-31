@@ -167,7 +167,7 @@
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button class="oe_stat_button" type="object"
-                                name="action_generate_draft_invoice"
+                                name="action_view_invoices"
                                 icon="fa-file-text-o">
                             <field string="Invoices" name="invoice_ids"
                                    widget="statinfo"/>
@@ -200,6 +200,15 @@
                             <field name="move_id" readonly="1"/>
                         </group>
                     </group>
+                    <div class="alert alert-info" role="alert"
+                         invisible="amount_in_payment == 0">
+                        <field name="amount_in_payment" class="oe_inline"/> recorded from the guest
+                        still shows In Payment: amounts stay there until
+                        the bank statement reconciles the payment
+                        (standard Odoo with outstanding-receipt journals).
+                        The guest owes nothing more — import and reconcile
+                        bank statements to clear this.
+                    </div>
                     <notebook>
                         <page string="Charges">
                             <field name="line_ids"/>

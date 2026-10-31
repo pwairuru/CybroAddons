@@ -78,6 +78,12 @@ class HotelFolio(models.Model):
                                store=True, tracking=True,
                                help="Deposits plus paid portion of posted "
                                     "folio invoices.")
+    amount_in_payment = fields.Float(
+        string="Awaiting Bank Clearance", compute='_compute_totals',
+        store=True,
+        help="Invoiced amounts the guest already paid that still sit at "
+             "In Payment until the bank statement reconciles the payment. "
+             "Not an amount owed.")
 
     @api.depends('partner_id.name', 'partner_id.avatar_128', 'image_128')
     def _compute_avatar_128(self):
@@ -142,6 +148,17 @@ class HotelFolio(models.Model):
                 m.amount_total - m.amount_residual
                 for m in folio.invoice_ids
                 if m.move_type == 'out_invoice' and m.state == 'posted')
+            # Guest-paid but not bank-cleared: residual is zero yet the
+            # invoice sits at in_payment until the bank statement
+            # reconciles the payment (standard Odoo behaviour with
+            # outstanding-receipt journals). surfaced as a banner, not
+            # a due amount — the guest owes nothing more.
+            folio.amount_in_payment = sum(
+                m.amount_total
+                for m in folio.invoice_ids
+                if m.move_type == 'out_invoice' and m.state == 'posted'
+                and m.payment_state == 'in_payment'
+                and (m.amount_residual or 0.0) == 0.0)
             if folio.state in ('settled', 'void'):
                 folio.amount_due = 0.0
             else:
@@ -352,6 +369,25 @@ class HotelFolio(models.Model):
                 'default_hotel_booking_id': self.booking_id.id or False,
             },
         }
+
+    def action_view_invoices(self):
+        """Open this folio's invoices (list, or the single form)."""
+        self.ensure_one()
+        action = {
+            'type': 'ir.actions.act_window',
+            'name': 'Invoices',
+            'res_model': 'account.move',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.invoice_ids.ids)],
+            'context': "{'create': False}",
+        }
+        if len(self.invoice_ids) == 1:
+            action.update({
+                'view_mode': 'form',
+                'views': [(False, 'form')],
+                'res_id': self.invoice_ids.id,
+            })
+        return action
 
     def action_view_payments(self):
         """Open payments linked to this folio (or its booking)."""

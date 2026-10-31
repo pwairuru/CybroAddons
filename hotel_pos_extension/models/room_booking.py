@@ -30,8 +30,8 @@ class RoomBooking(models.Model):
     amount_total_combined = fields.Monetary(
         string="Combined Total (Rooms + Services + POS)",
         compute='_compute_amount_total_combined', store=False,
-        help="Room/food/service/fleet/event total plus settled POS orders. "
-             "The stored Total stays room-and-services only.")
+        help="Kept for older views: identical to Total, which already "
+             "includes settled POS orders.")
 
     @api.depends('pos_order_line_ids')
     def _compute_has_pos_orders(self):
@@ -39,78 +39,63 @@ class RoomBooking(models.Model):
         for rec in self:
             rec.has_pos_orders = bool(rec.pos_order_line_ids)
 
+    def _settled_pos_links(self):
+        """POS links that count toward totals: paid/done/invoiced.
+
+        Draft/cancelled ghost links (created at order-draft time)
+        must not inflate totals.
+        """
+        self.ensure_one()
+        return self.pos_order_line_ids.filtered(
+            lambda l: l.state in ('paid', 'done', 'invoiced'))
+
+    def _additional_amounts(self):
+        """Settled POS orders rolled into the headline booking totals.
+
+        Untaxed/tax split from the order lines so Total, Untaxed and
+        Taxes stay coherent and match the combined bill.
+        """
+        self.ensure_one()
+        untaxed = tax = 0.0
+        for link in self._settled_pos_links():
+            for line in link.pos_order_id.lines:
+                untaxed += line.price_subtotal or 0.0
+                tax += ((line.price_subtotal_incl or 0.0)
+                        - (line.price_subtotal or 0.0))
+        return untaxed, tax
+
     @api.depends(
         'room_line_ids.price_subtotal', 'room_line_ids.price_tax', 'room_line_ids.price_total',
         'food_order_line_ids.price_subtotal', 'food_order_line_ids.price_tax', 'food_order_line_ids.price_total',
         'service_line_ids.price_subtotal', 'service_line_ids.price_tax', 'service_line_ids.price_total',
         'vehicle_line_ids.price_subtotal', 'vehicle_line_ids.price_tax', 'vehicle_line_ids.price_total',
         'event_line_ids.price_subtotal', 'event_line_ids.price_tax', 'event_line_ids.price_total',
-        'pos_order_line_ids.pos_order_id.amount_total',
-        'pos_order_line_ids.pos_order_id.currency_id',
         'pos_order_line_ids.pos_order_id.state',
+        'pos_order_line_ids.pos_order_id.lines.price_subtotal',
+        'pos_order_line_ids.pos_order_id.lines.price_subtotal_incl',
+        'pos_order_line_ids.state',
     )
-    def _calculate_amounts(self, flag=False):
-        """Extended calculation to include POS charges and add to invoice list"""
-        if hasattr(super(), '_calculate_amounts'):
-            res = super()._calculate_amounts(flag=flag)
-        else:
-            res_list = []
-            for rec in self:
-                vals = {
-                    'amount_untaxed': rec.amount_untaxed,
-                    'amount_tax': rec.amount_tax,
-                    'amount_total': rec.amount_total,
-                }
-                booking_list = []
-                if flag:
-                    # Parent exposes uninvoiced lines via _to_invoice_lines
-                    # (pure totals live in _compute_amount_untaxed).
-                    booking_list = rec._to_invoice_lines()
-                res_list.append((vals, booking_list))
-            res = res_list[0] if len(self) == 1 else res_list
-        
-        is_single = len(self) == 1
-        res_list = [res] if is_single else res
-        
-        final_res = []
-        for rec, (vals, booking_list) in zip(self, res_list):
-            # Only settled POS orders count: draft/cancelled ghost links
-            # (created at order-draft time) must not inflate totals.
-            valid_pos_lines = rec.pos_order_line_ids.filtered(
-                lambda l: l.state in ('paid', 'done', 'invoiced'))
-            amount_total_pos = sum(valid_pos_lines.mapped('amount_total'))
-            
-            vals['amount_total_pos'] = amount_total_pos
-            vals['amount_total'] += amount_total_pos
-            vals['amount_untaxed'] += amount_total_pos 
-            
-            if flag:
-                for line in valid_pos_lines:
-                    for pos_line in line.pos_order_id.lines:
-                        booking_list.append({
-                            'name': f"POS: {pos_line.full_product_name or pos_line.product_id.name} (Ref: {line.pos_reference or ''})",
-                            'quantity': pos_line.qty,
-                            'price_unit': pos_line.price_unit,
-                            'product_type': 'pos'
-                        })
-            final_res.append((vals, booking_list))
-            
-        return final_res[0] if is_single else final_res
+    def _compute_amount_untaxed(self):
+        """Re-run base totals when POS orders change (base depends
+        don't know the POS fields). Base body picks up the POS slice
+        via _additional_amounts."""
+        return super()._compute_amount_untaxed()
 
     @api.depends('pos_order_line_ids.pos_order_id.amount_total',
-                 'pos_order_line_ids.pos_order_id.state')
+                 'pos_order_line_ids.pos_order_id.state',
+                 'pos_order_line_ids.state')
     def _compute_amount_total_pos(self):
-        """Compute POS amount total from calculated values."""
+        """Compute POS amount total from settled linked orders."""
         for record in self:
-            vals, _ = record._calculate_amounts()
-            record.amount_total_pos = vals.get('amount_total_pos', 0.0)
+            record.amount_total_pos = sum(
+                link.pos_order_id.amount_total
+                for link in record._settled_pos_links())
 
-    @api.depends('amount_total', 'amount_total_pos')
+    @api.depends('amount_total')
     def _compute_amount_total_combined(self):
+        # Total already includes settled POS: combined is the Total.
         for record in self:
-            record.amount_total_combined = (
-                (record.amount_total or 0.0)
-                + (record.amount_total_pos or 0.0))
+            record.amount_total_combined = record.amount_total or 0.0
 
     def get_bill_summary_lines(self):
         """Returns a list of summary lines for the bill report:

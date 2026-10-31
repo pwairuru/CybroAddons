@@ -177,8 +177,11 @@ class RoomBookingLine(models.Model):
     @api.depends('checkin_date', 'checkout_date')
     def _compute_uom_qty(self):
         """Nights between line dates (minimum 1). Server-side so direct
-        RPC creates get a quantity even without the UI onchange."""
+        RPC creates get a quantity even without the UI onchange.
+        Locked (invoiced) lines keep their frozen quantity."""
         for line in self:
+            if line.locked:
+                continue
             line.uom_qty = _nights(line.checkin_date, line.checkout_date)
 
     @api.constrains('uom_qty', 'checkin_date', 'checkout_date')
@@ -216,8 +219,8 @@ class RoomBookingLine(models.Model):
 
     @api.depends('room_id', 'booking_id.pricelist_id',
                   'booking_id.partner_id', 'booking_id.company_id',
-                  'booking_id.meal_plan', 'booking_id.state',
-                  'checkin_date', 'adults', 'children', 'uom_qty')
+                  'booking_id.meal_plan', 'checkin_date', 'adults',
+                  'children', 'uom_qty')
     def _compute_price_unit(self):
         """Compute the rent from the first-night anchor price.
 
@@ -225,11 +228,14 @@ class RoomBookingLine(models.Model):
         date under the booking's board/pax/plan, applied flat to
         every night (first-night-anchor policy). Recomputes while
         the booking is draft/reserved or the line is still
-        unpriced; checked-in quotes stay frozen. Falls back to the
-        booking pricelist (then room list price) when no plan
-        matches or the engine cannot price.
+        unpriced; checked-in quotes stay frozen, as do invoiced
+        (locked) lines — no booking state flip may rewrite money.
+        Falls back to the booking pricelist (then room list price)
+        when no plan matches or the engine cannot price.
         """
         for line in self:
+            if line.locked:
+                continue
             if not line.room_id:
                 line.price_unit = 0
                 continue
@@ -274,8 +280,16 @@ class RoomBookingLine(models.Model):
         if not self.checkin_date or not self.checkout_date:
             return
         if self.checkout_date <= self.checkin_date:
-            raise ValidationError(
-                _("Checkout must be after check-in date"))
+            # Warn, don't raise: mid-edit states (checkout first, then
+            # check-in, or a fresh row's defaults) are transiently
+            # inverted. The _check_uom_qty constraint still blocks
+            # saving an invalid range.
+            return {
+                'warning': {
+                    'title': _("Invalid dates"),
+                    'message': _("Checkout must be after check-in date."),
+                }
+            }
         self.uom_qty = _nights(self.checkin_date, self.checkout_date)
 
 
@@ -286,8 +300,11 @@ class RoomBookingLine(models.Model):
 
     @api.depends('room_id', 'company_id', 'booking_id.company_id')
     def _compute_tax_ids(self):
-        """Compute default taxes safely filtering by company"""
+        """Compute default taxes safely filtering by company.
+        Locked (invoiced) lines keep their frozen taxes."""
         for line in self:
+            if line.locked:
+                continue
             if not line.room_id:
                 line.tax_ids = False
                 continue

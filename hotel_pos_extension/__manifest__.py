@@ -43,6 +43,7 @@
             'hotel_pos_extension/static/src/app/screens/payment_screen/HotelPaymentScreen.js',
             'hotel_pos_extension/static/src/overrides/models/HotelPosOrder.js',
             'hotel_pos_extension/static/src/overrides/screens/TicketScreenPatch.js',
+            'hotel_pos_extension/static/src/overrides/utils/ReceiptRoomPatch.js',
             'hotel_pos_extension/static/src/app/screens/product_screen/HotelRoomSelectionButton.js',
             'hotel_pos_extension/static/src/js/**/*',
             'hotel_pos_extension/static/src/xml/**/*',
