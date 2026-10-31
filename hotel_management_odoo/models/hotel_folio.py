@@ -336,7 +336,7 @@ class HotelFolio(models.Model):
         self.ensure_one()
         moves = self.invoice_ids.filtered(
             lambda m: m.move_type == 'out_invoice' and m.state == 'posted'
-            and m.payment_state != 'paid')
+            and m.payment_state not in ('paid', 'in_payment'))
         if not moves:
             raise ValidationError("No unpaid posted invoice for folio %s." % self.id)
         return {

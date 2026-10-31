@@ -930,7 +930,8 @@ class HotelRateEngine(models.AbstractModel):
         for day in days:
             detailed = detailed_by_day[day]
             orphan = float(orphan_by_day.get(day, 0.0))
-            base_price = float(detailed['resolved']) + orphan
+            itemized = sum(float(bline.get('total') or 0.0) for bline, _prod in bands_by_day[day])
+            base_price = float(detailed['net']) - itemized
             dup = self.env['hotel.folio.line'].find_stay_line(
                 folio.id, product.id, day, room.id)
             if dup:
