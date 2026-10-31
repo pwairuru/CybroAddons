@@ -343,14 +343,22 @@
         <field name="name">room.booking.view.tree</field>
         <field name="model">room.booking</field>
         <field name="arch" type="xml">
-            <list>
-                <field name="name"/>
+            <list decoration-muted="state in ('draft', 'cancel', 'done')"
+                  decoration-info="state == 'reserved'"
+                  decoration-success="state == 'check_in'"
+                  decoration-warning="state == 'check_out'">
+                <field name="name" string="Reference"/>
                 <field name="partner_id"/>
                 <field name="date_order"/>
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
                 <field name="amount_total" widget="monetary"/>
-                <field name="state" widget="badge"/>
+                <field name="state" widget="badge"
+                       decoration-muted="state in ('draft', 'cancel', 'done')"
+                       decoration-info="state == 'reserved'"
+                       decoration-success="state == 'check_in'"
+                       decoration-warning="state == 'check_out'"
+                       decoration-danger="state == 'cancel'"/>
             </list>
         </field>
     </record>
@@ -374,18 +382,23 @@
                                    class="o_kanban_avatar me-2"
                                    style="width:64px;height:64px;"/>
                             <div class="oe_kanban_details flex-grow-1">
-                                <div class="oe_kanban_record_heading">
-                                    <strong>
+                                <div class="d-flex align-items-center">
+                                    <strong class="o_kanban_record_title">
                                         <field name="name"/>
                                     </strong>
-                                    <span class="text-muted">
-                                        <field name="state"/>
+                                    <span class="ms-2">
+                                        <field name="state" widget="badge"
+                                               decoration-muted="state in ('draft', 'cancel', 'done')"
+                                               decoration-info="state == 'reserved'"
+                                               decoration-success="state == 'check_in'"
+                                               decoration-warning="state == 'check_out'"
+                                               decoration-danger="state == 'cancel'"/>
                                     </span>
                                 </div>
-                                <div>
+                                <div class="o_kanban_record_subtitle">
                                     <field name="partner_id"/>
                                 </div>
-                                <div>
+                                <div class="text-muted">
                                     <field name="checkin_date"/>
                                     →
                                     <field name="checkout_date"/>
@@ -395,6 +408,18 @@
                                         <field name="amount_total"
                                                widget="monetary"/>
                                     </strong>
+                                </div>
+                                <div class="mt-1">
+                                    <button name="action_checkin"
+                                            string="Check-In"
+                                            type="object"
+                                            class="btn btn-primary btn-sm"
+                                            invisible="state != 'reserved'"/>
+                                    <button name="action_checkout"
+                                            string="Check-Out"
+                                            type="object"
+                                            class="btn btn-primary btn-sm"
+                                            invisible="state != 'check_in'"/>
                                 </div>
                             </div>
                         </div>
