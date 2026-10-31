@@ -51,9 +51,13 @@ class AccountPayment(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        for vals in vals_list:
-            if vals.get('hotel_folio_id') and vals.get('hotel_booking_id'):
+        recs = super().create(vals_list)
+        # Single backfill: vals invoice commands first (create-time
+        # link), else the stored reconciled invoices.
+        for rec, vals in zip(recs, vals_list):
+            if rec.hotel_folio_id and rec.hotel_booking_id:
                 continue
+            inv = False
             inv_ids = []
             for key in ('invoice_ids', 'reconciled_invoice_ids',
                         'reconciled_bill_ids'):
@@ -62,18 +66,14 @@ class AccountPayment(models.Model):
                         inv_ids += cmd[2]
                     elif cmd[0] == 4:
                         inv_ids.append(cmd[1])
-            if not inv_ids:
+            if inv_ids:
+                inv = self.env['account.move'].sudo().browse(inv_ids[:1])
+            elif rec.reconciled_invoice_ids:
+                inv = rec.reconciled_invoice_ids[:1]
+            if not inv:
                 continue
-            inv = self.env['account.move'].sudo().browse(inv_ids[:1])
-            if not vals.get('hotel_folio_id') and inv.hotel_folio_id:
-                vals['hotel_folio_id'] = inv.hotel_folio_id.id
-            if not vals.get('hotel_booking_id') and inv.hotel_booking_id:
-                vals['hotel_booking_id'] = inv.hotel_booking_id.id
-        recs = super().create(vals_list)
-        for rec in recs:
-            invs = rec.reconciled_invoice_ids
-            if invs and not rec.hotel_folio_id:
-                rec.hotel_folio_id = invs[:1].hotel_folio_id
-            if invs and not rec.hotel_booking_id:
-                rec.hotel_booking_id = invs[:1].hotel_booking_id
+            if not rec.hotel_folio_id:
+                rec.hotel_folio_id = inv.hotel_folio_id
+            if not rec.hotel_booking_id:
+                rec.hotel_booking_id = inv.hotel_booking_id
         return recs

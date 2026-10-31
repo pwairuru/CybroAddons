@@ -24,6 +24,8 @@ import logging
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
+from .hotel_business_date import _nights
+
 _logger = logging.getLogger(__name__)
 
 
@@ -100,29 +102,62 @@ class RoomBookingLine(models.Model):
             if rt and rt.max_occupants and total > rt.max_occupants:
                 raise ValidationError("Room type %s fits %d; requested %d." % (rt.display_name, rt.max_occupants, total))
 
+    @api.model
+    def _detailed_price(self, line, reraise=False):
+        """Engine quote for a room line ({} when unpriceable).
+
+        Wraps plan lookup + price_detailed. With reraise=False every
+        miss (no plan, engine error) returns {}; with reraise=True
+        engine errors propagate so callers keep their raise/log/skip
+        policy. Missing check-in falls back to today (estimate path).
+        """
+        booking = line.booking_id
+        if not booking or not line.room_id:
+            return {}
+        plan = self.env['hotel.rate.plan']._plan_for_booking(booking)
+        if not plan:
+            return {}
+        if line.checkin_date:
+            day = fields.Date.to_string(
+                fields.Datetime.context_timestamp(
+                    line, line.checkin_date).date())
+        else:
+            day = fields.Date.today()
+        try:
+            return self.env['hotel.rate.engine'].price_detailed(
+                line.room_id.id, day, plan.id,
+                adults=line.adults or 0, children=line.children or 0,
+                board=booking.meal_plan or 'RO',
+                booking=booking) or {}
+        except ValidationError:
+            if reraise:
+                raise
+            return {}
+        except Exception:
+            if reraise:
+                raise
+            return {}
+
     def _compute_rate_snapshot(self):
-        eng = self.env['hotel.rate.engine']
         for line in self:
             if not line.room_id or not line.checkin_date:
                 continue
             booking = line.booking_id
-            board = (booking.meal_plan or 'RO') if booking else 'RO'
             if not booking:
-                continue
-            plan = self.env['hotel.rate.plan']._plan_for_booking(booking)
-            if not plan:
                 continue
             state = booking.state if booking else False
             if line.price_unit and state not in ('draft', 'reserved', False):
                 continue
             try:
-                d = eng.price_detailed(line.room_id.id, fields.Date.to_string(fields.Datetime.context_timestamp(line, line.checkin_date).date()), plan.id, adults=line.adults, children=line.children, board=board, booking=booking)
+                d = self._detailed_price(line, reraise=True)
             except ValidationError:
                 raise
             except Exception as exc:
                 _logger.warning(
                     "Rate snapshot skipped for room %s on %s: %r",
                     line.room_id.display_name, line.checkin_date, exc)
+                continue
+            if not d:
                 continue
             line.rate_line_id = d.get('line_id') or d.get('rule_id') or False
             line.rate_net = d.get('net', 0.0)
@@ -144,13 +179,7 @@ class RoomBookingLine(models.Model):
         """Nights between line dates (minimum 1). Server-side so direct
         RPC creates get a quantity even without the UI onchange."""
         for line in self:
-            if line.checkin_date and line.checkout_date \
-                    and line.checkout_date > line.checkin_date:
-                diff = line.checkout_date - line.checkin_date
-                qty = diff.days + (1 if diff.total_seconds() % 86400 else 0)
-                line.uom_qty = max(qty, 1)
-            else:
-                line.uom_qty = 0
+            line.uom_qty = _nights(line.checkin_date, line.checkout_date)
 
     @api.constrains('uom_qty', 'checkin_date', 'checkout_date')
     def _check_uom_qty(self):
@@ -179,20 +208,11 @@ class RoomBookingLine(models.Model):
             if line.booking_id.state not in ('draft', 'reserved',
                                              'check_in'):
                 continue
-            clash = self.search([
-                ('id', '!=', line.id),
-                ('room_id', '=', line.room_id.id),
-                ('booking_id.state', 'in',
-                 ('draft', 'reserved', 'check_in')),
-                ('checkin_date', '<', line.checkout_date),
-                ('checkout_date', '>', line.checkin_date),
-            ], limit=1)
-            if clash:
-                raise ValidationError(
-                    _("Room %s is already booked %s - %s (booking %s).")
-                    % (line.room_id.display_name,
-                       clash.checkin_date, clash.checkout_date,
-                       clash.booking_id.name))
+            # Single enforcement point: overlap message text matches
+            # what callers/tests expect.
+            self.env['room.booking']._check_room_available(
+                line.room_id, line.checkin_date, line.checkout_date,
+                ignore_booking=line.booking_id)
 
     @api.depends('room_id', 'booking_id.pricelist_id',
                   'booking_id.partner_id', 'booking_id.company_id',
@@ -237,23 +257,10 @@ class RoomBookingLine(models.Model):
 
         Returns None when the engine cannot price (caller falls
         back to pricelist/list price)."""
-        booking = line.booking_id
-        if not booking or not line.checkin_date:
+        if not line.booking_id or not line.checkin_date:
             return None
-        plan = self.env['hotel.rate.plan']._plan_for_booking(booking)
-        if not plan:
-            return None
-        try:
-            detailed = self.env['hotel.rate.engine'].price_detailed(
-                line.room_id.id,
-                fields.Date.to_string(
-                    fields.Datetime.context_timestamp(
-                        line, line.checkin_date).date()),
-                plan.id, adults=line.adults or 0,
-                children=line.children or 0,
-                board=booking.meal_plan or 'RO',
-                booking=booking)
-        except Exception:
+        detailed = self._detailed_price(line)
+        if not detailed:
             return None
         # Quote carries the full nightly net (base + occupancy extras); posting still itemizes base via 'resolved' + band lines.
         return float(detailed.get('net', 0.0))
@@ -269,11 +276,7 @@ class RoomBookingLine(models.Model):
         if self.checkout_date <= self.checkin_date:
             raise ValidationError(
                 _("Checkout must be after check-in date"))
-        diffdate = self.checkout_date - self.checkin_date
-        qty = diffdate.days
-        if diffdate.total_seconds() % 86400:
-            qty = qty + 1
-        self.uom_qty = max(qty, 1)
+        self.uom_qty = _nights(self.checkin_date, self.checkout_date)
 
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
@@ -339,22 +342,8 @@ class RoomBookingLine(models.Model):
             line.extra_stay_total = 0.0
             if not line.room_id or not line.booking_id:
                 continue
-            plan = self.env['hotel.rate.plan']._plan_for_booking(
-                line.booking_id)
-            if not plan:
-                continue
-            try:
-                detailed = self.env['hotel.rate.engine'].price_detailed(
-                    line.room_id.id,
-                    fields.Date.to_string(
-                        fields.Datetime.context_timestamp(
-                            line, line.checkin_date).date())
-                    if line.checkin_date else fields.Date.today(),
-                    plan.id, adults=line.adults or 0,
-                    children=line.children or 0,
-                    board=line.booking_id.meal_plan or 'RO',
-                    booking=line.booking_id)
-            except Exception:
+            detailed = self._detailed_price(line)
+            if not detailed:
                 continue
             line.extra_per_night = float(detailed.get('occupancy', 0.0))
             line.extra_stay_total = float(

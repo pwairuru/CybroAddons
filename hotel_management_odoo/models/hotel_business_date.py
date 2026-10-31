@@ -21,6 +21,32 @@ def _to_date(hotel_date):
     return hotel_date
 
 
+def _nights(checkin, checkout):
+    """Nights between check-in/out; date/datetime tolerant.
+
+    Same formula as room.booking.line: whole days plus one for any
+    partial day, minimum 1. Returns 0 when dates are missing or the
+    range is not positive (callers treat that as invalid/empty).
+    """
+    if not checkin or not checkout:
+        return 0
+    if isinstance(checkin, str):
+        try:
+            checkin = fields.Datetime.from_string(checkin)
+        except ValueError:
+            checkin = fields.Date.from_string(checkin)
+    if isinstance(checkout, str):
+        try:
+            checkout = fields.Datetime.from_string(checkout)
+        except ValueError:
+            checkout = fields.Date.from_string(checkout)
+    diff = checkout - checkin
+    if diff.total_seconds() <= 0:
+        return 0
+    qty = diff.days + (1 if diff.total_seconds() % 86400 else 0)
+    return max(qty, 1)
+
+
 class HotelBusinessDate(models.Model):
     """One record per company/day tracking whether posting is allowed.
 

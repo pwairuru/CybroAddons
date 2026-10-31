@@ -196,6 +196,18 @@ class HotelFolio(models.Model):
                 % self.company_id.display_name)
         return account
 
+    def _assert_open(self, msg="Only open folios can be invoiced."):
+        """Raise unless this folio is open."""
+        self.ensure_one()
+        if self.state != 'open':
+            raise ValidationError(msg)
+
+    def _assert_no_posted(self, msg):
+        """Raise when any linked invoice is already posted."""
+        self.ensure_one()
+        if self.invoice_ids.filtered(lambda m: m.state == 'posted'):
+            raise ValidationError(msg)
+
     def action_generate_draft_invoice(self):
         """Idempotent draft invoice for uninvoiced folio lines.
 
@@ -208,8 +220,7 @@ class HotelFolio(models.Model):
         self.ensure_one()
         if self.state == 'settled' and self.move_id:
             return self.move_id
-        if self.state != 'open':
-            raise ValidationError("Only open folios can be invoiced.")
+        self._assert_open("Only open folios can be invoiced.")
         draft = self.env['account.move'].search([
             ('hotel_folio_id', '=', self.id),
             ('state', '=', 'draft'),
@@ -262,8 +273,7 @@ class HotelFolio(models.Model):
         self.ensure_one()
         if self.state == 'settled' and self.move_id:
             return self.move_id
-        if self.state != 'open':
-            raise ValidationError("Only open folios can post invoices.")
+        self._assert_open("Only open folios can post invoices.")
         move = self.action_generate_draft_invoice()
         if move.state == 'draft':
             move.action_post()
@@ -310,8 +320,7 @@ class HotelFolio(models.Model):
         reconcile when feasible without breaking scope.
         """
         self.ensure_one()
-        if self.state != 'open':
-            raise ValidationError("Can only apply deposits to an open folio.")
+        self._assert_open("Can only apply deposits to an open folio.")
         liability = self._ensure_liability_account()
         drafts = self.deposit_ids.filtered(lambda d: d.state == 'draft')
         for deposit in drafts:
@@ -381,8 +390,7 @@ class HotelFolio(models.Model):
         self.ensure_one()
         if self.state == 'settled' and self.move_id:
             return self.move_id
-        if self.state != 'open':
-            raise ValidationError("Only open folios can be settled.")
+        self._assert_open("Only open folios can be settled.")
         if not self.line_ids:
             raise ValidationError("Cannot settle a folio with no charge lines.")
         gross = self.amount_total
@@ -437,10 +445,8 @@ class HotelFolio(models.Model):
             raise ValidationError("Settled folios cannot be voided.")
         if self.state == 'void':
             return self
-        posted = self.invoice_ids.filtered(lambda m: m.state == 'posted')
-        if posted:
-            raise ValidationError(
-                "Folio has posted invoices; cannot void.")
+        self._assert_no_posted(
+            "Folio has posted invoices; cannot void.")
         for draft in self.invoice_ids.filtered(
                 lambda m: m.state == 'draft'):
             draft.button_cancel()

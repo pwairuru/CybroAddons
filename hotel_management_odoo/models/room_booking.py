@@ -24,6 +24,8 @@ from odoo import _, api, fields, models
 from odoo.addons.base.models.avatar_mixin import generate_text_avatar_svg
 from odoo.exceptions import ValidationError
 
+from .hotel_business_date import _nights
+
 
 class RoomBooking(models.Model):
     """Model that handles the hotel room booking and all operations related
@@ -155,12 +157,7 @@ class RoomBooking(models.Model):
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
         for rec in self:
-            if rec.checkin_date and rec.checkout_date \
-                    and rec.checkout_date > rec.checkin_date:
-                rec.duration = (rec.checkout_date.date()
-                                - rec.checkin_date.date()).days or 1
-            else:
-                rec.duration = 0
+            rec.duration = _nights(rec.checkin_date, rec.checkout_date)
 
     @api.model
     def _default_pricelist(self):
@@ -243,8 +240,6 @@ class RoomBooking(models.Model):
                               string="Amount Due",
                               help="Residual of posted invoices linked "
                                    "to this booking or its folios.")
-    account_move = fields.Integer(string='Invoice Id',
-                                  help="Id of the invoice created")
     amount_untaxed = fields.Monetary(string="Total Untaxed Amount",
                                      help="This indicates the total untaxed "
                                           "amount", store=True,
@@ -374,11 +369,22 @@ class RoomBooking(models.Model):
                     ['invoice', 'contact']).get('invoice')
             order.invoice_address_id = address or order.partner_id
 
-    def _folio_domain(self):
+    def _get_folios(self, state=False):
+        """Folios of these bookings, optionally filtered by state."""
+        domain = [('booking_id', 'in', self.ids)]
+        if state:
+            domain.append(('state', '=', state))
+        return self.env['hotel.folio'].search(domain)
+
+    def _move_domain(self):
+        """Domain covering moves/payments linked to this booking directly
+        or via any of its folios (OR-fallback when no folios exist)."""
         self.ensure_one()
-        folios = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id)])
-        return folios
+        folio_ids = self._get_folios().ids
+        if folio_ids:
+            return ['|', ('hotel_booking_id', '=', self.id),
+                    ('hotel_folio_id', 'in', folio_ids)]
+        return [('hotel_booking_id', '=', self.id)]
 
     def _ensure_folio(self):
         """Find-or-create the open folio for this booking (room scope).
@@ -387,10 +393,7 @@ class RoomBooking(models.Model):
         statement banner stays frozen even if the booking policy changes.
         """
         self.ensure_one()
-        folio = self.env['hotel.folio'].search([
-            ('booking_id', '=', self.id),
-            ('state', '=', 'open'),
-        ], limit=1)
+        folio = self._get_folios('open')[:1]
         if folio:
             return folio
         folio = self.env['hotel.folio'].create({
@@ -405,27 +408,15 @@ class RoomBooking(models.Model):
         return folio
 
     def _payment_domain(self):
-        """Domain covering payments/moves linked to this booking directly
-        or via any of its folios."""
-        self.ensure_one()
-        folio_ids = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id)]).ids
-        if folio_ids:
-            return ['|', ('hotel_booking_id', '=', self.id),
-                    ('hotel_folio_id', 'in', folio_ids)]
-        return [('hotel_booking_id', '=', self.id)]
+        """Alias of _move_domain (payments share the move link domain)."""
+        return self._move_domain()
 
     def _compute_invoice_count(self):
         """Compute invoice/payment counts, amount due and invoice status
         via booking + folio links."""
         for record in self:
-            folio_ids = self.env['hotel.folio'].search(
-                [('booking_id', '=', record.id)]).ids
-            if folio_ids:
-                domain = ['|', ('hotel_booking_id', '=', record.id),
-                          ('hotel_folio_id', 'in', folio_ids)]
-            else:
-                domain = [('hotel_booking_id', '=', record.id)]
+            domain = record._move_domain()
+            folio_ids = record._get_folios().ids
             # Count only (no content): the booking form renders for
             # reception, who has no direct journal access.
             Move = self.env['account.move'].sudo()
@@ -590,41 +581,33 @@ class RoomBooking(models.Model):
                                 'tax_ids': event.tax_ids.ids})
         return pending
 
+    def _clear_if_not_needed(self, flag, field_name):
+        """Unlink cleared booking lines when their need-flag is off."""
+        lines = self[field_name]
+        if not flag and lines and self.state in (
+                'draft', 'reserved', 'check_in'):
+            self[field_name] = [(2, line.id, 0) for line in lines
+                                if line.id]
+
     @api.onchange('need_food')
     def _onchange_need_food(self):
         """Unlink Food Booking Line if Need Food is false"""
-        if not self.need_food and self.food_order_line_ids \
-                and self.state in ('draft', 'reserved', 'check_in'):
-            self.food_order_line_ids = [
-                (2, line.id, 0) for line in self.food_order_line_ids
-                if line.id]
+        self._clear_if_not_needed(self.need_food, 'food_order_line_ids')
 
     @api.onchange('need_service')
     def _onchange_need_service(self):
         """Unlink Service Booking Line if Need Service is False"""
-        if not self.need_service and self.service_line_ids \
-                and self.state in ('draft', 'reserved', 'check_in'):
-            self.service_line_ids = [
-                (2, line.id, 0) for line in self.service_line_ids
-                if line.id]
+        self._clear_if_not_needed(self.need_service, 'service_line_ids')
 
     @api.onchange('need_fleet')
     def _onchange_need_fleet(self):
         """Unlink Fleet Booking Line if Need Fleet is False"""
-        if not self.need_fleet and self.vehicle_line_ids \
-                and self.state in ('draft', 'reserved', 'check_in'):
-            self.vehicle_line_ids = [
-                (2, line.id, 0) for line in self.vehicle_line_ids
-                if line.id]
+        self._clear_if_not_needed(self.need_fleet, 'vehicle_line_ids')
 
     @api.onchange('need_event')
     def _onchange_need_event(self):
         """Unlink Event Booking Line if Need Event is False"""
-        if not self.need_event and self.event_line_ids \
-                and self.state in ('draft', 'reserved', 'check_in'):
-            self.event_line_ids = [
-                (2, line.id, 0) for line in self.event_line_ids
-                if line.id]
+        self._clear_if_not_needed(self.need_event, 'event_line_ids')
 
     @api.onchange('food_order_line_ids', 'room_line_ids',
                   'service_line_ids', 'vehicle_line_ids', 'event_line_ids')
@@ -794,8 +777,7 @@ class RoomBooking(models.Model):
         """
         for record in self:
             record._check_transition('cancel')
-            folios = self.env['hotel.folio'].search(
-                [('booking_id', '=', record.id)])
+            folios = record._get_folios()
             open_folios = folios.filtered(lambda f: f.state == 'open')
             if open_folios.mapped('deposit_ids').filtered(
                     lambda d: d.state in ('draft', 'applied')):
@@ -803,11 +785,7 @@ class RoomBooking(models.Model):
                     _("Cannot cancel booking %s: its folio holds "
                       "deposits; refund or settle them first.")
                     % record.name)
-            if folio_ids := folios.ids:
-                domain = ['|', ('hotel_booking_id', '=', record.id),
-                          ('hotel_folio_id', 'in', folio_ids)]
-            else:
-                domain = [('hotel_booking_id', '=', record.id)]
+            domain = record._move_domain()
             posted = self.env['account.move'].search(
                 domain).filtered(lambda m: m.state == 'posted')
             if posted:
@@ -816,15 +794,10 @@ class RoomBooking(models.Model):
                       "(%s).") % (record.name, ', '.join(
                           posted.mapped(lambda m: m.name or 'Draft'))))
             for folio in open_folios:
-                folio_posted = self.env['account.move'].search_count([
-                    ('hotel_folio_id', '=', folio.id),
-                    ('state', '=', 'posted'),
-                ])
-                if folio.state != 'open' or folio_posted:
-                    raise ValidationError(
-                        _("Cannot cancel booking %s: folio %s is not "
-                          "voidable (posted invoices exist).")
-                        % (record.name, folio.id))
+                folio._assert_no_posted(
+                    _("Cannot cancel booking %s: folio %s is not "
+                      "voidable (posted invoices exist).")
+                    % (record.name, folio.id))
                 folio.action_void()
             record._release_rooms()
             record.with_context(hotel_allow_state_write=True).write(
@@ -870,19 +843,12 @@ class RoomBooking(models.Model):
         """Button action_confirm function"""
         for record in self:
             record._check_transition('done')
-            folio_ids = self.env['hotel.folio'].search(
-                [('booking_id', '=', record.id)]).ids
+            folio_ids = record._get_folios().ids
             # sudo(): reception has no journal access, so a plain search
             # would see zero moves and let an unpaid Done slip through.
-            if folio_ids:
-                moves = self.env['account.move'].sudo().search(
-                    ['|', ('hotel_booking_id', '=', record.id),
-                     ('hotel_folio_id', 'in', folio_ids),
-                     ('move_type', '=', 'out_invoice')])
-            else:
-                moves = self.env['account.move'].sudo().search(
-                    [('hotel_booking_id', '=', record.id),
-                     ('move_type', '=', 'out_invoice')])
+            moves = self.env['account.move'].sudo().search(
+                record._move_domain()
+                + [('move_type', '=', 'out_invoice')])
             unpaid_moves = moves.filtered(
                 lambda m: m.state == 'posted'
                 and m.payment_state in ('not_paid', 'partial'))
@@ -957,13 +923,8 @@ class RoomBooking(models.Model):
         """
         self.ensure_one()
         self._check_transition('check_in')
-        folio_ids = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id)]).ids
-        if folio_ids:
-            domain = ['|', ('hotel_booking_id', '=', self.id),
-                      ('hotel_folio_id', 'in', folio_ids)]
-        else:
-            domain = [('hotel_booking_id', '=', self.id)]
+        folio_ids = self._get_folios().ids
+        domain = self._move_domain()
         moves = self.env['account.move'].sudo().search(domain)
         posted = moves.filtered(lambda m: m.state == 'posted')
         if posted:
@@ -1044,8 +1005,7 @@ class RoomBooking(models.Model):
         """
         self.ensure_one()
         today = fields.Date.today()
-        folios = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id), ('state', '=', 'open')])
+        folios = self._get_folios('open')
         for folio in folios:
             lines = self.env['hotel.folio.line'].search([
                 ('folio_id', '=', folio.id),
@@ -1069,8 +1029,7 @@ class RoomBooking(models.Model):
         of double-billing. Use the booking folio's draft/post/settle flow.
         """
         self.ensure_one()
-        folio = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id)], limit=1)
+        folio = self._get_folios()[:1]
         hint = ("folio %s" % folio.id) if folio else "reserve first"
         raise ValidationError(
             _("Booking invoices retired; use %s "
@@ -1080,8 +1039,7 @@ class RoomBooking(models.Model):
     def action_view_folio(self):
         """Open this booking's folios (single -> form, multi -> list)."""
         self.ensure_one()
-        folios = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id)])
+        folios = self._get_folios()
         if len(folios) == 1:
             return {
                 'type': 'ir.actions.act_window',
@@ -1167,13 +1125,7 @@ class RoomBooking(models.Model):
     def action_view_invoices(self):
         """Method for Returning invoice View (booking + folio invoices)."""
         self.ensure_one()
-        folio_ids = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id)]).ids
-        if folio_ids:
-            domain = ['|', ('hotel_booking_id', '=', self.id),
-                      ('hotel_folio_id', 'in', folio_ids)]
-        else:
-            domain = [('hotel_booking_id', '=', self.id)]
+        domain = self._move_domain()
         return {
             'type': 'ir.actions.act_window',
             'name': 'Invoices',
@@ -1199,8 +1151,7 @@ class RoomBooking(models.Model):
     def action_register_payment(self):
         """Booking-level Register Payment: delegates to the open folio."""
         self.ensure_one()
-        folio = self.env['hotel.folio'].search(
-            [('booking_id', '=', self.id), ('state', '=', 'open')], limit=1)
+        folio = self._get_folios('open')[:1]
         if not folio:
             raise ValidationError("Reserve first: no open folio.")
         return folio.action_register_payment()
