@@ -129,9 +129,23 @@ html .o_web_client > .o_action_manager {
 /* ---- Tape chart embed ---- */
 .tape-embed {
     background: #fff;
-    border: 1px solid #f1f5f9;
-    border-radius: 10px;
-    padding: 8px;
+    border: 1px solid #e8eef5;
+    border-radius: 12px;
+    padding: 12px;
     margin-bottom: 8px;
     min-height: 300px;
+    max-height: 560px;
+    overflow: auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.dash-section-title .tape-expand-btn {
+    border-radius: 6px;
+    line-height: 1;
+    padding: 1px 7px;
+    font-size: 13px;
+    vertical-align: 1px;
+}
+.dash-section-title .tape-expand-btn:focus-visible {
+    outline: 2px solid #4371DB;
+    outline-offset: 1px;
 }

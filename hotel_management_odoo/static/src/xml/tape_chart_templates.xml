@@ -28,13 +28,13 @@
                 <div class="o_ahb_grid" t-att-style="'grid-template-columns: 190px repeat(' + this.state.dates.length + ', minmax(74px, 1fr));'">
                     <div class="o_ahb_corner fw-bold" style="grid-row: 1; grid-column: 1;"><span>Rooms</span></div>
                     <t t-foreach="this.state.dates" t-as="d" t-key="d">
-                        <div class="o_ahb_date_head" t-att-style="'grid-row: 1; grid-column: ' + this.colFor(d) + ';'">
+                        <div t-att-class="'o_ahb_date_head ' + ((this.headFor(d).dow === 'Sat' || this.headFor(d).dow === 'Sun') ? 'is-weekend' : '')" t-att-style="'grid-row: 1; grid-column: ' + this.colFor(d) + ';'">
                             <div class="small text-muted"><t t-out="this.headFor(d).dow"/></div><div class="fw-bold"><t t-out="this.headFor(d).day"/><small class="text-muted"> <t t-out="this.headFor(d).mon"/></small></div>
                         </div>
                     </t>
                     <div class="o_ahb_occ_label" style="grid-row: 2; grid-column: 1;"><span>Occupancy</span></div>
                     <t t-foreach="this.state.dates" t-as="d" t-key="'occ-' + d">
-                        <div class="o_ahb_occ_cell" t-att-style="'grid-row: 2; grid-column: ' + this.colFor(d) + ';'"
+                        <div t-att-class="'o_ahb_occ_cell ' + ((this.headFor(d).dow === 'Sat' || this.headFor(d).dow === 'Sun') ? 'is-weekend ' : '') + (((this.state.occupancy[d] ? this.state.occupancy[d].pct : 0) >= 80) ? 'o_ahb_occ--high' : (((this.state.occupancy[d] ? this.state.occupancy[d].pct : 0) >= 40) ? 'o_ahb_occ--med' : 'o_ahb_occ--low'))" t-att-style="'grid-row: 2; grid-column: ' + this.colFor(d) + ';'"
                              t-att-title="(this.state.occupancy[d] ? this.state.occupancy[d].sold : 0) + '/' + (this.state.occupancy[d] ? this.state.occupancy[d].sellable : 0) + ' rooms sold'">
                             <div class="o_ahb_occ_bar"><div class="o_ahb_occ_fill" t-att-style="'width: ' + (this.state.occupancy[d] ? this.state.occupancy[d].pct : 0) + '%;'"/></div>
                             <small data-testid="tape-occ"><t t-out="(this.state.occupancy[d] ? this.state.occupancy[d].pct : 0) + '%'"/></small>
@@ -50,13 +50,13 @@
                                 <span class="o_ahb_hk_pill"><t t-out="entry.room.hk_status"/></span>
                             </div>
                             <t t-foreach="this.state.dates" t-as="d" t-key="'empty-' + entry.room.id + '-' + d">
-                                <div class="o_ahb_empty" t-att-style="'grid-row: ' + (entry_index + 3) + '; grid-column: ' + this.colFor(d) + ';'"
-                                     t-on-click="() => this.openNewBooking(entry.room.id, d)"
-                                     t-att-data-testid="'tape-empty-' + entry.room.id + '-' + d" t-att-title="'New booking · Room ' + entry.room.name + ' · ' + d"/>
+                                <div t-att-class="'o_ahb_empty ' + ((this.headFor(d).dow === 'Sat' || this.headFor(d).dow === 'Sun') ? 'is-weekend' : '')" t-att-style="'grid-row: ' + (entry_index + 3) + '; grid-column: ' + this.colFor(d) + ';'"
+                                      t-on-click="() => this.openNewBooking(entry.room.id, d)"
+                                      t-att-data-testid="'tape-empty-' + entry.room.id + '-' + d" t-att-title="'New booking · Room ' + entry.room.name + ' · ' + d"/>
                             </t>
                             <t t-foreach="this.state.segments.filter((s) => s.room_id === entry.room.id)" t-as="seg" t-key="seg.id">
                                 <div t-att-class="this.clsFor(seg)" t-att-style="'grid-row: ' + (entry_index + 3) + '; grid-column: ' + this.colFor(seg.date_from) + ' / span ' + this.spanFor(seg) + ';'"
-                                     t-on-click="() => this.openBooking(seg.booking_id)" t-att-data-testid="'tape-seg-' + seg.id" t-att-title="seg.booking_name + ' · ' + seg.guest_name + ' · ' + seg.date_from + ' → ' + seg.date_to">
+                                      t-on-click="() => this.openBooking(seg.booking_id)" tabindex="0" role="button" t-att-data-testid="'tape-seg-' + seg.id" t-att-title="seg.booking_name + ' · ' + seg.guest_name + ' · ' + seg.date_from + ' → ' + seg.date_to">
                                     <span class="o_ahb_seg_label"><t t-out="seg.guest_name"/></span>
                                 </div>
                             </t>

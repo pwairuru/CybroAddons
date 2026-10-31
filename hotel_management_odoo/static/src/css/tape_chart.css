@@ -1,25 +1,48 @@
-.o_ahb_tape_chart { height: 100%; display: flex; flex-direction: column; background: #fff; }
-.o_ahb_toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
-.o_ahb_toolbar h4 { margin: 0 8px 0 0; }
-.o_ahb_legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 12px; align-items: center; font-size: 12px; }
+.o_ahb_tape_chart { height: 100%; display: flex; flex-direction: column; background: #fff; border-radius: 8px; }
+/* ---- Toolbar: sticky, airy, premium ---- */
+.o_ahb_toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; position: sticky; top: 0; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(4px); z-index: 5; border-radius: 8px 8px 0 0; }
+.o_ahb_toolbar h4 { margin: 0 8px 0 0; font-size: 15px; font-weight: 700; letter-spacing: 0.2px; color: #1e293b; }
+.o_ahb_toolbar .btn { border-radius: 6px; transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease; }
+.o_ahb_toolbar .btn:hover { box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12); }
+.o_ahb_toolbar .btn:focus-visible { outline: 2px solid #4371DB; outline-offset: 1px; }
+.o_ahb_legend { list-style: none; margin: 0 0 0 auto; padding: 0; display: flex; gap: 12px; align-items: center; font-size: 12px; color: #64748b; }
 .o_ahb_corner { font-weight: 700; }
-.o_ahb_days { width: auto; font-size: 12px; padding: 2px 6px; }
-.o_ahb_floor_row { grid-column: 1 / -1; font-weight: 700; background: #f8fafc; padding: 6px 8px; position: sticky; left: 0; z-index: 2; }
-.o_ahb_dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.o_ahb_days { width: auto; font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+.o_ahb_floor_row { grid-column: 1 / -1; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; background: #f8fafc; padding: 6px 10px; position: sticky; left: 0; z-index: 2; border-top: 1px solid #eef2f7; }
+.o_ahb_dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12); }
 .o_ahb_st_confirmed { background: #4371DB; color: #fff; }
 .o_ahb_st_checked_in { background: #218838; color: #fff; }
-.o_ahb_st_block { background: #4A4A55; color: #fff; }
+.o_ahb_st_block { background: #4A4A55 repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.14) 0 4px, rgba(0, 0, 0, 0) 4px 8px); color: #fff; }
 .o_ahb_scroll { flex-grow: 1; overflow: auto; }
 .o_ahb_grid { display: grid; min-width: max-content; }
 .o_ahb_corner, .o_ahb_room_cell, .o_ahb_occ_label { position: sticky; left: 0; background: #fff; z-index: 2; }
-.o_ahb_date_head { text-align: center; padding: 6px 4px; border-bottom: 1px solid #e2e8f0; }
-.o_ahb_occ_cell { text-align: center; padding: 4px; border-bottom: 1px solid #e2e8f0; }
-.o_ahb_occ_bar { height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; }
-.o_ahb_occ_fill { height: 100%; background: #14b8a6; }
-.o_ahb_room_cell { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
-.o_ahb_hk_pill { font-size: 10px; background: #f1f5f9; border-radius: 8px; padding: 1px 6px; color: #64748b; }
-.o_ahb_seg { border-radius: 6px; padding: 4px 8px; margin: 3px 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; cursor: pointer; min-height: 24px; }
+/* ---- Sticky header rows ---- */
+.o_ahb_date_head, .o_ahb_occ_cell, .o_ahb_corner, .o_ahb_occ_label { position: sticky; }
+.o_ahb_date_head { text-align: center; padding: 6px 4px; border-bottom: 1px solid #e2e8f0; top: 0; z-index: 3; background: #fff; }
+.o_ahb_date_head .fw-bold { font-size: 14px; color: #1e293b; }
+.o_ahb_occ_cell { text-align: center; padding: 5px 4px 6px; border-bottom: 1px solid #e2e8f0; top: 0; z-index: 3; background: #fff; }
+.o_ahb_occ_bar { height: 6px; background: #e9eef5; border-radius: 3px; overflow: hidden; }
+.o_ahb_occ_fill { height: 100%; background: #14b8a6; border-radius: 3px; transition: width 0.25s ease; }
+.o_ahb_occ--high .o_ahb_occ_fill { background: #16a34a; }
+.o_ahb_occ--med .o_ahb_occ_fill { background: #f59e0b; }
+.o_ahb_occ--low .o_ahb_occ_fill { background: #cbd5e1; }
+.o_ahb_occ_cell small { font-weight: 600; color: #475569; }
+/* ---- Weekend shading ---- */
+.o_ahb_date_head.is-weekend, .o_ahb_occ_cell.is-weekend { background: #f8fafc; }
+.o_ahb_empty.is-weekend { background: rgba(248, 250, 252, 0.7); }
+/* ---- Room rows ---- */
+.o_ahb_room_cell { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+.o_ahb_room_cell .fw-bold { color: #1e293b; }
+.o_ahb_hk_pill { font-size: 10px; font-weight: 600; background: #f1f5f9; border-radius: 999px; padding: 1px 8px; color: #64748b; border: 1px solid #e2e8f0; }
+/* ---- Booking bars ---- */
+.o_ahb_seg { border-radius: 8px; padding: 4px 8px 4px 10px; margin: 3px 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 500; cursor: pointer; min-height: 24px; position: relative; z-index: 2; border-left: 3px solid rgba(255, 255, 255, 0.55); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18); transition: filter 0.15s ease, box-shadow 0.15s ease; }
+.o_ahb_seg:hover { filter: brightness(1.08); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.22); }
+.o_ahb_seg:focus-visible { outline: 2px solid #1e293b; outline-offset: 1px; }
 .o_ahb_seg_label { overflow: hidden; text-overflow: ellipsis; }
-.o_ahb_empty { min-height: 30px; border-bottom: 1px solid #f1f5f9; cursor: pointer; background: rgba(0, 0, 0, 0); z-index: 1; }
-.o_ahb_empty:hover { background: rgba(15, 23, 42, 0.08); }
-.o_ahb_seg { position: relative; z-index: 2; }
+.o_ahb_empty { min-height: 30px; border-bottom: 1px solid #f1f5f9; cursor: pointer; background: rgba(0, 0, 0, 0); z-index: 1; transition: background-color 0.12s ease; }
+.o_ahb_empty:hover { background: rgba(67, 113, 219, 0.10); }
+.o_ahb_empty:focus-visible { outline: 2px solid #4371DB; outline-offset: -2px; }
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+    .o_ahb_seg, .o_ahb_empty, .o_ahb_occ_fill, .o_ahb_toolbar .btn { transition: none; }
+}
