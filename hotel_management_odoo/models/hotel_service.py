@@ -47,6 +47,15 @@ class HotelService(models.Model):
                                  ondelete='restrict', copy=False,
                                  tracking=True,
                                  help="Sellable service product for folios.")
+    hotel_sold_qty = fields.Float(
+        string="Hotel Sold", compute='_compute_hotel_sales',
+        help="Qty posted to folios for this service (all time). "
+             "Odoo's product Sold counter only reads Sales-app orders, "
+             "which the hotel flow bypasses.")
+    hotel_revenue = fields.Float(
+        string="Hotel Revenue", compute='_compute_hotel_sales',
+        help="Folio subtotal (excl. tax, company currency) posted "
+             "for this service (all time).")
 
     def _prepare_service_product_vals(self):
         """Product vals mirroring this service (company same)."""
@@ -107,3 +116,48 @@ class HotelService(models.Model):
             raise ValidationError(
                 _("Service %s has no product.") % self.name)
         return self.product_id
+
+    def action_open_product(self):
+        """Open the linked sellable product (Sales / Invoicing SKU)."""
+        self.ensure_one()
+        self._ensure_product()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Service Product"),
+            'res_model': 'product.product',
+            'res_id': self.product_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    @api.depends('product_id')
+    def _compute_hotel_sales(self):
+        """Qty + revenue posted to folio lines for this service."""
+        for svc in self:
+            svc.hotel_sold_qty = 0.0
+            svc.hotel_revenue = 0.0
+        products = self.mapped('product_id')
+        if not products:
+            return
+        groups = self.env['hotel.folio.line']._read_group(
+            [('product_id', 'in', products.ids)],
+            ['product_id'], ['quantity:sum', 'price_subtotal:sum'])
+        totals = {p.id: (q or 0.0, r or 0.0) for p, q, r in groups}
+        for svc in self:
+            if svc.product_id:
+                qty, rev = totals.get(svc.product_id.id, (0.0, 0.0))
+                svc.hotel_sold_qty = qty
+                svc.hotel_revenue = rev
+
+    def action_view_hotel_sales(self):
+        """Drill to posted folio lines for this service's product."""
+        self.ensure_one()
+        self._ensure_product()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Hotel Sales: %s") % self.name,
+            'res_model': 'hotel.folio.line',
+            'domain': [('product_id', '=', self.product_id.id)],
+            'view_mode': 'list',
+            'target': 'current',
+        }

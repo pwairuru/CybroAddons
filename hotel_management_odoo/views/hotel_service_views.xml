@@ -9,6 +9,7 @@
                 <field name="name"/>
                 <field name="unit_price"/>
                 <field name="taxes_ids" widget="many2many_tags"/>
+                <field name="product_id" readonly="1"/>
             </list>
         </field>
     </record>
@@ -18,12 +19,23 @@
         <field name="model">hotel.service</field>
         <field name="arch" type="xml">
             <form string="Service">
+                <header>
+                    <button name="action_open_product" type="object"
+                            string="Open Product" class="oe_highlight"/>
+                    <button name="action_view_hotel_sales" type="object"
+                            string="Hotel Sales"/>
+                </header>
                 <sheet>
-                    <group>
+                    <group string="Service">
                         <field name="name"/>
                         <field name="unit_price"/>
                         <field name="taxes_ids" widget="many2many_tags"/>
+                    </group>
+                    <group string="Sellable Product (Sales / Invoicing)">
                         <field name="product_id" readonly="1"/>
+                        <field name="hotel_sold_qty" readonly="1"/>
+                        <field name="hotel_revenue" readonly="1"/>
+                        <div class="text-muted">Auto-created as a service-type product; price, name and taxes stay in sync. Hotel Sold counts folio postings (product Sold counts Sales orders only).</div>
                     </group>
                 </sheet>
                 <chatter/>
