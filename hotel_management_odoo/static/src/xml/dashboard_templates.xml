@@ -130,7 +130,7 @@
 
         </div>
 
-        <div class="dash-section-title">Tape Chart</div>
+        <div class="dash-section-title">Tape Chart <button class="btn btn-sm btn-outline-secondary tape-expand-btn" data-testid="tape-expand" title="Open full tape chart" aria-label="Open full tape chart" t-on-click="(e) => this.openTapeFull(e)">⤢</button></div>
         <div class="tape-embed"><HotelTapeChart/></div>
 
         <!--

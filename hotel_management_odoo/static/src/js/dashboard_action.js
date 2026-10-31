@@ -359,6 +359,18 @@ export class CustomDashBoard extends Component {
             domain: [['cleaning_type', '=', 'room'], ['state', '!=', 'done']],
         });
     }
+
+    openTapeFull(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var options = { on_reverse_breadcrum: this.on_reverse_breadcrum };
+        this.action.doAction({
+            type: 'ir.actions.client',
+            tag: 'hotel_tape_chart',
+            name: _t("Tape Chart"),
+            target: 'current',
+        }, options);
+    }
 }
 
 CustomDashBoard.template = "CustomDashBoard";
