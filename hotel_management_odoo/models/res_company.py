@@ -18,6 +18,20 @@ class ResCompany(models.Model):
         help='Preselected in the Post Stay wizard and rate calendar. '
         'Falls back to the Rack plan when empty.')
 
+    no_show_policy = fields.Selection(
+        [('no_charge', 'No Charge'),
+         ('first_night', 'Charge First Night'),
+         ('forfeit_deposit', 'Forfeit Deposit')],
+        string='No-Show Policy', default='no_charge', required=True,
+        help='Night-audit behaviour for reserved bookings whose '
+        'check-in date passed unfulfilled. Per company so each '
+        'property follows its own contract.')
+    no_show_fee_product_id = fields.Many2one(
+        'product.product', string='No-Show Fee Product',
+        ondelete='set null',
+        help='Optional product for the first-night no-show charge. '
+        'Falls back to the room product when empty.')
+
     @api.constrains('default_rate_plan_id')
     def _check_default_rate_plan_company(self):
         for company in self:
@@ -27,4 +41,16 @@ class ResCompany(models.Model):
                     'Default rate plan %s belongs to %s, not %s.'
                     % (plan.display_name,
                        plan.company_id.display_name,
+                       company.display_name))
+
+    @api.constrains('no_show_fee_product_id')
+    def _check_no_show_fee_product_company(self):
+        for company in self:
+            product = company.no_show_fee_product_id
+            if product and product.company_id \
+                    and product.company_id.id != company.id:
+                raise ValidationError(
+                    'No-show fee product %s belongs to %s, not %s.'
+                    % (product.display_name,
+                       product.company_id.display_name,
                        company.display_name))

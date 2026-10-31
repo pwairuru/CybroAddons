@@ -38,3 +38,4 @@ from . import test_reservation_menu
 from . import test_reserve_customer
 from . import test_billing_accuracy
 from . import test_dashboard_pos
+from . import test_no_show_policy

@@ -7,6 +7,10 @@
         <field name="arch" type="xml">
             <field name="website" position="after">
                 <field name="default_rate_plan_id"/>
+                <group string="No-Show Policy">
+                    <field name="no_show_policy"/>
+                    <field name="no_show_fee_product_id"/>
+                </group>
             </field>
         </field>
     </record>

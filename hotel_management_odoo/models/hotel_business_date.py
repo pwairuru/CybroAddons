@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+import logging
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 try:
     from psycopg2 import IntegrityError
@@ -274,7 +277,13 @@ class HotelNightAudit(models.Model):
         return start <= day < end
 
     def _handle_no_shows(self, day):
-        """Cancel reserved bookings whose check-in passed unfulfilled."""
+        """Apply the company no-show policy to unfulfilled reservations.
+
+        no_charge cancels silently (legacy); charging policies post
+        the fee or forfeit deposits first, then cancel. A booking
+        carrying posted money stays reserved for staff — the audit
+        never writes off real money by itself.
+        """
         cutoff = fields.Datetime.to_datetime('%s 00:00:00' % day)
         stale = self.env['room.booking'].search(
             [('company_id', '=', self.company_id.id),
@@ -282,12 +291,13 @@ class HotelNightAudit(models.Model):
              ('checkin_date', '<', cutoff)])
         count = 0
         for booking in stale:
-            cancel = getattr(booking, 'action_cancel', None)
+            cancel = getattr(booking, 'action_cancel_no_show', None)
             if not callable(cancel):
                 continue
             try:
-                cancel()
+                cancel(self.date)
             except Exception:
+                _logger.exception("No-show cancel failed for %s", booking.name)
                 continue
             count += 1
         return count

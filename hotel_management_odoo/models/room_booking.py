@@ -838,6 +838,110 @@ class RoomBooking(models.Model):
             record.with_context(hotel_allow_state_write=True).write(
                 {"state": "cancel"})
 
+    def action_cancel_no_show(self, hotel_date=None):
+        """Cancel a stale reserved booking under the company policy.
+
+        no_charge behaves exactly like action_cancel. Charging
+        policies post first (fee) or consume (forfeit) money BEFORE
+        any guard can abort, so a failed cancel never leaves a stray
+        charge: posted invoices still block the cancel and the
+        booking stays reserved for staff. Folios carrying charge
+        lines stay open for settlement; only lineless folios void.
+        """
+        for record in self:
+            policy = (record.company_id.no_show_policy or 'no_charge')
+            if policy == 'no_charge':
+                record.action_cancel()
+                continue
+            record._check_transition('cancel')
+            posted = self.env['account.move'].search(
+                record._move_domain()).filtered(
+                    lambda m: m.state == 'posted')
+            if posted:
+                raise ValidationError(
+                    _("Cannot cancel booking %s: posted invoices exist "
+                      "(%s).") % (record.name, ', '.join(
+                          posted.mapped(lambda m: m.name or 'Draft'))))
+            folios = record._get_folios()
+            open_folios = folios.filtered(lambda f: f.state == 'open')
+            if policy == 'forfeit_deposit':
+                for folio in open_folios:
+                    for deposit in folio.deposit_ids.filtered(
+                            lambda d: d.state == 'draft'
+                            and d.payment_move_id):
+                        deposit.action_forfeit(
+                            reason="no-show %s" % record.name)
+                    for deposit in folio.deposit_ids.filtered(
+                            lambda d: d.state == 'draft'
+                            and not d.payment_move_id):
+                        deposit.action_cancel_draft()
+            elif policy == 'first_night':
+                record._post_no_show_fee(
+                    hotel_date or fields.Date.today())
+            for folio in open_folios:
+                if not folio.line_ids:
+                    folio._assert_no_posted(
+                        _("Cannot cancel booking %s: folio %s is not "
+                          "voidable.") % (record.name, folio.id))
+                    folio.action_void()
+            record._release_rooms()
+            record.with_context(hotel_allow_state_write=True).write(
+                {"state": "cancel"})
+
+    def _post_no_show_fee(self, day):
+        """Post one night at the booking rate to the booking folio.
+
+        Zero/negative engine nets mean unconfigured rates, not free
+        rooms: fall back to the room-line rent so the house never
+        writes off a no-show for nothing.
+        """
+        self.ensure_one()
+        charge = self.env['hotel.charge.service']
+        company = self.company_id
+        day = fields.Date.to_date(day) if day else fields.Date.today()
+        charge._check_open_day(day, company)
+        folio = self._ensure_folio()
+        rline = self.room_line_ids[:1]
+        if not rline:
+            raise ValidationError(
+                _("No-show %s has no room lines to charge.")
+                % self.name)
+        product = (company.no_show_fee_product_id
+                   or rline.room_id.product_variant_id)
+        if not product:
+            raise ValidationError(
+                _("No-show %s: no fee product and room %s has no "
+                  "product.") % (self.name,
+                                 rline.room_id.display_name))
+        plan = self.env['hotel.rate.plan']._plan_for_booking(self)
+        if plan:
+            anchor = rline.checkin_date.date() \
+                if rline.checkin_date else day
+            try:
+                price = self.env['hotel.rate.engine'].price_detailed(
+                    rline.room_id.id, anchor, plan.id,
+                    adults=rline.adults or 0,
+                    children=rline.children or 0,
+                    board=self.meal_plan or 'RO',
+                    booking=self)['net']
+            except ValidationError:
+                price = 0.0
+            if not price or price <= 0.0:
+                price = rline.price_unit or 0.0
+        else:
+            price = rline.price_unit or 0.0
+        line = charge.post_charge(
+            folio.id, product.id, 1, price, 'to_guest',
+            hotel_date=day, room_template_id=rline.room_id.id,
+            booking_line_id=rline.id, source='no_show')
+        folio.message_post(
+            body="No-show fee posted: 1 night of %s for missed "
+            "check-in %s." % (
+                rline.room_id.display_name,
+                rline.checkin_date.date()
+                if rline.checkin_date else '?'))
+        return line
+
     def action_maintenance_request(self):
         """
         Function that handles the maintenance request

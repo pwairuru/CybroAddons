@@ -16,7 +16,8 @@ class HotelDeposit(models.Model):
     amount = fields.Float(string="Amount", required=True, tracking=True)
     state = fields.Selection(
         [('draft', 'Draft'), ('applied', 'Applied'),
-         ('cancelled', 'Cancelled'), ('refunded', 'Refunded')],
+         ('cancelled', 'Cancelled'), ('refunded', 'Refunded'),
+         ('forfeited', 'Forfeited')],
         default='draft', required=True, tracking=True)
     company_id = fields.Many2one('res.company', string="Company",
                                  required=True, index=True,
@@ -128,6 +129,10 @@ class HotelDeposit(models.Model):
 
     def action_refund(self, reason=None):
         self.ensure_one()
+        if self.state == 'forfeited':
+            raise ValidationError(
+                "Deposit %.2f was forfeited; it cannot be refunded."
+                % self.amount)
         if not self.payment_move_id:
             raise ValidationError("Nothing collected; cancel instead.")
         if self.state == 'refunded':
@@ -157,6 +162,75 @@ class HotelDeposit(models.Model):
             raise ValidationError("Can only apply deposits to an open folio.")
         self.write({'state': 'applied'})
         return self
+
+    def action_forfeit(self, reason=None):
+        """Keep a collected deposit as house income (no-show policy).
+
+        Requires a collected (cash-received) draft deposit. Posts
+        Dr liability / Cr income so the P&L recognises the forfeit
+        instead of stranding it on the liability account, then flips
+        the deposit to forfeited: excluded from totals, settlement
+        and refunds.
+        """
+        self.ensure_one()
+        if self.state == 'forfeited':
+            return True
+        if self.state != 'draft':
+            raise ValidationError(
+                "Only draft deposits can be forfeited (state %s)."
+                % self.state)
+        if not self.payment_move_id:
+            raise ValidationError(
+                "Nothing collected; cancel the draft instead.")
+        folio = self.folio_id
+        company = folio.company_id
+        liability = self.account_id or folio._ensure_liability_account()
+        income = self.env['account.account'].search(
+            [('account_type', '=', 'income'),
+             ('company_ids', 'in', company.id)],
+            order='id', limit=1)
+        if not income:
+            raise ValidationError(
+                "No income account for company %s; configure one to "
+                "forfeit deposits." % company.display_name)
+        ref = 'Deposit forfeited folio %s' % folio.id
+        journal = self.env['account.journal'].search(
+            [('type', '=', 'general'),
+             ('company_id', '=', company.id)], limit=1)
+        if not journal:
+            journal = folio._ensure_sale_journal()
+        move = self.env['account.move'].create({
+            'move_type': 'entry',
+            'journal_id': journal.id,
+            'company_id': company.id,
+            'currency_id': company.currency_id.id,
+            'partner_id': folio.partner_id.id,
+            'ref': ref,
+            'line_ids': [
+                (0, 0, {
+                    'name': ref,
+                    'account_id': liability.id,
+                    'partner_id': folio.partner_id.id,
+                    'debit': self.amount,
+                    'credit': 0.0,
+                }),
+                (0, 0, {
+                    'name': ref,
+                    'account_id': income.id,
+                    'partner_id': folio.partner_id.id,
+                    'debit': 0.0,
+                    'credit': self.amount,
+                }),
+            ],
+        })
+        move.action_post()
+        self.write({'state': 'forfeited', 'move_id': move.id})
+        msg = ("Deposit %.2f forfeited (%s)."
+               % (self.amount, move.name or move.id))
+        if reason:
+            msg += " Reason: %s" % reason
+        folio.message_post(body=msg)
+        return True
 
 
 class HotelCityLedger(models.Model):
