@@ -49,6 +49,23 @@ class AccountPayment(models.Model):
                                        index=True, ondelete="set null",
                                        help="Booking this payment applies to.")
 
+    def _backfill_hotel_links(self):
+        """Copy folio/booking links from the reconciled invoices.
+
+        The register wizard reconciles at post time, after create, so
+        create-time backfill alone misses the links. Never overwrites
+        links already set (manual routing wins)."""
+        for rec in self:
+            if rec.hotel_folio_id and rec.hotel_booking_id:
+                continue
+            inv = rec.reconciled_invoice_ids[:1]
+            if not inv:
+                continue
+            if not rec.hotel_folio_id and inv.hotel_folio_id:
+                rec.hotel_folio_id = inv.hotel_folio_id
+            if not rec.hotel_booking_id and inv.hotel_booking_id:
+                rec.hotel_booking_id = inv.hotel_booking_id
+
     @api.model_create_multi
     def create(self, vals_list):
         recs = super().create(vals_list)
@@ -77,3 +94,9 @@ class AccountPayment(models.Model):
             if not rec.hotel_booking_id:
                 rec.hotel_booking_id = inv.hotel_booking_id
         return recs
+
+    def action_post(self):
+        """Post, then backfill folio/booking links from reconciliation."""
+        res = super().action_post()
+        self._backfill_hotel_links()
+        return res

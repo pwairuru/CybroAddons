@@ -10,7 +10,7 @@
                     <button name="action_reserve" string="Reserve"
                             invisible="state != 'draft'" type="object"
                             class="btn-primary"/>
-                    <button name="action_compute_bill" string="COMPUTE BILL"
+                    <button name="action_print_combined_bill" string="PRINT BILL"
                             invisible="state not in ['check_in', 'check_out', 'done']"
                             type="object"/>
                     <button name="hotel_management_odoo.hotel_post_stay_action" string="Post Stay"
@@ -31,7 +31,7 @@
                             string="Charge Ancillaries" type="object"
                             invisible="state != 'check_in'"/>
                     <button name="action_register_payment" string="Register Payment" type="object"
-                            class="btn-primary" invisible="state != 'check_out'"/>
+                             class="btn-primary" invisible="state != 'check_out' or amount_due == 0"/>
                     <button name="action_done" string="Set as Done"
                             class="btn-primary"
                             invisible="state != 'check_out'" type="object"/>
@@ -50,21 +50,21 @@
                 <sheet>
                     <div name="button_box" position="inside">
                         <button class="oe_stat_button" type="object"
-                                name="action_view_invoices"
-                                invisible="invoice_count == 0"
-                                icon="fa-edit">
-                            <field string="Invoices" name="invoice_count"
+                                 name="action_view_invoices"
+                                 icon="fa-edit">
+                            <field string="Invoices" name="amount_invoiced"
                                    widget="statinfo"/>
                         </button>
                         <button class="oe_stat_button" type="object"
                                 name="action_view_payments"
-                                invisible="payment_count == 0" icon="fa-money">
-                            <field string="Payments" name="payment_count" widget="statinfo"/>
+                                icon="fa-money">
+                            <field string="Payments" name="amount_paid" widget="statinfo"/>
                         </button>
                         <button class="oe_stat_button" type="object"
                                 name="action_view_folio"
                                 icon="fa-bed">
-                            Folio
+                            <field string="Folios" name="folio_count"
+                                   widget="statinfo"/>
                         </button>
                     </div>
                     <div>
@@ -147,35 +147,6 @@
                                     <field name="extra_stay_total" widget="monetary"/>
                                 </list>
                             </field>
-                            <group colspan="2"
-                                   class="oe_subtotal_footer oe_right">
-                                <field name="amount_untaxed_room"
-                                       sum="Untaxed amount for Room"
-                                       widget="monetary"/>
-                                <field name="amount_untaxed_food"
-                                       sum="Untaxed amount for Food"
-                                       widget="monetary"
-                                       invisible="need_food == False"/>
-                                <field name="amount_untaxed_service"
-                                       sum="Untaxed amount for Service"
-                                       widget="monetary"
-                                       invisible="need_service == False"/>
-                                <field name="amount_untaxed_fleet"
-                                       sum="Untaxed amount for Fleet"
-                                       widget="monetary"
-                                       invisible="need_fleet == False"/>
-                                <field name="amount_untaxed_event"
-                                       sum="Untaxed amount for Event"
-                                       widget="monetary"
-                                       invisible="need_event == False"/>
-                                <field name="amount_untaxed"
-                                       sum="Untaxed amount" widget="monetary"/>
-                                <field name="amount_tax" widget="monetary"/>
-                                <label for="amount_total"/>
-                                <field name="amount_total" nolabel="1"
-                                       sum="Total amount" widget="monetary"
-                                       help="Quote before folio posting"/>
-                            </group>
                             <div class="oe_clear"/>
                         </page>
                         <page name="food" string="Food"
@@ -243,10 +214,59 @@
                             <div class="oe_clear"/>
                         </page>
                     </notebook>
+                    <!-- Booking summary at end of form: same right-side
+                         footer position/styling as before, out of the
+                         way of the line tabs. -->
+                    <group name="booking_summary" colspan="2"
+                           class="oe_subtotal_footer oe_right">
+                        <div colspan="2" class="text-end fw-bold">Charges<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                        <field name="amount_untaxed_room"
+                               sum="Untaxed amount for Room"
+                               widget="monetary"/>
+                        <field name="amount_untaxed_food"
+                               sum="Untaxed amount for Food"
+                               widget="monetary"
+                               invisible="need_food == False"/>
+                        <field name="amount_untaxed_service"
+                               sum="Untaxed amount for Service"
+                               widget="monetary"
+                               invisible="need_service == False"/>
+                        <field name="amount_untaxed_fleet"
+                               sum="Untaxed amount for Fleet"
+                               widget="monetary"
+                               invisible="need_fleet == False"/>
+                        <field name="amount_untaxed_event"
+                               sum="Untaxed amount for Event"
+                               widget="monetary"
+                               invisible="need_event == False"/>
+                        <div colspan="2" class="text-end fw-bold mt-1">Totals<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                        <field name="amount_untaxed"
+                               sum="Untaxed amount" widget="monetary"/>
+                        <field name="amount_tax" widget="monetary"/>
+                        <label for="amount_total"/>
+                        <field name="amount_total" nolabel="1"
+                               sum="Total amount" widget="monetary"
+                               help="Quote before folio posting"/>
+                        <div colspan="2" class="text-end fw-bold mt-1">Payments<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                        <field name="amount_paid" widget="monetary"
+                               class="text-success"/>
+                        <field name="amount_due" widget="monetary"
+                               class="text-danger"/>
+                    </group>
                 </sheet>
                 <chatter/>
             </form>
         </field>
+    </record>
+    <!-- Isolate Bill in the cog menu (with Sale Order / Room Booking
+         Order prints): same report, folio page + separate POS page. -->
+    <record id="action_server_isolate_bill" model="ir.actions.server">
+        <field name="name">Isolate Bill</field>
+        <field name="model_id" ref="model_room_booking"/>
+        <field name="binding_model_id" ref="model_room_booking"/>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">action = records.action_print_isolate_bill()</field>
     </record>
     <!--     Room Booking Tree view -->
     <record id="room_booking_view_tree" model="ir.ui.view">
@@ -269,6 +289,14 @@
                        decoration-success="state == 'check_in'"
                        decoration-warning="state == 'check_out'"
                        decoration-danger="state == 'cancel'"/>
+                <button name="action_checkin" string="Check-In"
+                        type="object" icon="fa-sign-in"
+                        invisible="state != 'reserved'"/>
+                <button name="action_checkout" string="Check-Out"
+                        type="object" icon="fa-sign-out"
+                        invisible="state != 'check_in'"/>
+                <button name="action_view_folio" string="Folio"
+                        type="object" icon="fa-bed"/>
             </list>
         </field>
     </record>
@@ -284,6 +312,7 @@
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
                 <field name="amount_total"/>
+                <field name="amount_due"/>
                 <field name="state"/>
                 <templates>
                     <t t-name="card">
@@ -304,6 +333,43 @@
                                                decoration-warning="state == 'check_out'"
                                                decoration-danger="state == 'cancel'"/>
                                     </span>
+                                    <div class="o_dropdown_kanban dropdown ms-auto">
+                                        <a class="dropdown-toggle o-no-caret btn p-0"
+                                           data-bs-toggle="dropdown" href="#"
+                                           aria-label="Quick actions" title="Quick actions"
+                                           role="button">
+                                            <i class="fa fa-ellipsis-v"/>
+                                        </a>
+                                        <div class="dropdown-menu" role="menu">
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_reserve"
+                                               invisible="state != 'draft'">Reserve</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_checkin"
+                                               invisible="state != 'reserved'">Check-In</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_checkout"
+                                               invisible="state != 'check_in'">Check-Out</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="action"
+                                               name="%(hotel_management_odoo.hotel_post_stay_action)d"
+                                               invisible="state not in ['reserved', 'check_in']">Post Stay</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_view_folio">View Folio</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_print_combined_bill"
+                                               invisible="state not in ['check_in', 'check_out', 'done']">Combined Bill</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_print_isolate_bill"
+                                               invisible="state not in ['check_in', 'check_out', 'done']">Isolate Bill</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="action"
+                                               name="%(hotel_management_odoo.action_report_room_booking)d">Reservation Slip</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_cancel"
+                                               invisible="state not in ['draft', 'reserved']">Cancel</a>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="o_kanban_record_subtitle">
                                     <field name="partner_id"/>
@@ -313,13 +379,27 @@
                                     →
                                     <field name="checkout_date"/>
                                 </div>
-                                <div>
-                                    <strong>
-                                        <field name="amount_total"
-                                               widget="monetary"/>
-                                    </strong>
+                                <hr class="my-1 opacity-50"/>
+                                <div class="d-flex justify-content-between">
+                                    <span>Total:
+                                        <strong>
+                                            <field name="amount_total"
+                                                   widget="monetary"/>
+                                        </strong>
+                                    </span>
+                                    <span class="text-muted">Due:
+                                        <strong>
+                                            <field name="amount_due"
+                                                   widget="monetary"/>
+                                        </strong>
+                                    </span>
                                 </div>
-                                <div class="mt-1">
+                                <div class="d-flex justify-content-end gap-1 mt-1">
+                                    <button name="action_reserve"
+                                            string="Reserve"
+                                            type="object"
+                                            class="btn btn-secondary btn-sm"
+                                            invisible="state != 'draft'"/>
                                     <button name="action_checkin"
                                             string="Check-In"
                                             type="object"

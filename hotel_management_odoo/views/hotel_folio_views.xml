@@ -22,6 +22,12 @@
                        decoration-success="state == 'settled'"
                        decoration-muted="state == 'void'"
                        decoration-danger="state == 'void'"/>
+                <button name="action_register_payment" string="Pay"
+                        type="object" icon="fa-money"
+                        invisible="state != 'open'"/>
+                <button name="action_settle" string="Settle"
+                        type="object" icon="fa-check"
+                        invisible="state != 'open'"/>
             </list>
         </field>
     </record>
@@ -56,6 +62,43 @@
                                                decoration-muted="state == 'void'"
                                                decoration-danger="state == 'void'"/>
                                     </span>
+                                    <div class="o_dropdown_kanban dropdown ms-auto">
+                                        <a class="dropdown-toggle o-no-caret btn p-0"
+                                           data-bs-toggle="dropdown" href="#"
+                                           aria-label="Quick actions" title="Quick actions"
+                                           role="button">
+                                            <i class="fa fa-ellipsis-v"/>
+                                        </a>
+                                        <div class="dropdown-menu" role="menu">
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_generate_draft_invoice"
+                                               invisible="state != 'open'">Generate Draft</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_post_invoice"
+                                               invisible="state != 'open'">Post Invoice</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_register_payment"
+                                               invisible="state != 'open'">Register Payment</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_apply_deposit"
+                                               invisible="state != 'open'">Apply Deposit</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_settle"
+                                               invisible="state != 'open'">Settle</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="action"
+                                               name="%(hotel_management_odoo.hotel_folio_split_action)d"
+                                               invisible="state != 'open'">Split Bill</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_view_payments">View Payments</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="action"
+                                               name="%(hotel_management_odoo.action_report_hotel_folio_statement)d">Folio Statement</a>
+                                            <a role="menuitem" class="dropdown-item"
+                                               type="object" name="action_void"
+                                               invisible="state != 'open'">Void</a>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="o_kanban_record_subtitle">
                                     <field name="partner_id"/>
@@ -63,19 +106,32 @@
                                 <div class="text-muted">
                                     <field name="booking_id"/>
                                 </div>
-                                <div>
-                                    Total:
-                                    <strong>
-                                        <field name="amount_total"
-                                               widget="monetary"/>
-                                    </strong>
-                                    <span class="ms-2">
-                                        Due:
+                                <hr class="my-1 opacity-50"/>
+                                <div class="d-flex justify-content-between">
+                                    <span>Total:
+                                        <strong>
+                                            <field name="amount_total"
+                                                   widget="monetary"/>
+                                        </strong>
+                                    </span>
+                                    <span class="text-muted">Due:
                                         <strong>
                                             <field name="amount_due"
                                                    widget="monetary"/>
                                         </strong>
                                     </span>
+                                </div>
+                                <div class="d-flex justify-content-end gap-1 mt-1">
+                                    <button name="action_register_payment"
+                                            string="Pay"
+                                            type="object"
+                                            class="btn btn-secondary btn-sm"
+                                            invisible="state != 'open'"/>
+                                    <button name="action_settle"
+                                            string="Settle"
+                                            type="object"
+                                            class="btn btn-primary btn-sm"
+                                            invisible="state != 'open'"/>
                                 </div>
                             </div>
                         </div>
@@ -97,8 +153,8 @@
                     <button name="action_post_invoice" string="Post"
                             invisible="state != 'open'" type="object"/>
                     <button name="action_register_payment" string="Register Payment"
-                            type="object"
-                            invisible="state != 'open'"/>
+                             type="object"
+                             invisible="state != 'open' or amount_due == 0"/>
                     <button name="action_apply_deposit"
                             string="Apply Deposit"
                             invisible="state != 'open'" type="object"/>
@@ -124,6 +180,12 @@
                                    widget="statinfo"/>
                         </button>
                         <button class="oe_stat_button" type="object"
+                                name="action_view_payments"
+                                icon="fa-money">
+                            <field string="Payments" name="payment_ids"
+                                   widget="statinfo"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
                                 name="action_settle"
                                 icon="fa-money">
                             <field string="Due" name="amount_due"
@@ -140,7 +202,8 @@
                         <group>
                             <field name="amount_total"/>
                             <field name="deposit_total"/>
-                            <field name="amount_due"/>
+                            <field name="amount_paid" class="text-success"/>
+                            <field name="amount_due" class="text-danger"/>
                             <field name="move_id" readonly="1"/>
                         </group>
                     </group>

@@ -317,9 +317,13 @@ class RoomBookingLine(models.Model):
 
     @api.constrains('price_unit', 'tax_ids', 'uom_qty')
     def _check_locked(self):
+        import traceback as _tb, logging as _logging
         for line in self:
             if line.locked and not self.env.context.get(
                     'hotel_allow_locked_write'):
+                _logging.getLogger(__name__).warning(
+                    "LOCKED-WRITE-TRACE line=%s\n%s",
+                    line.id, ''.join(_tb.format_stack(limit=25)))
                 raise ValidationError(
                     _("Invoiced lines cannot be edited (room %s).")
                     % line.room_id.display_name)

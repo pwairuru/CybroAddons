@@ -18,92 +18,9 @@
                         </group>
                     </group>
                     
-                    <notebook>
-                        <page string="Room Details" invisible="not room_line_ids">
-                            <field name="room_line_ids" readonly="1">
-                                <list>
-                                    <field name="room_id"/>
-                                    <field name="checkin_date"/>
-                                    <field name="checkout_date"/>
-                                    <field name="uom_qty" string="Duration"/>
-                                    <field name="price_unit"/>
-                                    <field name="price_subtotal" sum="Untaxed"/>
-                                    <field name="price_tax" sum="Tax"/>
-                                    <field name="price_total" sum="Total"/>
-                                </list>
-                            </field>
-                        </page>
-                        <page string="Food Details" invisible="not food_line_ids">
-                            <field name="food_line_ids" readonly="1">
-                                <list>
-                                    <field name="food_id"/>
-                                    <field name="uom_qty"/>
-                                    <field name="price_unit"/>
-                                    <field name="price_subtotal" sum="Untaxed"/>
-                                    <field name="price_tax" sum="Tax"/>
-                                    <field name="price_total" sum="Total"/>
-                                </list>
-                            </field>
-                        </page>
-                        <page string="Other Services" invisible="not service_line_ids and not fleet_line_ids and not event_line_ids">
-                            <group string="Services" invisible="not service_line_ids">
-                                <field name="service_line_ids" nolabel="1" readonly="1">
-                                    <list>
-                                        <field name="service_id"/>
-                                        <field name="uom_qty"/>
-                                        <field name="price_unit"/>
-                                        <field name="price_subtotal" sum="Untaxed"/>
-                                        <field name="price_tax" sum="Tax"/>
-                                        <field name="price_total" sum="Total"/>
-                                    </list>
-                                </field>
-                            </group>
-                            <group string="Fleet" invisible="not fleet_line_ids">
-                                <field name="fleet_line_ids" nolabel="1" readonly="1">
-                                    <list>
-                                        <field name="fleet_id"/>
-                                        <field name="uom_qty"/>
-                                        <field name="price_unit"/>
-                                        <field name="price_subtotal" sum="Untaxed"/>
-                                        <field name="price_tax" sum="Tax"/>
-                                        <field name="price_total" sum="Total"/>
-                                    </list>
-                                </field>
-                            </group>
-                            <group string="Event" invisible="not event_line_ids">
-                                <field name="event_line_ids" nolabel="1" readonly="1">
-                                    <list>
-                                        <field name="event_id"/>
-                                        <field name="uom_qty"/>
-                                        <field name="price_unit"/>
-                                        <field name="price_subtotal" sum="Untaxed"/>
-                                        <field name="price_tax" sum="Tax"/>
-                                        <field name="price_total" sum="Total"/>
-                                    </list>
-                                </field>
-                            </group>
-                        </page>
-                        <page string="POS ORDERS">
-                            <field name="pos_order_ids" nolabel="1">
-                                <list>
-                                    <field name="pos_reference" string="Order Ref"/>
-                                    <field name="session_id" string="Session"/>
-                                    <field name="date_order" string="Date"/>
-                                    <field name="partner_id" string="Customer"/>
-                                    <field name="user_id" string="Cashier" widget="many2one_avatar_user"/>
-                                    <field name="amount_total" string="Total" sum="Total" widget="monetary"/>
-                                    <field name="state" string="Status" widget="badge" decoration-success="state in ('paid', 'invoiced', 'done')"/>
-                                </list>
-                            </field>
-                        </page>
-                    </notebook>
-
-                    <group string="Bill Totals" class="oe_subtotal_footer oe_right">
-                        <field name="amount_total_booking" widget="monetary"/>
-                        <field name="amount_total_pos" widget="monetary" invisible="not pos_order_ids"/>
-                        <field name="amount_total_combined" widget="monetary" invisible="not pos_order_ids"/>
-                    </group>
-                    
+                    <!-- Slimmed: line/totals detail already lives on the
+                         booking form summary; this dialog only picks
+                         the print format. -->
                     <group>
                         <field name="bill_type" widget="radio" options="{'horizontal': true}"/>
                     </group>

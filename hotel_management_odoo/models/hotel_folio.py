@@ -26,7 +26,7 @@ class HotelFolio(models.Model):
 
     name = fields.Char(string="Folio", default='New', copy=False,
                        index=True,
-                       help="Folio reference (FOLIO/ sequence).")
+                       help="Folio reference (FOL/YYYY/ sequence).")
     partner_id = fields.Many2one('res.partner', string="Customer",
                                  required=True, tracking=True)
     booking_id = fields.Many2one('room.booking', string="Booking",
@@ -74,6 +74,10 @@ class HotelFolio(models.Model):
                                   store=True, tracking=True)
     amount_due = fields.Float(string="Balance Due", compute='_compute_totals',
                                store=True, tracking=True)
+    amount_paid = fields.Float(string="Paid", compute='_compute_totals',
+                               store=True, tracking=True,
+                               help="Deposits plus paid portion of posted "
+                                    "folio invoices.")
 
     @api.depends('partner_id.name', 'partner_id.avatar_128', 'image_128')
     def _compute_avatar_128(self):
@@ -101,7 +105,7 @@ class HotelFolio(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Assign the FOLIO/ sequence (room.booking pattern)."""
+        """Assign the FOL/YYYY/ sequence (room.booking pattern)."""
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
                 vals['name'] = self.env['ir.sequence'].next_by_code(
@@ -117,9 +121,11 @@ class HotelFolio(models.Model):
                 folio.company_id = self.env.company
 
     @api.depends('line_ids.quantity', 'line_ids.price_unit',
-                  'line_ids.tax_ids', 'line_ids.price_subtotal',
-                  'line_ids.price_tax', 'line_ids.price_total',
-                  'deposit_ids.amount', 'deposit_ids.state', 'state')
+                   'line_ids.tax_ids', 'line_ids.price_subtotal',
+                   'line_ids.price_tax', 'line_ids.price_total',
+                   'deposit_ids.amount', 'deposit_ids.state', 'state',
+                   'invoice_ids.amount_total', 'invoice_ids.amount_residual',
+                   'invoice_ids.state')
     def _compute_totals(self):
         for folio in self:
             folio.amount_untaxed = sum(
@@ -132,10 +138,15 @@ class HotelFolio(models.Model):
             folio.deposit_total = sum(
                 d.amount for d in folio.deposit_ids
                 if d.state in ('draft', 'applied'))
+            folio.amount_paid = folio.deposit_total + sum(
+                m.amount_total - m.amount_residual
+                for m in folio.invoice_ids
+                if m.move_type == 'out_invoice' and m.state == 'posted')
             if folio.state in ('settled', 'void'):
                 folio.amount_due = 0.0
             else:
-                folio.amount_due = folio.amount_total - folio.deposit_total
+                folio.amount_due = max(
+                    0.0, folio.amount_total - folio.amount_paid)
 
     def _ensure_sale_journal(self):
         self.ensure_one()
@@ -308,6 +319,18 @@ class HotelFolio(models.Model):
                 'default_hotel_folio_id': self.id,
                 'default_hotel_booking_id': self.booking_id.id or False,
             },
+        }
+
+    def action_view_payments(self):
+        """Open payments linked to this folio (or its booking)."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Payments',
+            'res_model': 'account.payment',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self._linked_payments().ids)],
+            'context': "{'create': False}",
         }
 
     def action_apply_deposit(self):

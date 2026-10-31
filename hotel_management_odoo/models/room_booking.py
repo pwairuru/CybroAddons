@@ -35,8 +35,8 @@ class RoomBooking(models.Model):
     _order = "id desc"
     _inherit = ['mail.thread', 'mail.activity.mixin', 'avatar.mixin']
 
-    name = fields.Char(string="Folio Number", readonly=True, index=True,
-                       default="New", help="Name of Folio")
+    name = fields.Char(string="Reservation", readonly=True, index=True,
+                       default="New", help="Reservation reference")
     company_id = fields.Many2one('res.company', string="Company",
                                  help="Choose the Company",
                                  required=True, index=True,
@@ -228,6 +228,9 @@ class RoomBooking(models.Model):
         related='pricelist_id.currency_id',
         depends=['pricelist_id.currency_id'],
     )
+    folio_count = fields.Integer(compute='_compute_invoice_count',
+                                 string="Folio Count",
+                                 help="Folios linked to this booking.")
     invoice_count = fields.Integer(compute='_compute_invoice_count',
                                    string="Invoice "
                                           "Count",
@@ -236,10 +239,20 @@ class RoomBooking(models.Model):
                                    string="Payment Count",
                                    help="Payments linked to this booking "
                                         "or its folios.")
-    amount_due = fields.Float(compute='_compute_invoice_count',
-                              string="Amount Due",
-                              help="Residual of posted invoices linked "
-                                   "to this booking or its folios.")
+    amount_due = fields.Monetary(compute='_compute_invoice_count',
+                                 string="Amount Due",
+                                 help="Residual of posted invoices linked "
+                                      "to this booking or its folios.")
+    amount_paid = fields.Monetary(compute='_compute_invoice_count',
+                                  string="Paid",
+                                  help="Total paid on posted invoices "
+                                       "linked to this booking or its "
+                                       "folios.")
+    amount_invoiced = fields.Monetary(compute='_compute_invoice_count',
+                                      string="Invoiced",
+                                      help="Total of posted invoices "
+                                           "linked to this booking or "
+                                           "its folios.")
     amount_untaxed = fields.Monetary(string="Total Untaxed Amount",
                                      help="This indicates the total untaxed "
                                           "amount", store=True,
@@ -420,12 +433,16 @@ class RoomBooking(models.Model):
             # Count only (no content): the booking form renders for
             # reception, who has no direct journal access.
             Move = self.env['account.move'].sudo()
+            record.folio_count = len(folio_ids)
             record.invoice_count = Move.search_count(domain)
             posted = Move.search(domain + [('move_type', '=', 'out_invoice'),
                                            ('state', '=', 'posted')])
             record.payment_count = self.env['account.payment'].sudo() \
                 .search_count(domain)
             record.amount_due = sum(posted.mapped('amount_residual'))
+            record.amount_paid = sum(
+                m.amount_total - m.amount_residual for m in posted)
+            record.amount_invoiced = sum(posted.mapped('amount_total'))
             if posted:
                 if all(m.payment_state == 'paid' for m in posted):
                     record.invoice_status = 'paid'
@@ -1270,3 +1287,23 @@ class RoomBooking(models.Model):
             'target': 'new',
             'context': {'default_booking_id': self.id}
         }
+
+    def _print_bill(self, bill_type):
+        """One-click bill print (no dialog): build the wizard row the
+        report template reads, then fire the report."""
+        self.ensure_one()
+        wizard = self.env['compute.bill'].create({
+            'booking_id': self.id,
+            'bill_type': bill_type,
+        })
+        return self.env.ref(
+            'hotel_management_odoo.action_report_combined_bill'
+        ).report_action(wizard)
+
+    def action_print_combined_bill(self):
+        """Header PRINT BILL: combined bill / folio statement."""
+        return self._print_bill('combined')
+
+    def action_print_isolate_bill(self):
+        """Cog-menu Isolate Bill: folio page + separate POS page."""
+        return self._print_bill('isolate')
