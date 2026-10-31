@@ -107,3 +107,47 @@ class TestFolioSplit(TransactionCase):
             'date': fields.Date.today(), 'is_closed': True})
         with self.assertRaises(ValidationError):
             line.action_transfer(folio_b.id)
+
+
+class TestSplitInvoicing(TransactionCase):
+    """Split bills invoice per folio so guests pay separately."""
+
+    def _folio_pair(self):
+        guest_a = self.env['res.partner'].create({'name': 'Split A'})
+        guest_b = self.env['res.partner'].create({'name': 'Split B'})
+        folio_a = self.env['hotel.folio'].create(
+            {'partner_id': guest_a.id})
+        folio_b = self.env['hotel.folio'].create(
+            {'partner_id': guest_b.id})
+        product = self.env['product.product'].search(
+            [('sale_ok', '=', True)], limit=1)
+        return folio_a, folio_b, product
+
+    def test_split_then_each_folio_invoices_separately(self):
+        folio_a, folio_b, product = self._folio_pair()
+        self.env['hotel.charge.service'].post_charge(
+            folio_a.id, product.id, 1, 1000.0, 'to_guest')
+        line = self.env['hotel.charge.service'].post_charge(
+            folio_a.id, product.id, 1, 500.0, 'to_guest')
+        line.action_transfer(folio_b.id)
+        move_a = folio_a.action_post_invoice()
+        move_b = folio_b.action_post_invoice()
+        self.assertEqual(move_a.hotel_folio_id.id, folio_a.id)
+        self.assertEqual(move_b.hotel_folio_id.id, folio_b.id)
+        self.assertEqual(move_a.amount_total, 1000.0)
+        self.assertEqual(move_b.amount_total, 500.0)
+        self.assertEqual(move_a.partner_id.id, folio_a.partner_id.id)
+        self.assertEqual(move_b.partner_id.id, folio_b.partner_id.id)
+        pay_a = folio_a.action_register_payment()['context']
+        pay_b = folio_b.action_register_payment()['context']
+        self.assertEqual(pay_a['active_ids'], [move_a.id])
+        self.assertEqual(pay_b['active_ids'], [move_b.id])
+
+    def test_transfer_invoiced_line_refused(self):
+        folio_a, folio_b, product = self._folio_pair()
+        line = self.env['hotel.charge.service'].post_charge(
+            folio_a.id, product.id, 1, 500.0, 'to_guest')
+        folio_a.action_generate_draft_invoice()
+        with self.assertRaises(ValidationError):
+            line.action_transfer(folio_b.id)
+        self.assertEqual(line.folio_id.id, folio_a.id)

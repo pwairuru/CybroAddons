@@ -907,15 +907,19 @@ class RoomBooking(models.Model):
                 "state": "check_out",
                 "actual_checkout_date": fields.Datetime.now(),
             })
-            folio = record._ensure_folio()
-            pending = folio.line_ids.filtered(
-                lambda l: (l.quantity - (l.invoiced_qty or 0.0)) > 0.0)
-            if pending:
+            record._ensure_folio()
+            posted_any = False
+            for folio in record._get_folios('open'):
+                pending = folio.line_ids.filtered(
+                    lambda l: (l.quantity - (l.invoiced_qty or 0.0)) > 0.0)
+                if not pending:
+                    continue
                 posted_move = folio.action_post_invoice()
                 record.message_post(
-                    body="Checkout posted %s."
-                    % (posted_move.name or posted_move.id))
-            else:
+                    body="Checkout posted %s for folio %s."
+                    % (posted_move.name or posted_move.id, folio.name))
+                posted_any = True
+            if not posted_any:
                 record.message_post(
                     body="Checkout with no uninvoiced charges; "
                          "no invoice posted.")
@@ -1166,12 +1170,29 @@ class RoomBooking(models.Model):
         }
 
     def action_register_payment(self):
-        """Booking-level Register Payment: delegates to the open folio."""
+        """Booking-level Register Payment: delegates to the dues folio.
+
+        Each folio invoices and pays separately (split bills may belong
+        to different guests), so a booking with dues on several folios
+        refuses and directs payment from each folio instead.
+        """
         self.ensure_one()
-        folio = self._get_folios('open')[:1]
-        if not folio:
+        folios = self._get_folios('open')
+        if not folios:
             raise ValidationError("Reserve first: no open folio.")
-        return folio.action_register_payment()
+        dues = [(folio, folio.invoice_ids.filtered(
+            lambda m: m.move_type == 'out_invoice' and m.state == 'posted'
+            and m.payment_state != 'paid')) for folio in folios]
+        dues = [(folio, moves) for folio, moves in dues if moves]
+        if not dues:
+            raise ValidationError(
+                "No unpaid posted invoice for booking %s." % self.name)
+        if len(dues) > 1:
+            raise ValidationError(
+                "Folios %s each have unpaid invoices; open each folio "
+                "to pay them separately."
+                % ', '.join(f.name for f, _ in dues))
+        return dues[0][0].action_register_payment()
 
     def action_checkin(self):
         """

@@ -108,6 +108,10 @@ class HotelFolioLine(models.Model):
         if not target.exists():
             raise ValidationError("Target folio %s does not exist."
                                   % target_folio_id)
+        if (self.invoiced_qty or 0.0) > 0.0:
+            raise ValidationError(
+                "Line already invoiced on folio %s; credit or reverse "
+                "that invoice before moving it." % self.folio_id.id)
         source = self.folio_id
         if source.state != 'open':
             raise ValidationError("Can only transfer from an open folio.")

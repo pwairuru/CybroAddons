@@ -54,3 +54,42 @@ class TestCheckoutGuards(TransactionCase):
         dates = sorted(str(l.hotel_date) for l in folio.line_ids)
         self.assertNotIn(future, dates)
         self.assertIn(past, dates)
+
+    def _mk_checked_in_with_folios(self):
+        bk = self._mk_booking()
+        bk.action_checkin()
+        folio_a = bk._ensure_folio()
+        prod = bk.room_line_ids[:1].room_id.product_variant_id
+        Svc = self.env['hotel.charge.service']
+        Svc.post_charge(folio_a.id, prod.id, 1, 700.0, 'to_guest')
+        guest_b = self.env['res.partner'].create({'name': 'Second Folio'})
+        folio_b = self.env['hotel.folio'].create({
+            'partner_id': guest_b.id, 'booking_id': bk.id,
+            'company_id': bk.company_id.id})
+        Svc.post_charge(folio_b.id, prod.id, 1, 300.0, 'to_guest')
+        return bk, folio_a, folio_b
+
+    def test_checkout_posts_all_open_folios(self):
+        bk, folio_a, folio_b = self._mk_checked_in_with_folios()
+        bk.action_checkout()
+        move_a = folio_a.invoice_ids.filtered(
+            lambda m: m.state == 'posted')
+        move_b = folio_b.invoice_ids.filtered(
+            lambda m: m.state == 'posted')
+        self.assertEqual(len(move_a), 1)
+        self.assertEqual(len(move_b), 1)
+        self.assertEqual(move_a.amount_total, 700.0)
+        self.assertEqual(move_b.amount_total, 300.0)
+
+    def test_booking_pay_delegates_to_dues_folio(self):
+        bk, folio_a, folio_b = self._mk_checked_in_with_folios()
+        move_b = folio_b.action_post_invoice()
+        wizard = bk.action_register_payment()
+        self.assertEqual(wizard['context']['active_ids'], [move_b.id])
+
+    def test_booking_pay_with_two_dues_folios_directs_per_folio(self):
+        bk, folio_a, folio_b = self._mk_checked_in_with_folios()
+        folio_a.action_post_invoice()
+        folio_b.action_post_invoice()
+        with self.assertRaises(ValidationError):
+            bk.action_register_payment()

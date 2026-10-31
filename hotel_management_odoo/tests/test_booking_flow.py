@@ -110,7 +110,7 @@ class TestBookingFlow(TransactionCase):
         arch = view.arch_db
         self.assertIn('action_view_payments', arch)
         self.assertIn('action_register_payment', arch)
-        self.assertIn('payment_count', arch)
+        self.assertIn('amount_paid', arch)
         self.assertIn('state != \'check_out\'', arch)
 
 
