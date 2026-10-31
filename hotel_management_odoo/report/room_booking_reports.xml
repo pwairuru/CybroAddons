@@ -29,30 +29,73 @@
                             </tr>
                         </thead>
                         <t t-set="i" t-value="0"/>
-                        <t t-foreach="docs" t-as="o">
-                            <t t-foreach="o.room_line_ids" t-as="line">
-                                <t t-set="i" t-value="i+1"/>
-                                <tr>
-                                    <td>
-                                        <t t-out="i"/>
-                                    </td>
-                                    <td>
-                                        <t t-out="o.partner_id.display_name"/>
-                                    </td>
-                                    <td>
-                                        <t t-out="line.room_id.display_name"/>
-                                    </td>
-                                    <td>
-                                        <t t-out="line.checkin_date"/>
-                                    </td>
-                                    <td>
-                                        <t t-out="line.checkout_date"/>
-                                    </td>
-                                    <td>
-                                        <t t-out="o.name"/>
-                                    </td>
-                                </tr>
-                            </t>
+                        <t t-foreach="o.room_line_ids" t-as="line">
+                            <t t-set="i" t-value="i+1"/>
+                            <tr>
+                                <td>
+                                    <t t-out="i"/>
+                                </td>
+                                <td>
+                                    <t t-out="o.partner_id.display_name"/>
+                                </td>
+                                <td>
+                                    <t t-out="line.room_id.display_name"/>
+                                </td>
+                                <td>
+                                    <t t-out="line.checkin_date"/>
+                                </td>
+                                <td>
+                                    <t t-out="line.checkout_date"/>
+                                </td>
+                                <td>
+                                    <t t-out="o.name"/>
+                                </td>
+                            </tr>
+                        </t>
+                    </table>
+                </div>
+            </t>
+            </t>
+            <!-- Wizard path (Reports menu): date/room-filtered dict rows. -->
+            <t t-if="booking">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <h2>Room Booking</h2>
+                    <br/>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Sl No.</th>
+                                <th>Guest Name</th>
+                                <th>Room No.</th>
+                                <th>Check-In</th>
+                                <th>Check-Out</th>
+                                <th>Reference No.</th>
+                            </tr>
+                        </thead>
+                        <t t-set="i" t-value="0"/>
+                        <t t-foreach="booking" t-as="line">
+                            <t t-set="i" t-value="i+1"/>
+                            <tr>
+                                <td>
+                                    <t t-out="i"/>
+                                </td>
+                                <td>
+                                    <t t-out="line['partner_id']"/>
+                                </td>
+                                <td>
+                                    <t t-out="line['room']"/>
+                                </td>
+                                <td>
+                                    <t t-out="line['checkin_date']"/>
+                                </td>
+                                <td>
+                                    <t t-out="line['checkout_date']"/>
+                                </td>
+                                <td>
+                                    <t t-out="line['name']"/>
+                                </td>
+                            </tr>
                         </t>
                     </table>
                 </div>

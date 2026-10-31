@@ -9,50 +9,123 @@
         <field name="binding_type">report</field>
     </record>
 
+    <!-- Grouped folio statement: same invoice-style sections and
+         totals table as the combined bill body, fed by posted folio
+         lines (get_statement_groups) instead of booking quote lines. -->
     <template id="report_hotel_folio_statement">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
-                <t t-call="web.external_layout">
-                    <div class="page">
-                        <h2>Folio Statement — <t t-out="doc.partner_id.display_name"/></h2>
-                        <p>Folio <t t-out="doc.id"/> —
-                           Booking <t t-out="doc.booking_id.display_name or '-'"/> —
-                           Policy <t t-out="doc.policy_snapshot or '-'"/></p>
+                <t t-set="layout_document_title">
+                    <span>Folio Statement</span>
+                    <span t-field="doc.name">FOLIO/00000</span>
+                </t>
+                <t t-set="address">
+                    <address class="mb-0" t-field="doc.partner_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
+                </t>
+                <t t-call="web.external_layout"
+                    layout_document_title="layout_document_title"
+                    address="address">
+                    <div class="page mb-4">
+                        <div class="oe_structure"/>
+                        <div id="informations" class="row mb-4">
+                            <div class="col" name="folio">
+                                <strong>Folio</strong>
+                                <div t-field="doc.name">FOLIO/00000</div>
+                            </div>
+                            <div class="col" name="booking">
+                                <strong>Booking</strong>
+                                <div t-field="doc.booking_id.name">BOOKING/00000</div>
+                            </div>
+                            <div class="col" name="policy">
+                                <strong>Policy</strong>
+                                <div t-field="doc.policy_snapshot">-</div>
+                            </div>
+                        </div>
                         <t t-if="doc.policy_snapshot == 'picking'">
                             <div class="alert alert-warning">
                                 <strong>Pay on Checkout</strong> —
                                 balance due at departure.
                             </div>
                         </t>
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Category</th>
-                                    <th>Description</th>
-                                    <th>Qty</th>
-                                    <th>Unit</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-foreach="doc.line_ids.sorted(key=lambda l: (l.hotel_date or False, l.id))" t-as="line">
+                        <t t-set="stmt_groups" t-value="doc.get_statement_groups()"/>
+                        <t t-set="stmt_currency" t-value="doc.company_id.currency_id"/>
+                        <div class="table-responsive-sm overflow-visible">
+                            <table class="o_has_total_table table o_main_table table-borderless mb-0" name="folio_statement_table">
+                                <thead>
                                     <tr>
-                                        <td><t t-out="line.hotel_date"/></td>
-                                        <td><t t-out="line.product_id.categ_id.display_name or '-'"/></td>
-                                        <td><t t-out="line.product_id.display_name"/></td>
-                                        <td><t t-out="line.quantity"/></td>
-                                        <td><t t-out="line.price_unit"/></td>
-                                        <td><t t-out="line.price_total"/></td>
+                                        <th name="th_description" class="text-start"><span>Description</span></th>
+                                        <th name="th_detail" class="text-start"><span>Detail</span></th>
+                                        <th name="th_date" class="text-start"><span>Date</span></th>
+                                        <th name="th_quantity" class="text-end"><span>Qty</span></th>
+                                        <th name="th_priceunit" class="text-end"><span>Unit Price</span></th>
+                                        <th name="th_subtotal" class="text-end"><span>Amount</span></th>
                                     </tr>
-                                </t>
-                            </tbody>
-                        </table>
-                        <p>Untaxed: <t t-out="doc.amount_untaxed"/> —
-                           Tax: <t t-out="doc.amount_tax"/> —
-                           Total: <t t-out="doc.amount_total"/> —
-                           Deposits: <t t-out="doc.deposit_total"/> —
-                           Due: <t t-out="doc.amount_due"/></p>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="stmt_groups" t-as="g">
+                                        <tr class="fw-bold o_line_section">
+                                            <td colspan="5"><span t-out="g['label']">Rooms</span></td>
+                                            <td class="text-end o_price_total">
+                                                <span t-out="g['subtotal']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": stmt_currency}'/>
+                                            </td>
+                                        </tr>
+                                        <t t-foreach="g['rows']" t-as="r">
+                                            <tr>
+                                                <td><span t-out="r['description']">Room</span></td>
+                                                <td><span t-out="r['detail']">-</span></td>
+                                                <td><span t-out="r['date']" t-options='{"widget": "date"}'/></td>
+                                                <td class="text-end"><span t-out="r['qty']" class="text-nowrap">1.0</span></td>
+                                                <td class="text-end"><span t-out="r['unit']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": stmt_currency}'/></td>
+                                                <td class="text-end o_price_total"><span t-out="r['total']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": stmt_currency}'/></td>
+                                            </tr>
+                                        </t>
+                                    </t>
+                                    </tbody>
+                            </table>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-7"/>
+                            <div class="col-5">
+                                <table class="o_total_table table table-borderless avoid-page-break-inside" name="folio_statement_total_table">
+                                    <tr class="o_subtotal">
+                                        <td><strong>Untaxed</strong></td>
+                                        <td class="text-end o_price_total">
+                                            <span t-field="doc.amount_untaxed" t-options='{"widget": "monetary", "display_currency": stmt_currency}'/>
+                                        </td>
+                                    </tr>
+                                    <tr class="o_subtotal">
+                                        <td><strong>Tax</strong></td>
+                                        <td class="text-end o_price_total">
+                                            <span t-field="doc.amount_tax" t-options='{"widget": "monetary", "display_currency": stmt_currency}'/>
+                                        </td>
+                                    </tr>
+                                    <tr class="o_subtotal">
+                                        <td><strong>Total</strong></td>
+                                        <td class="text-end o_price_total">
+                                            <span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": stmt_currency}'/>
+                                        </td>
+                                    </tr>
+                                    <tr class="o_subtotal">
+                                        <td><strong>Deposits</strong></td>
+                                        <td class="text-end o_price_total">
+                                            <span t-field="doc.deposit_total" t-options='{"widget": "monetary", "display_currency": stmt_currency}'/>
+                                        </td>
+                                    </tr>
+                                    <tr class="o_subtotal">
+                                        <td><strong class="text-success">Paid</strong></td>
+                                        <td class="text-end o_price_total">
+                                            <span t-field="doc.amount_paid" t-options='{"widget": "monetary", "display_currency": stmt_currency}' class="text-success"/>
+                                        </td>
+                                    </tr>
+                                    <tr class="o_total">
+                                        <td><strong class="text-danger">Balance Due</strong></td>
+                                        <td class="text-end o_price_total">
+                                            <span t-field="doc.amount_due" t-options='{"widget": "monetary", "display_currency": stmt_currency}' class="text-danger"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
                         <p t-if="doc.notes"><t t-out="doc.notes"/></p>
                     </div>
                 </t>

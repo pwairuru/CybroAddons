@@ -30,32 +30,73 @@
                                 <th>Amount Total</th>
                             </tr>
                         </thead>
+                        <tr>
+                            <td>1</td>
+                            <td>
+                                <t t-out="o.partner_id.display_name"/>
+                            </td>
+                            <td>
+                                <t t-out="o.checkin_date"/>
+                            </td>
+                            <td>
+                                <t t-out="o.checkout_date"/>
+                            </td>
+                            <td>
+                                <t t-out="o.name"/>
+                            </td>
+                            <td class="text-end">
+                                <span t-field="o.amount_total" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </t>
+            </t>
+            <!-- Wizard path (Reports menu): date/state-filtered dict rows. -->
+            <t t-if="booking">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <div class="oe_structure"/>
+                    <h2>Sale Order</h2>
+                    <br/>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Sl No.</th>
+                                <th>Guest Name</th>
+                                <th>Check-In</th>
+                                <th>Check-Out</th>
+                                <th>Reference No.</th>
+                                <th>Amount Total</th>
+                            </tr>
+                        </thead>
                         <t t-set="i" t-value="0"/>
-                        <t t-foreach="docs" t-as="o">
+                        <t t-foreach="booking" t-as="line">
                             <t t-set="i" t-value="i+1"/>
                             <tr>
                                 <td>
                                     <t t-out="i"/>
                                 </td>
                                 <td>
-                                    <t t-out="o.partner_id.display_name"/>
+                                    <t t-out="line['partner_id']"/>
                                 </td>
                                 <td>
-                                    <t t-out="o.checkin_date"/>
+                                    <t t-out="line['checkin_date']"/>
                                 </td>
                                 <td>
-                                    <t t-out="o.checkout_date"/>
+                                    <t t-out="line['checkout_date']"/>
                                 </td>
                                 <td>
-                                    <t t-out="o.name"/>
+                                    <t t-out="line['name']"/>
                                 </td>
                                 <td>
-                                    <span t-field="o.amount_total" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                                    <t t-out="line['amount_total']"/>
                                 </td>
                             </tr>
                         </t>
                     </table>
                 </div>
+            </t>
             </t>
         </t>
     </template>

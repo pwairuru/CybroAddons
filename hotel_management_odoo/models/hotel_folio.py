@@ -148,6 +148,38 @@ class HotelFolio(models.Model):
                 folio.amount_due = max(
                     0.0, folio.amount_total - folio.amount_paid)
 
+    def get_statement_groups(self):
+        """Posted folio lines grouped guest-style for the statement.
+
+        Same group/row shape as the booking grouped bill
+        (get_bill_grouped_lines) so both statements read alike; rows
+        come from posted folio lines, not the booking quote."""
+        self.ensure_one()
+        order = ['Rooms', 'Food', 'Services', 'Fleet', 'Events',
+                 'Bar/Restaurant']
+        labels = {'rate': 'Rooms', 'service': 'Services',
+                  'pos': 'Bar/Restaurant', 'food': 'Food',
+                  'fleet': 'Fleet', 'event': 'Events'}
+        buckets = {}
+        for line in self.line_ids.sorted(
+                key=lambda l: (l.hotel_date or False, l.id)):
+            label = labels.get((line.source or '').lower(),
+                               (line.source or 'Other').title())
+            buckets.setdefault(label, []).append({
+                'description': line.product_id.display_name or '-',
+                'detail': line.room_template_id.display_name
+                if line.room_template_id else (line.routing or ''),
+                'date': line.hotel_date,
+                'qty': line.quantity,
+                'unit': line.price_unit,
+                'total': line.price_total,
+            })
+        ordered = [l for l in order if l in buckets]
+        ordered += [k for k in buckets if k not in order]
+        return [{'label': label, 'rows': buckets[label],
+                 'subtotal': sum(r['total'] for r in buckets[label])}
+                for label in ordered]
+
     def _ensure_sale_journal(self):
         self.ensure_one()
         journal = self.env['account.journal'].search(

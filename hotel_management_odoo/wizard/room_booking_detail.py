@@ -169,7 +169,12 @@ class ReportRoomBooking(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
-        """Inject wizard-generated booking data into the QWeb template context."""
+        """Inject wizard-generated booking data into the QWeb template
+        context. Also exposes docs so the same report prints from the
+        booking Print menu (no wizard data there)."""
         return {
+            'doc_ids': docids,
+            'doc_model': 'room.booking',
+            'docs': self.env['room.booking'].browse(docids).exists(),
             'booking': (data or {}).get('booking', []),
         }
