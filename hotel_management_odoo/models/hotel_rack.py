@@ -193,7 +193,8 @@ class HotelDailyInventory(models.AbstractModel):
                              datetime.min.time()))
         lines = self.env['room.booking.line'].search([
             ('booking_id.company_id', '=', self.env.company.id),
-            ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('booking_id.state', 'in',
+             ('reserved', 'check_in', 'check_out', 'done')),
             ('checkin_date', '<', day_end),
             ('checkout_date', '>', day_start),
         ])
@@ -218,16 +219,18 @@ class HotelDailyInventory(models.AbstractModel):
                     revenue += nightly
                 elif line.booking_id.state == 'reserved':
                     reserved_ids.add(line.room_id.id)
-        # Arrivals: lines starting today (reserved or checked-in).
+        # Arrivals: lines starting today, any non-cancelled state —
+        # a stay checked out (or settled) today still arrived today.
         arrivals = sum(
             1 for line in lines
             if _to_date(line.checkin_date) == today
-            and line.booking_id.state in ('reserved', 'check_in'))
-        # Departures: in-house lines ending today.
+            and line.booking_id.state in (
+                'reserved', 'check_in', 'check_out', 'done'))
+        # Departures: lines ending today (in-house or already checked out).
         departures = sum(
             1 for line in lines
             if _to_date(line.checkout_date) == today
-            and line.booking_id.state == 'check_in')
+            and line.booking_id.state in ('check_in', 'check_out'))
         occupied = len(occupied_ids)
         occupancy = round(100.0 * occupied / sellable, 1) if sellable else 0.0
         adr = round(revenue / occupied, 2) if occupied else 0.0
@@ -278,7 +281,8 @@ class HotelDailyInventory(models.AbstractModel):
             datetime.combine(end, datetime.min.time()))
         lines = self.env['room.booking.line'].search([
             ('booking_id.company_id', '=', self.env.company.id),
-            ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('booking_id.state', 'in',
+             ('reserved', 'check_in', 'check_out', 'done')),
             ('checkin_date', '<', window_end),
             ('checkout_date', '>', window_start),
         ])
@@ -286,7 +290,8 @@ class HotelDailyInventory(models.AbstractModel):
         food_per_day = {}
         for fl in self.env['food.booking.line'].search([
                 ('booking_id.company_id', '=', self.env.company.id),
-                ('booking_id.state', 'in', ('reserved', 'check_in')),
+                ('booking_id.state', 'in',
+                 ('reserved', 'check_in', 'check_out', 'done')),
         ]):
             ci = _to_date(fl.booking_id.checkin_date)
             if ci and start <= ci < end:
@@ -308,9 +313,10 @@ class HotelDailyInventory(models.AbstractModel):
                 if not (ci and co):
                     continue
                 state = line.booking_id.state
-                if ci == day and state in ('reserved', 'check_in'):
+                if ci == day and state in (
+                        'reserved', 'check_in', 'check_out', 'done'):
                     arr += 1
-                if co == day and state == 'check_in':
+                if co == day and state in ('check_in', 'check_out'):
                     dep += 1
                 if ci <= day < co and state == 'check_in':
                     occupied_ids.add(line.room_id.id)

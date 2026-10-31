@@ -71,6 +71,48 @@ class TestDashboardPos(TransactionCase):
         assert series['room_revenue'][idx] == tiles['room_revenue']
         assert series['room_revenue'][idx] > 0
 
+    def _checkout_booking(self):
+        """Second stay, fully completed (check_out): must still count as
+        an arrival on check-in day and a departure on checkout day."""
+        room_102 = self.env['product.template'].create({
+            'name': 'POS102',
+            'is_room': True,
+            'room_type': 'single',
+            'room_type_id': self.room_101.room_type_id.id,
+            'num_person': 1,
+            'list_price': 10000.0,
+        })
+        bk = self.env['room.booking'].create({
+            'partner_id': self.guest.id,
+            'checkin_date': '2026-10-19 14:00:00',
+            'checkout_date': '2026-10-20 11:00:00',
+        })
+        self.env['room.booking.line'].create({
+            'booking_id': bk.id,
+            'room_id': room_102.id,
+            'checkin_date': '2026-10-19 14:00:00',
+            'checkout_date': '2026-10-20 11:00:00',
+            'adults': 1,
+        })
+        bk.action_reserve()
+        bk.action_checkin()
+        bk.action_checkout()
+        assert bk.state == 'check_out'
+        return bk
+
+    def test_completed_stay_counts_as_arrival_and_departure(self):
+        self._checkout_booking()
+        tiles_in = self.env['hotel.daily.inventory'].get_tiles('2026-10-19')
+        assert tiles_in['arrivals'] == 2, \
+            "completed stay must count as arrival, got %s" % tiles_in['arrivals']
+        tiles_out = self.env['hotel.daily.inventory'].get_tiles('2026-10-20')
+        assert tiles_out['departures'] == 2, \
+            "completed stay must count as departure, got %s" % tiles_out['departures']
+        series = self.env['hotel.daily.inventory'].get_dashboard_series(
+            '2026-10-19', days=2)
+        assert series['arrivals'][0] == 2
+        assert series['departures'][1] == 2
+
     def test_tiles_has_folio_fields(self):
         tiles = self.env['hotel.daily.inventory'].get_tiles('2026-10-19')
         for key in ('open_folios', 'ooo', 'sellable_rooms', 'room_revenue',

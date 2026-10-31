@@ -466,6 +466,7 @@ export class CustomDashBoard extends Component {
             domain: [
                 ['room_line_ids.checkin_date', '>=', formattedDate + ' 00:00:00'],
                 ['room_line_ids.checkin_date', '<=', formattedDate + ' 23:59:59'],
+                ['state', 'in', ['reserved', 'check_in', 'check_out', 'done']],
             ],
         });
     }
@@ -477,7 +478,7 @@ export class CustomDashBoard extends Component {
             domain: [
                 ['room_line_ids.checkout_date', '>=', formattedDate + ' 00:00:00'],
                 ['room_line_ids.checkout_date', '<=', formattedDate + ' 23:59:59'],
-                ['state', '=', 'check_in'],
+                ['state', 'in', ['check_in', 'check_out']],
             ],
         });
     }
