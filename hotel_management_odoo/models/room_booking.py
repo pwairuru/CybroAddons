@@ -1141,7 +1141,8 @@ class RoomBooking(models.Model):
                     _("Checkout blocked for %s: %s has no rate "
                       "for the stay; price it before checkout. "
                       "Detail: %s")
-                    % (self.name, rline.room_id.display_name, e)) from e
+                    % (self.name, rline.room_id.display_name,
+                       e.name or e)) from e
             lines |= posted
         if lines:
             self.message_post(
@@ -1200,7 +1201,7 @@ class RoomBooking(models.Model):
                 'res_model': 'hotel.folio',
                 'view_mode': 'form',
                 'res_id': folios.id,
-                'context': "{'create': False}"
+                'context': {'create': False}
             }
         return {
             'type': 'ir.actions.act_window',
@@ -1208,7 +1209,7 @@ class RoomBooking(models.Model):
             'res_model': 'hotel.folio',
             'view_mode': 'list,form',
             'domain': [('id', 'in', folios.ids)],
-            'context': "{'create': False}"
+            'context': {'create': False}
         }
 
     def _charge_pending_ancillaries(self, quiet=False):
@@ -1283,10 +1284,9 @@ class RoomBooking(models.Model):
             'type': 'ir.actions.act_window',
             'name': 'Invoices',
             'view_mode': 'list,form',
-            'view_type': 'list,form',
             'res_model': 'account.move',
             'domain': domain,
-            'context': "{'create': False}"
+            'context': {'create': False}
         }
 
     def action_view_payments(self):
@@ -1298,7 +1298,7 @@ class RoomBooking(models.Model):
             'view_mode': 'list,form',
             'res_model': 'account.payment',
             'domain': self._payment_domain(),
-            'context': "{'create': False}"
+            'context': {'create': False}
         }
 
     def action_register_payment(self):

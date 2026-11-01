@@ -30,6 +30,7 @@ class HotelFolio(models.Model):
     partner_id = fields.Many2one('res.partner', string="Customer",
                                  required=True, tracking=True)
     booking_id = fields.Many2one('room.booking', string="Booking",
+                                 index=True,
                                  help="Room booking this folio belongs to",
                                  ondelete="set null", tracking=True)
     company_id = fields.Many2one('res.company', string="Company",

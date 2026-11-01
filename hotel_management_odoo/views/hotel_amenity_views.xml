@@ -21,26 +21,26 @@
                 <field name="avatar_128"/>
                 <templates>
                     <t t-name="card">
-                        <div class="oe_kanban_global_click d-flex">
-                            <div class="flex-shrink-0 me-2">
-                                <t t-if="record.icon.raw_value">
-                                    <field name="icon" widget="image"
-                                           class="oe_avatar"/>
-                                </t>
-                                <t t-else="">
-                                    <field name="avatar_128" widget="image"
-                                           class="o_kanban_avatar"
-                                           style="width:64px;height:64px;"/>
-                                </t>
-                            </div>
-                            <div class="oe_kanban_details flex-grow-1">
-                                <div class="oe_kanban_record_heading">
-                                    <strong>
-                                        <field name="name"/>
-                                    </strong>
+                        <t t-call="hotel_management_odoo.hotel_kanban_card_shell">
+                            <t t-set="avatar">
+                                <div class="flex-shrink-0 me-2">
+                                    <t t-if="record.icon.raw_value">
+                                        <field name="icon" widget="image"
+                                               class="oe_avatar"/>
+                                    </t>
+                                    <t t-else="">
+                                        <field name="avatar_128" widget="image"
+                                               class="o_kanban_avatar"
+                                               style="width:64px;height:64px;"/>
+                                    </t>
                                 </div>
+                            </t>
+                            <div class="oe_kanban_record_heading">
+                                <strong>
+                                    <field name="name"/>
+                                </strong>
                             </div>
-                        </div>
+                        </t>
                     </t>
                 </templates>
             </kanban>

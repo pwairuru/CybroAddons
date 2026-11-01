@@ -30,6 +30,7 @@ class AccountMove(models.Model):
 
     hotel_booking_id = fields.Many2one('room.booking',
                                        string="Booking Reference",
+                                       index=True,
                                        readonly=True, help="Choose the Booking"
                                                            "Reference")
     hotel_folio_id = fields.Many2one('hotel.folio', string="Folio",
