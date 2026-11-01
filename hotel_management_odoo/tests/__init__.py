@@ -36,6 +36,7 @@ from . import test_rate_line_multiroom
 from . import test_booking_flow
 from . import test_reservation_menu
 from . import test_reserve_customer
+from . import test_blocked_dates
 from . import test_billing_accuracy
 from . import test_dashboard_pos
 from . import test_no_show_policy

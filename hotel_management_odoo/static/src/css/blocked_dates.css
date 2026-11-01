@@ -1,0 +1,5 @@
+/* Blocked nights in the folio date picker: server says booked/OOO/dirty. */
+.o_hotel_blocked {
+    text-decoration: line-through;
+    opacity: 0.55;
+}

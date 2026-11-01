@@ -117,11 +117,11 @@
                                             required="1"
                                             domain="[('is_room','=',True)]"
                                             options="{'no_open': True, 'no_create': True}"/>
-                                    <field name="checkin_date"/>
+                                    <field name="checkin_date" widget="hotel_blocked_dates"/>
                                     <field name="booking_line_visible"
                                             invisible="1"/>
                                     <field name="locked" invisible="1"/>
-                                    <field name="checkout_date"/>
+                                    <field name="checkout_date" widget="hotel_blocked_dates"/>
                                     <field name="uom_qty" string="Duration"
                                             readonly="1" force_save="1"/>
                                     <field name="adults" string="Adults"/>

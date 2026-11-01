@@ -415,15 +415,14 @@ class HotelDailyInventory(models.AbstractModel):
                 'date_to': fields.Date.to_string(seg_to),
                 'state': bk.state,
                 'guest_name': bk.partner_id.name or '',
-                'is_arrival': ci == start or (start <= ci < end),
-                'is_departure': co == end or (start < co <= end),
+                'is_arrival': seg_from == ci and start <= ci < end,
+                'is_departure': seg_to == co and start < co <= end,
             })
         dates = [fields.Date.to_string(start + timedelta(days=i))
                  for i in range(days)]
         in_house = {}
+        reserved_house = {}
         for line in lines:
-            if line.booking_id.state != 'check_in':
-                continue
             ci = _to_date(line.checkin_date)
             co = _to_date(line.checkout_date)
             if not (ci and co):
@@ -431,14 +430,96 @@ class HotelDailyInventory(models.AbstractModel):
             for i in range(days):
                 day = start + timedelta(days=i)
                 if ci <= day < co:
-                    in_house.setdefault(fields.Date.to_string(day),
-                                        set()).add(line.room_id.id)
+                    key = fields.Date.to_string(day)
+                    if line.booking_id.state == 'check_in':
+                        in_house.setdefault(key, set()).add(
+                            line.room_id.id)
+                    elif line.booking_id.state == 'reserved':
+                        reserved_house.setdefault(key, set()).add(
+                            line.room_id.id)
         sellable = max(len(rooms) - len(ooo_ids & set(rooms.ids)), 0)
         occupancy = {}
         for d in dates:
             sold = len(in_house.get(d, set()))
+            reserved = len(reserved_house.get(d, set()))
             pct = round(100.0 * sold / sellable, 1) if sellable else 0.0
-            occupancy[d] = {'sold': sold, 'sellable': sellable, 'pct': pct}
+            occupancy[d] = {'sold': sold, 'reserved': reserved,
+                            'sellable': sellable, 'pct': pct}
         return {'date_from': fields.Date.to_string(start), 'days': days,
                 'dates': dates, 'rooms': room_rows, 'segments': segments,
                 'occupancy': occupancy}
+
+    @api.model
+    def get_blocked_dates(self, room_id, date_from=None, date_to=None,
+                          ignore_booking_id=False,
+                          ignore_line_id=False):
+        """Blocked nights for one room. Read-only.
+
+        Expands each active line (``reserved``/``check_in``) to
+        ``[checkin_date, checkout_date)`` — checkout day stays free
+        so same-day turnover works. Also flags OOO/dirty (open
+        maintenance/cleaning blocks any date server-side).
+        """
+        today = fields.Date.context_today(self)
+        start = fields.Date.from_string(date_from) if date_from else today
+        if date_to:
+            end = fields.Date.from_string(date_to)
+        else:
+            end = start + timedelta(days=13)
+        if end < start:
+            raise ValidationError(
+                _("Blocked end date (%s) is before start (%s).")
+                % (end, start))
+        # Single-room query (picker UX): allow a wide window so future
+        # months stay covered. The 31-day cap lives on get_rack, which
+        # fans out over every room x day.
+        if (end - start).days > 366:
+            end = start + timedelta(days=366)
+        room = self.env['product.template'].browse(int(room_id or 0))
+        if not room.exists():
+            raise ValidationError(_("Unknown room (id %s).") % room_id)
+        window_start = fields.Datetime.to_string(
+            datetime.combine(start, datetime.min.time()))
+        window_end = fields.Datetime.to_string(
+            datetime.combine(end + timedelta(days=1),
+                             datetime.min.time()))
+        domain = [
+            ('room_id', '=', room.id),
+            ('booking_id.company_id', '=', self.env.company.id),
+            ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('checkin_date', '<', window_end),
+            ('checkout_date', '>', window_start),
+        ]
+        if ignore_booking_id:
+            domain.append(('booking_id', '!=', int(ignore_booking_id)))
+        if ignore_line_id:
+            domain.append(('id', '!=', int(ignore_line_id)))
+        lines = self.env['room.booking.line'].search(domain)
+        booked = set()
+        for line in lines:
+            ci = _to_date(line.checkin_date)
+            co = _to_date(line.checkout_date)
+            if not (ci and co) or co <= ci:
+                continue
+            day = max(ci, start)
+            last = min(co, end + timedelta(days=1))
+            while day < last:
+                booked.add(fields.Date.to_string(day))
+                day += timedelta(days=1)
+        ooo = room.id in self._ooo_room_ids()
+        dirty = room.id in self._dirty_room_ids()
+        blocked = set(booked)
+        if ooo or dirty:
+            day = start
+            while day <= end:
+                blocked.add(fields.Date.to_string(day))
+                day += timedelta(days=1)
+        return {
+            'room_id': room.id,
+            'date_from': fields.Date.to_string(start),
+            'date_to': fields.Date.to_string(end),
+            'blocked': sorted(blocked),
+            'booked': sorted(booked),
+            'ooo': bool(ooo),
+            'dirty': bool(dirty),
+        }

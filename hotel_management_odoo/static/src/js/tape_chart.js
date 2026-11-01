@@ -27,9 +27,48 @@ export class HotelTapeChart extends Component {
         if (to < 0) { to = this.state.dates.length; }
         return Math.max(to - Math.max(from, 0), 1);
     }
+    segsFor(roomId, date) {
+        return (this.state.segments || []).filter((s) =>
+            s.room_id === roomId && s.date_from <= date && date < s.date_to);
+    }
+    isBlocked(room, date) {
+        if (!room || !date) { return true; }
+        if (room.is_ooo || room.hk_status === 'ooo' || room.hk_status === 'dirty') { return true; }
+        return this.segsFor(room.id, date).length > 0;
+    }
+    blockReason(room, date) {
+        if (!room) { return 'No room'; }
+        if (room.is_ooo || room.hk_status === 'ooo') { return 'Out of order — cannot book'; }
+        if (room.hk_status === 'dirty') { return 'Dirty — clean first'; }
+        const hits = this.segsFor(room.id, date);
+        if (hits.length) {
+            const s = hits[0];
+            return 'Booked: ' + (s.guest_name || s.booking_name) + ' → checkout ' + s.date_to + ' (free for turnover)';
+        }
+        return 'New booking · Room ' + room.name + ' · ' + date;
+    }
+    emptyCls(room, date) {
+        const dow = this.headFor(date).dow;
+        let cls = 'o_ahb_empty' + ((dow === 'Sat' || dow === 'Sun') ? ' is-weekend' : '');
+        if (this.isBlocked(room, date)) { cls += ' is-blocked'; }
+        return cls;
+    }
     clsFor(seg) {
-        return seg.state === 'check_in'
+        let base = seg.state === 'check_in'
             ? 'o_ahb_seg o_ahb_st_checked_in' : 'o_ahb_seg o_ahb_st_confirmed';
+        const overlap = (this.state.segments || []).some((o) =>
+            o.id !== seg.id && o.room_id === seg.room_id
+            && o.date_from < seg.date_to && seg.date_from < o.date_to);
+        if (overlap) { base += ' o_ahb_st_conflict'; }
+        if (seg.is_arrival) { base += ' is-arrival'; }
+        if (seg.is_departure) { base += ' is-departure'; }
+        return base;
+    }
+    occTitle(date) {
+        const o = this.state.occupancy ? this.state.occupancy[date] : false;
+        if (!o) { return ''; }
+        const reserved = (o.reserved !== undefined) ? ', ' + o.reserved + ' reserved' : '';
+        return o.sold + '/' + o.sellable + ' in-house' + reserved;
     }
     async setDays(days) { this.state.days = days; await this.load(); }
     onDaysChange(e) { this.setDays(Number(e.target.value)); }
@@ -71,6 +110,8 @@ export class HotelTapeChart extends Component {
     }
     openNewBooking(roomId, date) {
         if (!roomId || !date) { return; }
+        const room = (this.state.rooms || []).find((r) => r.id === roomId);
+        if (room && this.isBlocked(room, date)) { return; }
         const ci = date + ' 14:00:00';
         const d = new Date(date + 'T00:00:00Z');
         d.setUTCDate(d.getUTCDate() + 1);

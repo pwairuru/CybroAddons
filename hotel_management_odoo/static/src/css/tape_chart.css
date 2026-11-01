@@ -42,6 +42,11 @@
 .o_ahb_empty { min-height: 30px; border-bottom: 1px solid #f1f5f9; cursor: pointer; background: rgba(0, 0, 0, 0); z-index: 1; transition: background-color 0.12s ease; }
 .o_ahb_empty:hover { background: rgba(67, 113, 219, 0.10); }
 .o_ahb_empty:focus-visible { outline: 2px solid #4371DB; outline-offset: -2px; }
+.o_ahb_empty.is-blocked { cursor: not-allowed; background: repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.14) 0 4px, rgba(148, 163, 184, 0.02) 4px 8px); }
+.o_ahb_empty.is-blocked:hover { background: repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.20) 0 4px, rgba(148, 163, 184, 0.06) 4px 8px); }
+.o_ahb_seg.is-arrival { border-left: 3px solid #0ea5e9; }
+.o_ahb_seg.is-departure { border-right: 3px solid #f59e0b; }
+.o_ahb_st_conflict { background: repeating-linear-gradient(45deg, #dc2626 0 6px, #4371DB 6px 12px); color: #fff; }
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
     .o_ahb_seg, .o_ahb_empty, .o_ahb_occ_fill, .o_ahb_toolbar .btn { transition: none; }
