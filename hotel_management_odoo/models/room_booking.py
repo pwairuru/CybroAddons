@@ -404,10 +404,19 @@ class RoomBooking(models.Model):
 
         Copies partner, company and hotel_policy (policy_snapshot) so the
         statement banner stays frozen even if the booking policy changes.
+
+        After a folio split the booking links two open folios (source +
+        target share booking_id). Prefer the folio whose partner matches
+        the booking so room nights keep posting to the original guest's
+        folio; fall back to the oldest open folio for determinism
+        (folio _order is id desc, so [:1] alone would pick the newest).
         """
         self.ensure_one()
-        folio = self._get_folios('open')[:1]
-        if folio:
+        folios = self._get_folios('open')
+        if folios:
+            mine = folios.filtered(
+                lambda f: f.partner_id.id == self.partner_id.id)
+            folio = (mine.sorted('id')[:1] or folios.sorted('id')[:1])
             return folio
         folio = self.env['hotel.folio'].create({
             'partner_id': self.partner_id.id,
@@ -1127,11 +1136,12 @@ class RoomBooking(models.Model):
                     fields.Date.to_string(rline.checkout_date.date()),
                     plan.id, adults=rline.adults or 0,
                     children=rline.children or 0)
-            except ValidationError:
+            except ValidationError as e:
                 raise ValidationError(
                     _("Checkout blocked for %s: %s has no rate "
-                      "for the stay; price it before checkout.")
-                    % (self.name, rline.room_id.display_name))
+                      "for the stay; price it before checkout. "
+                      "Detail: %s")
+                    % (self.name, rline.room_id.display_name, e)) from e
             lines |= posted
         if lines:
             self.message_post(
