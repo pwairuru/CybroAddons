@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<template>
+    <!-- Shared kanban card shell (client-side Owl template).
+
+    Called from kanban archs via t-call="hotel_management_odoo.hotel_kanban_card_shell".
+    Must live in web.assets_backend: backend ir.ui.view QWeb records are
+    server-side only and invisible to the Owl kanban renderer (which threw
+    "Missing template" OwlError before this move). t-set avatar + t-out="0"
+    body slots are native Owl QWeb (zero-symbol mechanism).
+    -->
+    <t t-name="hotel_management_odoo.hotel_kanban_card_shell">
+        <div class="oe_kanban_global_click d-flex">
+            <t t-out="avatar"/>
+            <div class="oe_kanban_details flex-grow-1">
+                <t t-out="0"/>
+            </div>
+        </div>
+    </t>
+</template>

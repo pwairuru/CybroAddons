@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel Management',
-    'version': '20.0.2.6.0',
+    'version': '20.0.2.8.0',
     'category': 'Industries',
     'summary': """A complete Hotel Management System that cover all areas of 
      Hotel services""" ,
@@ -44,7 +44,6 @@
         'views/hotel_menu_views.xml',
         'views/hotel_rate_line_views.xml',
         'views/hotel_room_type_views.xml',
-        'views/hotel_kanban_card_templates.xml',
         'views/product_template.xml',
         'views/hotel_amenity_views.xml',
         'views/hotel_service_views.xml',
@@ -93,13 +92,16 @@
             'hotel_management_odoo/static/src/js/dashboard_action.js',
             'hotel_management_odoo/static/src/js/tape_chart.js',
             'hotel_management_odoo/static/src/js/rate_calendar.js',
+            'hotel_management_odoo/static/src/js/blocked_dates_field.js',
             'hotel_management_odoo/static/src/css/dashboard.css',
             'hotel_management_odoo/static/src/css/list_avatar.css',
             'hotel_management_odoo/static/src/css/tape_chart.css',
+            'hotel_management_odoo/static/src/css/blocked_dates.css',
             'hotel_management_odoo/static/src/css/rate_calendar.css',
             'hotel_management_odoo/static/src/xml/dashboard_templates.xml',
             'hotel_management_odoo/static/src/xml/tape_chart_templates.xml',
             'hotel_management_odoo/static/src/xml/rate_calendar_templates.xml',
+            'hotel_management_odoo/static/src/xml/kanban_card_templates.xml',
         ],
     },
     'images': ['static/description/banner.jpg'],
