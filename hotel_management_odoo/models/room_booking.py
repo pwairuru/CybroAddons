@@ -1302,29 +1302,44 @@ class RoomBooking(models.Model):
         }
 
     def action_register_payment(self):
-        """Booking-level Register Payment: delegates to the dues folio.
+        """Booking-level Register Payment: pay all dues invoices at once.
 
-        Each folio invoices and pays separately (split bills may belong
-        to different guests), so a booking with dues on several folios
-        refuses and directs payment from each folio instead.
+        Collects posted unpaid out_invoices across the booking's open
+        AND settled folios (settle posts the invoice without collecting
+        cash, so dues normally live on settled folios after checkout).
+        Void folios are ignored. A booking with no folios at all still
+        reports "Reserve first"; a booking whose folios simply have no
+        dues reports "No unpaid...". All dues moves go into a single
+        account.payment.register wizard so one payment settles every
+        invoice linked to the stay, including split-bill targets that
+        share this booking.
         """
         self.ensure_one()
-        folios = self._get_folios('open')
+        folios = self._get_folios()
         if not folios:
-            raise ValidationError("Reserve first: no open folio.")
-        dues = [(folio, folio.invoice_ids.filtered(
+            raise ValidationError("Reserve first: no folio for booking %s."
+                                  % self.name)
+        payable = folios.filtered(lambda f: f.state in ('open', 'settled'))
+        moves = payable.mapped('invoice_ids').filtered(
             lambda m: m.move_type == 'out_invoice' and m.state == 'posted'
-            and m.payment_state != 'paid')) for folio in folios]
-        dues = [(folio, moves) for folio, moves in dues if moves]
-        if not dues:
+            and m.payment_state not in ('paid', 'in_payment'))
+        if not moves:
+            states = ', '.join(sorted(set(payable.mapped('state'))))
             raise ValidationError(
-                "No unpaid posted invoice for booking %s." % self.name)
-        if len(dues) > 1:
-            raise ValidationError(
-                "Folios %s each have unpaid invoices; open each folio "
-                "to pay them separately."
-                % ', '.join(f.name for f, _ in dues))
-        return dues[0][0].action_register_payment()
+                "No unpaid posted invoice for booking %s (folios: %s)."
+                % (self.name, states or 'none'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Register Payment',
+            'res_model': 'account.payment.register',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'active_model': 'account.move',
+                'active_ids': moves.ids,
+                'default_hotel_booking_id': self.id,
+            },
+        }
 
     def action_checkin(self):
         """
