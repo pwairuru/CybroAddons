@@ -1158,7 +1158,8 @@ class RoomBooking(models.Model):
         stay for invoicing. Each affected folio gets a chatter note.
         """
         self.ensure_one()
-        today = fields.Date.today()
+        today = self.env['hotel.business.date']._current_day(
+            self.company_id)
         folios = self._get_folios('open')
         for folio in folios:
             lines = self.env['hotel.folio.line'].search([
@@ -1312,7 +1313,8 @@ class RoomBooking(models.Model):
         dues reports "No unpaid...". All dues moves go into a single
         account.payment.register wizard so one payment settles every
         invoice linked to the stay, including split-bill targets that
-        share this booking.
+        share this booking (core batches the wizard per partner, so
+        mixed-partner dues yield one payment each, never crossed).
         """
         self.ensure_one()
         folios = self._get_folios()
@@ -1320,9 +1322,7 @@ class RoomBooking(models.Model):
             raise ValidationError("Reserve first: no folio for booking %s."
                                   % self.name)
         payable = folios.filtered(lambda f: f.state in ('open', 'settled'))
-        moves = payable.mapped('invoice_ids').filtered(
-            lambda m: m.move_type == 'out_invoice' and m.state == 'posted'
-            and m.payment_state not in ('paid', 'in_payment'))
+        moves = payable._unpaid_invoice_moves()
         if not moves:
             states = ', '.join(sorted(set(payable.mapped('state'))))
             raise ValidationError(

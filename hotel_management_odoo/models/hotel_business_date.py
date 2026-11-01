@@ -93,6 +93,21 @@ class HotelBusinessDate(models.Model):
                                    ('date', '=', day)], limit=1)
         return rec
 
+    @api.model
+    def _current_day(self, company=None):
+        """Hotel business day: today, or the next open day when closed.
+
+        Falls back to wall-clock today when no business-day records
+        exist (days are open unless explicitly closed).
+        """
+        company = company or self.env.company
+        day = fields.Date.today()
+        for _ in range(370):
+            if not self.is_day_closed(day, company=company):
+                return day
+            day = fields.Date.add(day, days=1)
+        return fields.Date.today()
+
     def action_close(self):
         self.write({'is_closed': True})
         return True

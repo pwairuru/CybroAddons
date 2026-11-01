@@ -350,11 +350,19 @@ class HotelFolio(models.Model):
                       ('hotel_booking_id', '=', self.booking_id.id)]
         return self.env['account.payment'].sudo().search(domain)
 
-    def action_register_payment(self):
-        self.ensure_one()
-        moves = self.invoice_ids.filtered(
+    def _unpaid_invoice_moves(self):
+        """Posted unpaid customer invoices across these folios.
+
+        Shared by folio- and booking-level Register Payment so the
+        dues filter cannot drift between the two entry points.
+        """
+        return self.mapped('invoice_ids').filtered(
             lambda m: m.move_type == 'out_invoice' and m.state == 'posted'
             and m.payment_state not in ('paid', 'in_payment'))
+
+    def action_register_payment(self):
+        self.ensure_one()
+        moves = self._unpaid_invoice_moves()
         if not moves:
             raise ValidationError("No unpaid posted invoice for folio %s." % self.id)
         return {
@@ -380,7 +388,7 @@ class HotelFolio(models.Model):
             'res_model': 'account.move',
             'view_mode': 'list,form',
             'domain': [('id', 'in', self.invoice_ids.ids)],
-            'context': "{'create': False}",
+            'context': {'create': False},
         }
         if len(self.invoice_ids) == 1:
             action.update({
@@ -399,7 +407,7 @@ class HotelFolio(models.Model):
             'res_model': 'account.payment',
             'view_mode': 'list,form',
             'domain': [('id', 'in', self._linked_payments().ids)],
-            'context': "{'create': False}",
+            'context': {'create': False},
         }
 
     def action_apply_deposit(self):
@@ -542,6 +550,13 @@ class HotelFolio(models.Model):
         for draft in self.invoice_ids.filtered(
                 lambda m: m.state == 'draft'):
             draft.button_cancel()
+        if self.move_id:
+            if self.move_id.state == 'posted':
+                raise ValidationError(
+                    "Folio has a posted settlement invoice; cannot void.")
+            if self.move_id.state == 'draft':
+                self.move_id.button_cancel()
+            self.move_id = False
         self.write({'state': 'void'})
         self.message_post(body="Folio voided.")
         return self
