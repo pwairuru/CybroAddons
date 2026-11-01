@@ -23,18 +23,34 @@
                        position="attributes">
                     <attribute name="readonly">is_room == True</attribute>
                 </xpath>
-                <!--    Hide inventory/accounting pages for rooms. Inventory
-                     keeps its core expression, extended with is_room;
-                     Accounting (account module, page name invoicing) hides
-                     fully for rooms. -->
+                <!--    Hide non-room tabs for rooms. Each expression extends
+                     the core expression with `or is_room == True` so
+                     non-room behaviour stays untouched (the `1 or ...`
+                     placeholders are stripped by sale/purchase modules
+                     on install, leaving `not sale_ok or is_room ...`). -->
+                <xpath expr="//page[@name='sales']" position="attributes">
+                    <attribute name="invisible">1 or not sale_ok or is_room == True</attribute>
+                </xpath>
+                <xpath expr="//page[@name='sales_price']" position="attributes">
+                    <attribute name="invisible">not show_sales_price_page or is_room == True</attribute>
+                </xpath>
+                <xpath expr="//page[@name='purchase']" position="attributes">
+                    <attribute name="invisible">1 or not purchase_ok or type == 'combo' or is_room == True</attribute>
+                </xpath>
+                <xpath expr="//page[@name='pos']" position="attributes">
+                    <attribute name="invisible">not available_in_pos or is_room == True</attribute>
+                </xpath>
                 <xpath expr="//page[@name='inventory']" position="attributes">
                     <attribute name="invisible">type in ['service', 'combo'] or is_room == True</attribute>
                 </xpath>
                 <xpath expr="//page[@name='invoicing']" position="attributes">
                     <attribute name="invisible">is_room == True</attribute>
                 </xpath>
-                <notebook>
-                    <page string="Information" invisible="is_room != True">
+                <!--    Room pages live inside the core notebook, before
+                     General Information, so rooms open on Information
+                     instead of a second notebook appended at the end. -->
+                <xpath expr="//page[@name='general_information']" position="before">
+                    <page string="Information" name="hotel_room_information" invisible="is_room != True">
                         <div class="alert alert-info" role="alert"
                              invisible="is_room != True">
                             Nightly rate authority is the Room Type base
@@ -59,7 +75,7 @@
                             </group>
                         </group>
                     </page>
-                    <page string="Amenities" invisible="is_room != True">
+                    <page string="Amenities" name="hotel_room_amenities" invisible="is_room != True">
                         <group>
                             <group>
                                 <field name="room_amenities_ids"
@@ -68,7 +84,7 @@
                             </group>
                         </group>
                     </page>
-                </notebook>
+                </xpath>
             </field>
           </record>
 
