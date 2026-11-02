@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from odoo.exceptions import ValidationError
 from odoo.tests.common import TransactionCase
 
 
@@ -25,7 +26,7 @@ class TestCoverage(TransactionCase):
         return co, rtype, period, room
 
     def test_coverage_counts(self):
-        # 1 period x 1 type x 2 meals, only RO line -> covered RO, missing BB
+        # 1 period x 1 type x all meals, only RO line -> covered RO, rest red
         co, rtype, period, room = self._setup()
         meals = self.env['hotel.meal.plan'].search(
             [('active', '=', True)], order='code')
@@ -36,6 +37,34 @@ class TestCoverage(TransactionCase):
         reasons = cell['plan_reasons']
         self.assertEqual(reasons['RO'], 'explicit')
         self.assertEqual(reasons['BB'], 'base-rate')
+        action = self.env.ref(
+            'hotel_management_odoo.action_rate_coverage')
+        result = action.with_context(
+            coverage_type_ids=[rtype.id],
+            coverage_date_from='2027-02-01',
+            coverage_date_to='2027-02-01').run()
+        msg = result['params']['message']
+        self.assertIn('1 green', msg)
+        self.assertIn('0 yellow', msg)
+        self.assertIn('%d red' % (len(meals) - 1), msg)
+
+    def test_coverage_strict_missing(self):
+        # Strict mode: all-plans gaps report missing (never a zero
+        # price) while single-board strict still raises.
+        co, rtype, period, room = self._setup()
+        co.rate_missing_mode = 'strict'
+        meals = self.env['hotel.meal.plan'].search(
+            [('active', '=', True)], order='code')
+        cov = self.env['hotel.rate.engine'].matrix(
+            [rtype.id], '2027-02-01', '2027-02-01', False, board=False)
+        cell = cov['rows'][0]['cells'][0]
+        reasons = cell['plan_reasons']
+        self.assertEqual(reasons['BB'], 'missing')
+        self.assertFalse(cell['plans']['BB'])
+        with self.assertRaises(ValidationError):
+            self.env['hotel.rate.engine'].matrix(
+                [rtype.id], '2027-02-01', '2027-02-01', False,
+                board='BB')
         action = self.env.ref(
             'hotel_management_odoo.action_rate_coverage')
         result = action.with_context(

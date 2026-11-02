@@ -483,8 +483,11 @@ class HotelRateEngine(models.AbstractModel):
                     # RO stays on the legacy path intentionally (Ruling 4):
                     # assigned explicitly from the cell price so it can
                     # never drift through the resolver. Strict-mode misses
-                    # report 'missing' (red gap) instead of raising so the
-                    # setup coverage view can count them.
+                    # report 'missing' (red gap, price False so the UI can
+                    # never sell a zero) instead of raising so the
+                    # setup coverage view can count them. Only the
+                    # strict missing-rate error is swallowed here; any
+                    # other ValidationError (pax, plan, dates) re-raises.
                     if plan and rep:
                         plans_cell = {}
                         reasons_cell = {}
@@ -496,8 +499,10 @@ class HotelRateEngine(models.AbstractModel):
                                 try:
                                     code_detailed = self.price_detailed(
                                         rep.id, day, plan.id, board=code)
-                                except ValidationError:
-                                    plans_cell[code] = 0.0
+                                except ValidationError as exc:
+                                    if 'No rate configured' not in str(exc):
+                                        raise
+                                    plans_cell[code] = False
                                     reasons_cell[code] = 'missing'
                                 else:
                                     plans_cell[code] = float(
