@@ -873,6 +873,12 @@ class RoomBooking(models.Model):
                           posted.mapped(lambda m: m.name or 'Draft'))))
             folios = record._get_folios()
             open_folios = folios.filtered(lambda f: f.state == 'open')
+            if open_folios.mapped('deposit_ids').filtered(
+                    lambda d: d.state == 'applied'):
+                raise ValidationError(
+                    _("Cannot cancel booking %s: its folio holds "
+                      "applied deposits; refund or settle them first.")
+                    % record.name)
             if policy == 'forfeit_deposit':
                 for folio in open_folios:
                     for deposit in folio.deposit_ids.filtered(

@@ -159,3 +159,130 @@ class TestNoShowPolicy(TransactionCase):
         self.assertEqual(booking.state, 'reserved',
                          "posted money blocks the auto-cancel; "
                          "staff must resolve, never silent-lose")
+
+    def test_fee_product_company_constraint(self):
+        company_b = self.env['res.company'].create(
+            {'name': 'No-Show Other'})
+        template_b = self.env['product.template'].create({
+            'name': 'Other Fee Product',
+            'company_id': company_b.id,
+        })
+        with self.assertRaises(ValidationError):
+            self.company.write({
+                'no_show_fee_product_id':
+                    template_b.product_variant_id.id})
+
+    def test_custom_fee_product_used(self):
+        fee_template = self.env['product.template'].create({
+            'name': 'No-Show Fee',
+            'list_price': 5000.0,
+        })
+        self.company.no_show_fee_product_id = \
+            fee_template.product_variant_id.id
+        self.company.no_show_policy = 'first_night'
+        booking = self._make_stale_booking()
+        self.env['hotel.night.audit'].run(self.audit_date)
+        self.assertEqual(booking.state, 'cancel')
+        folio = self.env['hotel.folio'].search(
+            [('booking_id', '=', booking.id)], limit=1)
+        self.assertEqual(len(folio.line_ids), 1)
+        line = folio.line_ids[0]
+        self.assertEqual(line.product_id.id,
+                         fee_template.product_variant_id.id)
+        move = folio.action_settle()
+        self.assertAlmostEqual(move.amount_total, line.price_total,
+                               places=2)
+
+    def test_forfeit_is_idempotent(self):
+        folio = self.env['hotel.folio'].create(
+            {'partner_id': self.partner.id})
+        deposit = self.env['hotel.deposit'].create({
+            'folio_id': folio.id,
+            'amount': 4000.0,
+        })
+        deposit.action_collect()
+        self.assertTrue(deposit.action_forfeit())
+        move_id = deposit.move_id.id
+        self.assertTrue(deposit.action_forfeit())
+        self.assertEqual(deposit.state, 'forfeited')
+        self.assertEqual(deposit.move_id.id, move_id,
+                         "second forfeit posts nothing new")
+        self.assertEqual(
+            self.env['hotel.deposit'].search_count(
+                [('id', '=', deposit.id),
+                 ('state', '=', 'forfeited')]), 1)
+
+    def test_forfeit_uncollected_raises(self):
+        folio = self.env['hotel.folio'].create(
+            {'partner_id': self.partner.id})
+        deposit = self.env['hotel.deposit'].create({
+            'folio_id': folio.id,
+            'amount': 4000.0,
+        })
+        with self.assertRaises(ValidationError):
+            deposit.action_forfeit()
+
+    def test_forfeit_applied_raises(self):
+        folio = self.env['hotel.folio'].create(
+            {'partner_id': self.partner.id})
+        deposit = self.env['hotel.deposit'].create({
+            'folio_id': folio.id,
+            'amount': 4000.0,
+        })
+        deposit.action_collect()
+        deposit.apply()
+        with self.assertRaises(ValidationError):
+            deposit.action_forfeit()
+
+    def test_forfeit_move_balanced(self):
+        folio = self.env['hotel.folio'].create(
+            {'partner_id': self.partner.id})
+        deposit = self.env['hotel.deposit'].create({
+            'folio_id': folio.id,
+            'amount': 4000.0,
+        })
+        deposit.action_collect()
+        deposit.action_forfeit(reason="test")
+        move = deposit.move_id
+        self.assertEqual(move.state, 'posted')
+        debit = [l for l in move.line_ids if l.debit > 0]
+        credit = [l for l in move.line_ids if l.credit > 0]
+        self.assertEqual(len(debit), 1)
+        self.assertEqual(len(credit), 1)
+        self.assertAlmostEqual(debit[0].debit, 4000.0, places=2)
+        self.assertAlmostEqual(credit[0].credit, 4000.0, places=2)
+        self.assertEqual(debit[0].account_id.account_type,
+                         'liability_current')
+        self.assertEqual(credit[0].account_id.account_type, 'income')
+
+    def test_first_night_without_room_lines_stays_reserved(self):
+        self.company.no_show_policy = 'first_night'
+        booking = self._make_stale_booking()
+        booking.room_line_ids.unlink()
+        self.env['hotel.night.audit'].run(self.audit_date)
+        self.assertEqual(booking.state, 'reserved',
+                         "nothing to charge; staff must resolve")
+
+    def test_applied_deposit_blocks_charging_cancel(self):
+        self.company.no_show_policy = 'forfeit_deposit'
+        booking = self._make_stale_booking()
+        folio = booking._ensure_folio()
+        deposit = self.env['hotel.deposit'].create({
+            'folio_id': folio.id,
+            'amount': 4000.0,
+        })
+        deposit.action_collect()
+        deposit.apply()
+        self.env['hotel.night.audit'].run(self.audit_date)
+        self.assertEqual(booking.state, 'reserved',
+                         "applied money needs staff; audit must not "
+                         "void around it")
+
+    def test_audit_counts_no_show(self):
+        booking = self._make_stale_booking()
+        self.env['hotel.night.audit'].run(self.audit_date)
+        self.assertEqual(booking.state, 'cancel')
+        audit = self.env['hotel.night.audit'].search(
+            [('date', '=', self.audit_date),
+             ('company_id', '=', self.company.id)], limit=1)
+        self.assertEqual(audit.no_show_count, 1)
