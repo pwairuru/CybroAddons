@@ -42,13 +42,13 @@
                         <div class="pos-row"><span>In-house</span><strong><t t-out="this.occupied"/> of <t t-out="this.sellable"/></strong></div>
                         <div class="pos-row"><span>Reserved · Dirty</span><strong><t t-out="this.reservedCount"/> · <t t-out="this.dirty"/></strong></div>
                     </div>
-                    <PosCardChart values="this.seriesOccupancy" labels="this.seriesDates" color="'#14b8a6'" label="'Occupancy %'"/>
+                    <PosCardChart values="this.seriesOccupancy" labels="this.seriesDates" color="'#14b8a6'" label="'Occupancy Percent'"/>
                 </div>
                 <div class="pos-card-foot"><button t-on-click="(e) => this.openOccupancy(e)">In-House list</button></div>
             </div>
 
             <!-- Rates -->
-            <div class="pos-card" data-testid="tile-adr">
+            <div class="pos-card" data-testid="tile-rates">
                 <div class="pos-card-head">
                     <div class="pos-card-title">
                         <div class="dash-icon-bubble icon-blue"><i class="oi" data-icon="payments"/></div>
@@ -66,10 +66,10 @@
                 <div class="pos-card-body" t-on-click="(e) => this.openBookingPivot(e)">
                     <div class="pos-main"><t t-out="this.adr"/></div>
                     <div class="pos-rows">
-                        <div class="pos-row"><span>RevPAR</span><strong><t t-out="this.revpar"/></strong></div>
+                        <div class="pos-row"><span>Revenue per Available Room</span><strong><t t-out="this.revpar"/></strong></div>
                         <div class="pos-row"><span>Room revenue today</span><strong><t t-out="this.roomRevenueToday"/></strong></div>
                     </div>
-                    <PosCardChart values="this.seriesRevpar" labels="this.seriesDates" color="'#3b82f6'" label="'RevPAR'"/>
+                    <PosCardChart values="this.seriesRevpar" labels="this.seriesDates" color="'#3b82f6'" label="'Revenue per Available Room'"/>
                 </div>
                 <div class="pos-card-foot"><button t-on-click="(e) => this.openBookingPivot(e)">Revenue pivot</button></div>
             </div>
@@ -123,7 +123,7 @@
                     <div class="pos-main"><t t-out="this.available_room"/> / <t t-out="this.total_room"/></div>
                     <div class="pos-rows">
                         <div class="pos-row"><span>Available / Total</span><strong><t t-out="this.available_room"/> / <t t-out="this.total_room"/></strong></div>
-                        <div class="pos-row"><span>Dirty · OOO</span><strong><t t-out="this.dirty"/> · <t t-out="this.oooCount"/></strong></div>
+                        <div class="pos-row"><span>Dirty · Out of Order</span><strong><t t-out="this.dirty"/> · <t t-out="this.oooCount"/></strong></div>
                     </div>
                     <PosCardChart values="this.seriesAvailable" labels="this.seriesDates" color="'#a855f7'" label="'Available'"/>
                 </div>
