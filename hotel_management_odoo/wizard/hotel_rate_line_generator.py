@@ -2,6 +2,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+RO_MEAL_CODE = 'RO'
+
 
 class HotelRateLineGenerator(models.TransientModel):
     """Bulk-create missing rate lines for period x type x meal combos."""
@@ -55,9 +57,14 @@ class HotelRateLineGenerator(models.TransientModel):
             raise ValidationError("Uplift value cannot be negative.")
         line_model = self.env['hotel.rate.line']
         created = 0
+        # RO-first ordering: non-RO combos copy the RO line, including an RO
+        # line created earlier in this same run. Sorting guarantees RO combos
+        # exist before any dependent lookup runs.
+        meals_sorted = self.meal_ids.sorted(
+            key=lambda m: (m.code != RO_MEAL_CODE, m.code or '', m.id))
         for period in self.period_ids:
             for room_type in self.type_ids:
-                for meal in self.meal_ids:
+                for meal in meals_sorted:
                     existing = line_model.find_line(
                         period.id, room_type.id, meal.code,
                         company_id=self.company_id.id)
@@ -91,10 +98,10 @@ class HotelRateLineGenerator(models.TransientModel):
 
     def _price_for(self, period, room_type, meal):
         """Price for one combo: RO-based formula in copy-ro mode, else blank."""
-        if self.copy_mode != 'copy-ro' or meal.code == 'RO':
+        if self.copy_mode != 'copy-ro' or meal.code == RO_MEAL_CODE:
             return self.price
         ro_line = self.env['hotel.rate.line'].find_line(
-            period.id, room_type.id, 'RO', company_id=self.company_id.id)
+            period.id, room_type.id, RO_MEAL_CODE, company_id=self.company_id.id)
         if not ro_line:
             return self.price
         base = ro_line.price

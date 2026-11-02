@@ -52,6 +52,13 @@ patch(PosStore.prototype, {
         this._backfillKitchenStatus().catch((e) => {
             console.error("Kitchen status backfill failed:", e);
         });
+        // Poll fallback: bus delivery depends on the websocket worker, which
+        // is fragile (proxy/gevent/flaps). One small read every 15s keeps
+        // tables fresh even when live push dies. Same pattern as the kitchen
+        // dashboard's own 30s refresh.
+        this._kitchenPollId = setInterval(() => {
+            this._backfillKitchenStatus().catch(() => {});
+        }, 15000);
     },
 
     async _backfillKitchenStatus() {
@@ -62,13 +69,24 @@ patch(PosStore.prototype, {
                 ["state", "=", "draft"],
                 ["is_cooking", "=", true],
             ],
-            ["order_status"]
+            ["order_status", "table_id"]
         );
         for (const row of rows) {
             const local = this.models["pos.order"].get(row.id);
             if (local && !local.finalized && row.order_status) {
+                const before = kitchenStatusOf(local);
                 local.uiState.kitchenStatus = row.order_status;
+                this._notifyIfReady(local, before);
             }
+        }
+    },
+
+    _notifyIfReady(local, before) {
+        if (kitchenStatusOf(local) === "waiting" && before !== "waiting") {
+            const tableNo = local.table_id?.table_number ?? local.name;
+            this.notification.add(_t("Table %s is ready for pickup.", tableNo), {
+                type: "success",
+            });
         }
     },
 
@@ -108,11 +126,8 @@ patch(PosStore.prototype, {
         }
         const before = kitchenStatusOf(local);
         local.uiState.kitchenStatus = vals.order_status || false;
-        if (kind === "pos_order_accepted" && before !== "waiting") {
-            const tableNo = local.table_id?.table_number ?? local.name;
-            this.notification.add(_t("Table %s is ready for pickup.", tableNo), {
-                type: "success",
-            });
+        if (kind === "pos_order_accepted") {
+            this._notifyIfReady(local, before);
         }
     },
 });
