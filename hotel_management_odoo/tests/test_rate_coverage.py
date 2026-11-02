@@ -75,3 +75,24 @@ class TestCoverage(TransactionCase):
         self.assertIn('1 green', msg)
         self.assertIn('0 yellow', msg)
         self.assertIn('%d red' % (len(meals) - 1), msg)
+
+    def test_generator_formula(self):
+        # RO 20000 exists; generate BB with copy-RO +10% -> BB 22000 created
+        co, rtype, period, room = self._setup()
+        bb = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        gen = self.env['hotel.rate.line.generator'].create({
+            'company_id': co.id,
+            'period_ids': [(6, 0, [period.id])],
+            'type_ids': [(6, 0, [rtype.id])],
+            'meal_ids': [(6, 0, [bb.id])],
+            'price': 0.0,
+            'copy_mode': 'copy-ro',
+            'uplift_mode': 'percent',
+            'uplift_value': 10.0,
+        })
+        gen.action_generate()
+        bb_line = self.env['hotel.rate.line'].find_line(
+            period.id, rtype.id, 'BB', company_id=co.id)
+        self.assertTrue(bool(bb_line))
+        self.assertEqual(bb_line.price, 22000.0)

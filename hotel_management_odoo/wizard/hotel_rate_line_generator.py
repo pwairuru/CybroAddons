@@ -18,6 +18,13 @@ class HotelRateLineGenerator(models.TransientModel):
     meal_ids = fields.Many2many(
         'hotel.meal.plan', string='Meal Plans', required=True)
     price = fields.Float(string='Price', required=True, default=0.0)
+    copy_mode = fields.Selection(
+        [('blank', 'Blank'), ('copy-ro', 'Copy RO + formula')],
+        string='Copy Mode', default='blank', required=True)
+    uplift_mode = fields.Selection(
+        [('fixed', 'Fixed'), ('percent', 'Percent')],
+        string='Uplift Mode', default='percent', required=True)
+    uplift_value = fields.Float(string='Uplift Value', default=0.0)
     included_adults = fields.Integer(default=2)
     included_children = fields.Integer(default=0)
     extra_adult_mode = fields.Selection(
@@ -44,6 +51,8 @@ class HotelRateLineGenerator(models.TransientModel):
         self.ensure_one()
         if self.price < 0:
             raise ValidationError("Price cannot be negative.")
+        if self.uplift_value < 0:
+            raise ValidationError("Uplift value cannot be negative.")
         line_model = self.env['hotel.rate.line']
         created = 0
         for period in self.period_ids:
@@ -59,7 +68,7 @@ class HotelRateLineGenerator(models.TransientModel):
                         'period_id': period.id,
                         'room_type_id': room_type.id,
                         'meal_plan_id': meal.id,
-                        'price': self.price,
+                        'price': self._price_for(period, room_type, meal),
                         'included_adults': self.included_adults,
                         'included_children': self.included_children,
                         'extra_adult_mode': self.extra_adult_mode,
@@ -79,3 +88,16 @@ class HotelRateLineGenerator(models.TransientModel):
                 'sticky': False,
             },
         }
+
+    def _price_for(self, period, room_type, meal):
+        """Price for one combo: RO-based formula in copy-ro mode, else blank."""
+        if self.copy_mode != 'copy-ro' or meal.code == 'RO':
+            return self.price
+        ro_line = self.env['hotel.rate.line'].find_line(
+            period.id, room_type.id, 'RO', company_id=self.company_id.id)
+        if not ro_line:
+            return self.price
+        base = ro_line.price
+        if self.uplift_mode == 'percent':
+            return base * (1.0 + (self.uplift_value or 0.0) / 100.0)
+        return base + (self.uplift_value or 0.0)

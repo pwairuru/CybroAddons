@@ -29,6 +29,9 @@
                         </group>
                         <group string="Defaults for new lines">
                             <field name="price"/>
+                            <field name="copy_mode"/>
+                            <field name="uplift_mode"/>
+                            <field name="uplift_value"/>
                             <field name="included_adults"/>
                             <field name="included_children"/>
                             <field name="extra_adult_mode"/>
