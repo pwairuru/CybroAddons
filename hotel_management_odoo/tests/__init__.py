@@ -45,3 +45,4 @@ from . import test_no_show_policy
 from . import test_rate_hybrid_models
 from . import test_rate_hybrid_engine
 from . import test_rate_coverage
+from . import test_reservation_payments

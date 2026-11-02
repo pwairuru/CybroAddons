@@ -217,6 +217,17 @@
         <field name="domain">[(1, '=', 1)]</field>
         <field name="operation">crud</field>
     </record>
+    <!-- Reception: read hotel-linked payments only (reservation Payments
+         button). Read-only: reception never edits payments; unlinked
+         (non-hotel) payments stay invisible. Unioned per user, so
+         accounting roles are unaffected. -->
+    <record id="hotel_perm_reception_payment" model="ir.access">
+        <field name="name">Reception: account.payment (hotel-linked, read)</field>
+        <field name="model_id" ref="account.model_account_payment"/>
+        <field name="group_id" ref="hotel_management_odoo.hotel_group_reception"/>
+        <field name="domain">['|', ('hotel_booking_id', '!=', False), ('hotel_folio_id', '!=', False)]</field>
+        <field name="operation">r</field>
+    </record>
     <record id="hotel_perm_hk_cleaning" model="ir.access">
         <field name="name">Housekeeping: cleaning.request</field>
         <field name="model_id" ref="model_cleaning_request"/>

@@ -127,3 +127,23 @@ class AccountPayment(models.Model):
         res = super().action_post()
         self._backfill_hotel_links()
         return res
+
+
+class AccountPartialReconcile(models.Model):
+    """Stamp hotel links when a payment reconciles (any path).
+
+    The pay wizard posts first and reconciles after, so create/post
+    backfill misses it — the reservation Payments button then shows
+    nothing. Every reconcile writes a partial, so hook it (cheap:
+    filtered to payments, no-op when already linked).
+    """
+    _inherit = "account.partial.reconcile"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        recs = super().create(vals_list)
+        payments = (recs.mapped('debit_move_id.payment_id')
+                    | recs.mapped('credit_move_id.payment_id'))
+        if payments:
+            payments.sudo()._backfill_hotel_links()
+        return recs
