@@ -198,6 +198,30 @@ class HotelFolio(models.Model):
                  'subtotal': sum(r['total'] for r in buckets[label])}
                 for label in ordered]
 
+    def _release_uninvoiced_lines(self):
+        """Unlock folio lines left stale by a cancelled/deleted invoice.
+
+        Idempotent: folios with a posted customer invoice keep their
+        locks (those charges were really invoiced). Otherwise reset
+        invoiced_qty/locked so the next draft picks every charge up
+        again. Each affected folio gets a chatter note.
+        """
+        for folio in self:
+            posted = folio.invoice_ids.filtered(
+                lambda m: m.move_type == 'out_invoice'
+                and m.state == 'posted')
+            if posted:
+                continue
+            stale = folio.line_ids.filtered(
+                lambda l: l.locked or (l.invoiced_qty or 0.0) > 0.0)
+            if not stale:
+                continue
+            stale.write({'invoiced_qty': 0.0, 'locked': False})
+            folio.message_post(
+                body="Released %d line(s) from a cancelled/deleted "
+                     "invoice; they will be invoiced again."
+                     % len(stale))
+
     def _ensure_sale_journal(self):
         self.ensure_one()
         journal = self.env['account.journal'].search(

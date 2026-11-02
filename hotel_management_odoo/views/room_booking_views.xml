@@ -268,6 +268,17 @@
         <field name="state">code</field>
         <field name="code">action = records.action_print_isolate_bill()</field>
     </record>
+    <!-- Consumed-only checkout in the cog menu (with Isolate Bill):
+         early-checkout sweep billing nights up to today; the header
+         Check-Out button stays the full-stay default. -->
+    <record id="action_server_checkout_consumed_only" model="ir.actions.server">
+        <field name="name">Check-Out (Consumed Only)</field>
+        <field name="model_id" ref="model_room_booking"/>
+        <field name="binding_model_id" ref="model_room_booking"/>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">action = records.action_checkout_consumed_only()</field>
+    </record>
     <!--     Room Booking Tree view -->
     <record id="room_booking_view_tree" model="ir.ui.view">
         <field name="name">room.booking.view.tree</field>

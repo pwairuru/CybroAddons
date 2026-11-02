@@ -18,6 +18,8 @@ from . import test_deposit_collect
 from . import test_booking_pax
 from . import test_post_stay_wizard
 from . import test_checkout_guards
+from . import test_checkout_billing_mode
+from . import test_folio_invoice_release
 from . import test_invoice_payment
 from . import test_settle_extras
 from . import test_service_product

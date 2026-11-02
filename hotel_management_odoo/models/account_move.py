@@ -38,6 +38,32 @@ class AccountMove(models.Model):
                                      help="Folio this invoice was generated "
                                      "from (folio unification).")
 
+    def _release_linked_folio_lines(self):
+        """Unlock folio lines orphaned by a cancelled/deleted invoice.
+
+        Only folios with no posted customer invoice are touched (a
+        posted invoice means the locks are legitimate). Runs sudo: the
+        lock flags are system bookkeeping, not user data.
+        """
+        folios = self.mapped('hotel_folio_id')
+        if not folios:
+            return
+        folios.sudo()._release_uninvoiced_lines()
+
+    def button_cancel(self):
+        """Cancel, then release folio lines a draft had locked."""
+        res = super().button_cancel()
+        self._release_linked_folio_lines()
+        return res
+
+    def unlink(self):
+        """Delete, then release folio lines a draft had locked."""
+        folios = self.mapped('hotel_folio_id')
+        res = super().unlink()
+        if folios:
+            folios.sudo()._release_uninvoiced_lines()
+        return res
+
 
 class AccountPayment(models.Model):
     """Folio link for payments tab (folio unification)."""

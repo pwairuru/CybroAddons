@@ -282,6 +282,14 @@ class RoomBookingFamily(models.Model):
                     "check out each room first." % rec.name)
         return super().action_checkout()
 
+    def action_checkout_consumed_only(self):
+        for rec in self:
+            if rec.child_ids and rec._open_children():
+                raise ValidationError(
+                    "Master %s still has open rooms; "
+                    "check out each room first." % rec.name)
+        return super().action_checkout_consumed_only()
+
     def action_done(self):
         for rec in self:
             if rec.child_ids and rec._open_children():

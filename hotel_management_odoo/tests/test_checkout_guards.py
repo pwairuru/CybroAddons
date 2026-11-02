@@ -38,6 +38,10 @@ class TestCheckoutGuards(TransactionCase):
             bk.action_cancel()
 
     def test_checkout_clears_future_uninvoiced_lines(self):
+        # Consumed-only (early checkout) variant clears future lines;
+        # the default action_checkout bills the full stay (see
+        # test_checkout_billing_mode). This locks the variant so future
+        # changes cannot silently rebind the default.
         bk = self._mk_booking()
         bk.action_checkin()
         folio = self.env['hotel.folio'].search(
@@ -50,7 +54,7 @@ class TestCheckoutGuards(TransactionCase):
                         hotel_date=future)
         Svc.post_charge(folio.id, prod.id, 1, 10.0, 'to_guest',
                         hotel_date=past)
-        bk.action_checkout()
+        bk.action_checkout_consumed_only()
         dates = sorted(str(l.hotel_date) for l in folio.line_ids)
         self.assertNotIn(future, dates)
         self.assertIn(past, dates)

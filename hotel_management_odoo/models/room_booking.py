@@ -1023,16 +1023,33 @@ class RoomBooking(models.Model):
         }
 
     def action_checkout(self):
-        """Check out: clears uninvoiced future folio lines, frees rooms,
-        stamps the actual checkout time, auto-posts the folio invoice.
-        The booked line dates are never mutated. A folio with no
-        uninvoiced charges posts nothing (no empty invoice) but checkout
-        still proceeds; the cashier voids the folio separately."""
+        """Check out billing the full stay (default).
+
+        Auto-posts every missing night in the booked range, charges
+        pending ancillaries, frees rooms, stamps the actual checkout
+        time, auto-posts the folio invoice. Future folio lines are
+        kept: the invoice covers the whole booked stay. The booked
+        line dates are never mutated. A folio with no uninvoiced
+        charges posts nothing (no empty invoice) but checkout still
+        proceeds; the cashier voids the folio separately."""
+        return self._do_checkout(clear_future=False)
+
+    def action_checkout_consumed_only(self):
+        """Check out billing consumed nights only (early checkout).
+
+        Cog-menu variant: posts only nights up to the current business
+        day, then clears uninvoiced future folio lines. Past charges
+        stay for invoicing. Same invoice/state flow as the default.
+        """
+        return self._do_checkout(clear_future=True)
+
+    def _do_checkout(self, clear_future=False):
         for record in self:
             record._check_transition('check_out')
-            record._auto_post_stay_nights()
+            record._auto_post_stay_nights(only_consumed=clear_future)
             record._charge_pending_ancillaries(quiet=True)
-            record._clear_future_folio_lines()
+            if clear_future:
+                record._clear_future_folio_lines()
             record._release_rooms()
             record.with_context(hotel_allow_state_write=True).write({
                 "state": "check_out",
@@ -1108,14 +1125,18 @@ class RoomBooking(models.Model):
         self.message_post(body="Checkout reversed; back to Check-In.")
         return True
 
-    def _auto_post_stay_nights(self):
-        """Post consumed room nights missing from the folio.
+    def _auto_post_stay_nights(self, only_consumed=False):
+        """Post room nights missing from the folio.
 
-        Runs at checkout so the invoice always covers the stay even
-        when Post Stay was never clicked. post_stay_nights dedups on
-        (folio, product, hotel date, room), so audit-posted nights
-        are skipped and re-runs are safe. Rate failures raise while
-        still check_in (rooms held, nothing stranded).
+        Full-stay default (only_consumed=False) posts every night in
+        the booked range so the invoice always covers the stay even
+        when Post Stay was never clicked. The consumed-only variant
+        (early checkout) caps each line at the current business day so
+        future nights are never posted in the first place.
+        post_stay_nights dedups on (folio, product, hotel date, room),
+        so audit-posted nights are skipped and re-runs are safe. Rate
+        failures raise while still check_in (rooms held, nothing
+        stranded).
         """
         self.ensure_one()
         folio = self._ensure_folio()
@@ -1123,17 +1144,25 @@ class RoomBooking(models.Model):
         if not plan:
             self.message_post(body="Checkout auto-post skipped: no rate plan.")
             return self.env['hotel.folio.line'].browse()
+        today = self.env['hotel.business.date']._current_day(
+            self.company_id) if only_consumed else False
         lines = self.env['hotel.folio.line'].browse()
         engine = self.env['hotel.rate.engine']
         for rline in self.room_line_ids:
             if not rline.room_id or not rline.checkin_date \
                     or not rline.checkout_date:
                 continue
+            date_from = rline.checkin_date.date()
+            date_to = rline.checkout_date.date()
+            if today and date_to > today:
+                if today <= date_from:
+                    continue
+                date_to = today
             try:
                 posted = engine.post_stay_nights(
                     folio.id, rline.room_id.id,
-                    fields.Date.to_string(rline.checkin_date.date()),
-                    fields.Date.to_string(rline.checkout_date.date()),
+                    fields.Date.to_string(date_from),
+                    fields.Date.to_string(date_to),
                     plan.id, adults=rline.adults or 0,
                     children=rline.children or 0)
             except ValidationError as e:
@@ -1142,7 +1171,7 @@ class RoomBooking(models.Model):
                       "for the stay; price it before checkout. "
                       "Detail: %s")
                     % (self.name, rline.room_id.display_name,
-                       e.name or e)) from e
+                       str(e))) from e
             lines |= posted
         if lines:
             self.message_post(
