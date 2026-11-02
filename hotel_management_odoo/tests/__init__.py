@@ -43,3 +43,4 @@ from . import test_billing_accuracy
 from . import test_dashboard_pos
 from . import test_no_show_policy
 from . import test_rate_hybrid_models
+from . import test_rate_hybrid_engine

@@ -332,7 +332,10 @@ class HotelRateEngine(models.AbstractModel):
         Returns ``{dates[], periods[], plan_id, rows[{type_id, name,
         cells[]}]}`` where each cell holds ``{date, price, base,
         delta_pct, rule_id, min_stay, closed, available, board,
-        total[, plans, period]}`` (``plans`` only in all-plans mode).
+        total[, plans, period], basis, fallback_reason}``
+        (``plans`` only in all-plans mode). ``basis``/``fallback_reason``
+        pass through the engine fallback chain for traffic-light
+        coverage (green explicit, yellow derived, red missing).
         """
         start = _to_date(date_from)
         end = _to_date(date_to)
@@ -407,10 +410,18 @@ class HotelRateEngine(models.AbstractModel):
             cells = []
             for day_idx, day in enumerate(days):
                 day_str = fields.Date.to_string(day)
-                price = float(self.price_for(
-                    rep.id, day, plan.id,
-                    board=board if board else 'RO')) \
-                    if plan and rep else base
+                basis = 'explicit'
+                fallback_reason = 'explicit'
+                if plan and rep:
+                    detailed = self.price_detailed(
+                        rep.id, day, plan.id,
+                        board=board if board else 'RO')
+                    price = float(detailed['net'])
+                    basis = detailed.get('basis', 'explicit')
+                    fallback_reason = detailed.get(
+                        'fallback_reason', 'explicit')
+                else:
+                    price = base
                 delta = round((price - base) / base * 100.0, 2) \
                     if base else 0.0
                 rule = self._matching_rule(plan, rep.id, day) \
@@ -462,6 +473,8 @@ class HotelRateEngine(models.AbstractModel):
                     'board': supplement,
                     'total': float(price + supplement),
                     'period': period_labels[day_idx],
+                    'basis': basis,
+                    'fallback_reason': fallback_reason,
                 }
                 if show_all:
                     # Per meal-plan price via the plan-price resolver.
@@ -601,6 +614,110 @@ class HotelRateEngine(models.AbstractModel):
         return self.env['hotel.rate.line'].browse()
 
     @api.model
+    def _resolve_with_fallback(self, room_id, day, board='RO', plan=None):
+        """Best rate line for a room night across the fallback chain.
+
+        Returns ``(line, basis, supplement, period)`` where basis is
+        ``explicit`` (top applicable period), ``meal-uplift`` (RO line
+        + active supplement), ``period-fallback`` (explicit line from
+        a lower-priority period) or ``missing`` (empty line).
+        Company-scoped: lines via ``find_line`` (company filter) and
+        the supplement must belong to ``env.company``. Never raises;
+        missing-mode handling lives in ``price_detailed``.
+        """
+        company = self.env.company
+        room = self.env['product.template'].browse(room_id)
+        room_type = (room.room_type_id
+                     if room.exists() and room.room_type_id else False)
+        empty_supp = self.env['hotel.rate.meal.supplement'].browse()
+        if not room_type or (room_type.company_id
+                             and room_type.company_id.id != company.id):
+            return self.env['hotel.rate.line'].browse(), 'missing', \
+                empty_supp, False
+        board = board or 'RO'
+        periods = self.env['hotel.rate.period']._find_applicable(day)
+        top_id = periods[0].id if periods else None
+        plan_id = plan.id if plan and plan.exists() else False
+        # 1. Explicit board line, scanning applicable periods top-down
+        # (existing fallback behavior). Per period the plan-override
+        # line wins first, then the shared base line.
+        for period in periods:
+            if plan_id:
+                line = self.env['hotel.rate.line'].find_line(
+                    period.id, room_type.id, board, company.id,
+                    plan_id=plan_id)
+                if line.exists():
+                    basis = 'explicit' if period.id == top_id else \
+                        'period-fallback'
+                    return line, basis, empty_supp, period
+            line = self.env['hotel.rate.line'].find_line(
+                period.id, room_type.id, board, company.id)
+            if line.exists():
+                basis = 'explicit' if period.id == top_id else \
+                    'period-fallback'
+                return line, basis, empty_supp, period
+        # 2. RO line + active meal supplement, scanning periods top-down.
+        if board != 'RO':
+            meal = self.env['hotel.meal.plan'].search(
+                [('code', '=', board)], limit=1)
+            supp = self.env['hotel.rate.meal.supplement'].search([
+                ('room_type_id', '=', room_type.id),
+                ('meal_plan_id', '=', meal.id if meal else False),
+                ('active_uplift', '=', True),
+                ('company_id', '=', company.id),
+            ], limit=1) if meal else empty_supp
+            if supp and supp.exists():
+                for period in periods:
+                    if plan_id:
+                        line = self.env['hotel.rate.line'].find_line(
+                            period.id, room_type.id, 'RO', company.id,
+                            plan_id=plan_id)
+                        if line.exists():
+                            return line, 'meal-uplift', supp, period
+                    line = self.env['hotel.rate.line'].find_line(
+                        period.id, room_type.id, 'RO', company.id)
+                    if line.exists():
+                        return line, 'meal-uplift', supp, period
+        # 3. No explicit or uplift hit: total miss. Missing-mode
+        # handling lives in price_detailed.
+        return self.env['hotel.rate.line'].browse(), 'missing', \
+            empty_supp, periods[0] if periods else False
+
+    @api.model
+    def _matching_adjustment(self, plan, room_type, period):
+        """Best plan adjustment: type+period > type-only > period-only
+        > generic; ties break to latest id. Company-scoped: the
+        adjustment's plan company is ``env.company`` (related), and a
+        nullable type/period pointing at another company never matches.
+        """
+        if not plan or not plan.exists():
+            return self.env['hotel.rate.plan.adjustment'].browse()
+        company = self.env.company
+        cands = self.env['hotel.rate.plan.adjustment'].search([
+            ('plan_id', '=', plan.id),
+            ('company_id', '=', company.id),
+        ])
+        best = self.env['hotel.rate.plan.adjustment'].browse()
+        best_rank = -1
+        for adj in cands:
+            if adj.room_type_id:
+                if not room_type or adj.room_type_id.id != room_type.id:
+                    continue
+                if adj.room_type_id.company_id.id != company.id:
+                    continue
+            if adj.period_id:
+                if not period or adj.period_id.id != period.id:
+                    continue
+                if adj.period_id.company_id.id != company.id:
+                    continue
+            rank = (2 if adj.room_type_id else 0) \
+                + (1 if adj.period_id else 0)
+            if rank > best_rank or (rank == best_rank and (
+                    not best.exists() or adj.id > best.id)):
+                best, best_rank = adj, rank
+        return best
+
+    @api.model
     def _resolve_counts(self, pax=1, adults=None, children=0):
         """Effective (adults, children, total) for pricing.
 
@@ -661,16 +778,25 @@ class HotelRateEngine(models.AbstractModel):
     def price_detailed(self, room_template_id, date, plan_id, pax=1,
                        adults=None, children=0,
                        board='RO', booking=None):
-        """Rate-line nightly breakdown.
+        """Rate-line nightly breakdown with hybrid fallback chain.
 
-        Prices from ``hotel.rate.line`` via :meth:`_matching_line`
-        (period priority fallback) + ``compute_night``. ``plan_id``
-        is ignored except for the company check in
-        ``_validate_price_inputs``. Legacy ``hotel.rate.rule``
-        path kept only as deprecated shim in ``_matching_rule``.
+        Resolution order in :meth:`_resolve_with_fallback`: explicit
+        board line in the top applicable period (plan-override line
+        first, then shared) → RO line + active meal supplement
+        (``meal-uplift``) → explicit board line from a lower-priority
+        period (``period-fallback``) → ``room.type.base_rate``
+        (``base-rate``) under fallback/warn missing mode.
+        The plan adjustment (most-specific wins) applies last unless
+        an explicit plan-override line won. ``compute_night`` math is
+        unchanged. On total miss ``res.company.rate_missing_mode``
+        decides: strict raises ``No rate configured``; fallback/warn
+        price from base_rate and set ``fallback_reason`` (warn also
+        posts folio chatter in ``post_stay_nights``).
         Returns ``{net, base, resolved, adjustment, occupancy,
-        board, rule_id, line_id, lines[], basis}`` with
-        ``basis='rate_line'``.
+        board, rule_id, line_id, lines[], basis, fallback_reason}``
+        with ``basis`` in explicit|meal-uplift|period-fallback|
+        base-rate and ``fallback_reason`` additionally
+        ``plan-adjustment`` when an adjustment applied.
         """
         day, room, plan = self._validate_price_inputs(
             room_template_id, date, plan_id)
@@ -688,29 +814,80 @@ class HotelRateEngine(models.AbstractModel):
                 "Room type %s fits %d; requested %d pax."
                 % (room_type.display_name, room_type.max_occupants,
                    total))
-        line = self._matching_line(room.id, day, board)
+        board = board or 'RO'
+        plan_rec = plan if plan and plan.exists() else None
+        line, basis, supp, period = self._resolve_with_fallback(
+            room.id, day, board, plan_rec)
+        occ_adult = self._occupancy_record(room_type, plan_rec or plan,
+                                           'adult') \
+            if room_type else False
+        occ_child = self._occupancy_record(room_type, plan_rec or plan,
+                                           'child') \
+            if room_type else False
         if not line.exists():
-            raise ValidationError('No rate configured for this stay.')
+            mode = self.env.company.rate_missing_mode or 'strict'
+            if mode == 'strict':
+                raise ValidationError('No rate configured for this stay.')
+            base_price = float(room_type.base_rate or 0.0) \
+                if room_type else 0.0
+            adj_amt = 0.0
+            adj = self._matching_adjustment(plan_rec, room_type, period)
+            if adj and adj.exists():
+                adj_amt = base_price * float(adj.value or 0.0) / 100.0 \
+                    if adj.mode == 'percent' else float(adj.value or 0.0)
+            resolved = base_price + adj_amt
+            reason = 'plan-adjustment' if adj_amt else 'base-rate'
+            return {
+                'net': float(resolved),
+                'base': base_price,
+                'resolved': float(resolved),
+                'adjustment': float(adj_amt),
+                'occupancy': 0.0,
+                'board': 0.0,
+                'rule_id': False,
+                'line_id': False,
+                'lines': [
+                    {'band': 'base', 'qty': 1,
+                     'amount': float(resolved), 'total': float(resolved)},
+                ],
+                'basis': 'base-rate',
+                'fallback_reason': reason,
+            }
         calc = line.compute_night(eff_adults, eff_children)
         base_price = float(line.price or 0.0)
         extra_a = float(calc.get('extra_a', 0.0) or 0.0)
         extra_c = float(calc.get('extra_c', 0.0) or 0.0)
-        occ_adult = self._occupancy_record(room_type, plan, 'adult') \
-            if room_type else False
-        occ_child = self._occupancy_record(room_type, plan, 'child') \
-            if room_type else False
+        supp_amt = 0.0
+        if supp and supp.exists():
+            supp_amt = float(supp.value or 0.0) \
+                if supp.mode == 'fixed' \
+                else base_price * float(supp.value or 0.0) / 100.0
+        subtotal = base_price + supp_amt
+        adj_amt = 0.0
+        is_override = bool(plan_rec and line.plan_id
+                           and line.plan_id.id == plan_rec.id)
+        if plan_rec and not is_override:
+            adj = self._matching_adjustment(
+                plan_rec, room_type, line.period_id)
+            if adj and adj.exists():
+                adj_amt = subtotal * float(adj.value or 0.0) / 100.0 \
+                    if adj.mode == 'percent' else float(adj.value or 0.0)
+        resolved = subtotal + adj_amt
+        reason = basis
+        if adj_amt:
+            reason = 'plan-adjustment'
         return {
-            'net': float(calc['net']),
+            'net': float(resolved + extra_a + extra_c),
             'base': base_price,
-            'resolved': base_price,
-            'adjustment': 0.0,
+            'resolved': float(resolved),
+            'adjustment': float(adj_amt),
             'occupancy': float(extra_a + extra_c),
-            'board': 0.0,
+            'board': float(supp_amt),
             'rule_id': line.id,
             'line_id': line.id,
             'lines': [
                 {'band': 'base', 'qty': 1,
-                 'amount': base_price, 'total': base_price},
+                 'amount': float(resolved), 'total': float(resolved)},
                 {'band': 'adult',
                  'qty': max(0, eff_adults - (line.included_adults or 0)),
                  'amount': extra_a, 'total': extra_a,
@@ -720,7 +897,8 @@ class HotelRateEngine(models.AbstractModel):
                  'amount': extra_c, 'total': extra_c,
                  'occupancy_id': occ_child.id if occ_child else False},
             ],
-            'basis': 'rate_line',
+            'basis': basis,
+            'fallback_reason': reason,
         }
 
     @api.model
@@ -728,15 +906,16 @@ class HotelRateEngine(models.AbstractModel):
                   adults=None, children=0, board='RO'):
         """Nightly net for a room template on a date under a plan.
 
-        Rate-line path: :meth:`_matching_line` finds the applicable
-        ``hotel.rate.line`` (period priority fallback on the room
-        type + board meal code) and ``compute_night`` prices the
-        occupancy. ``plan_id`` is only company-checked in
-        ``_validate_price_inputs``. Keeps float return; for the full
-        breakdown use price_detailed(). pax stays as the legacy
-        positional guest count (mapped to adults); pass adults /
-        children explicitly for occupancy pricing. Raises
-        ValidationError when no line covers the stay or capacity is
+        Hybrid fallback chain via :meth:`_resolve_with_fallback`
+        (explicit → meal uplift → period fallback → base-rate under
+        fallback/warn missing mode) + ``compute_night`` occupancy
+        pricing + plan adjustment. ``plan_id`` is company-checked in
+        ``_validate_price_inputs`` and drives override/adjustment
+        lookup. Keeps float return; for the full breakdown use
+        price_detailed(). pax stays as the legacy positional guest
+        count (mapped to adults); pass adults / children explicitly
+        for occupancy pricing. Raises ValidationError when no line
+        covers the stay and missing mode is strict, or capacity is
         exceeded."""
         detailed = self.price_detailed(
             room_template_id, date, plan_id, pax=pax, adults=adults,
@@ -929,6 +1108,9 @@ class HotelRateEngine(models.AbstractModel):
         lines = self.env['hotel.folio.line']
         for day in days:
             detailed = detailed_by_day[day]
+            reason = detailed.get('fallback_reason', 'explicit')
+            warn_mode = folio_company.rate_missing_mode == 'warn' \
+                and reason != 'explicit'
             orphan = float(orphan_by_day.get(day, 0.0))
             itemized = sum(float(bline.get('total') or 0.0) for bline, _prod in bands_by_day[day])
             base_price = float(detailed['net']) - itemized
@@ -954,6 +1136,7 @@ class HotelRateEngine(models.AbstractModel):
                                 'board': detailed.get('board', 0.0),
                                 'net': base_price,
                                 'tax': line.price_tax or 0.0,
+                                'fallback_reason': reason,
                                 # Rate-line basis: detailed['rule_id']
                                 # holds a hotel.rate.line id, not a
                                 # hotel.rate.rule id, so leave the
@@ -996,9 +1179,10 @@ class HotelRateEngine(models.AbstractModel):
                     'board': detailed.get('board', 0.0),
                     'net': base_price,
                     'tax': line.price_tax or 0.0,
+                    'fallback_reason': reason,
+                    'override': warn_mode,
                     # See above: rule link stays empty on rate-line basis.
                     'source_rule_id': False,
-                    'override': False,
                 })
             for bline, bproduct in bands_by_day[day]:
                 dup_band = self.env['hotel.folio.line'].find_stay_line(
@@ -1012,25 +1196,34 @@ class HotelRateEngine(models.AbstractModel):
                         bline['amount'], 'to_guest', hotel_date=day,
                         room_template_id=room.id, source='rate')
                     lines |= band_line
-                if not snapshots.search([
-                        ('folio_id', '=', folio.id),
-                        ('room_template_id', '=', room.id),
-                        ('hotel_date', '=', day),
-                        ('folio_line_id', '=', band_line.id),
-                ], limit=1):
-                    snapshots.create({
-                        'company_id': folio_company.id,
-                        'hotel_date': day,
-                        'room_template_id': room.id,
-                        'plan_id': plan.id,
-                        'folio_id': folio.id,
-                        'folio_line_id': band_line.id,
-                        'base': 0.0, 'adjustment': 0.0,
-                        'occupancy': bline['total'],
-                        'board': 0.0, 'net': bline['total'],
-                        'tax': band_line.price_tax or 0.0,
-                        'source_rule_id': False, 'override': False,
-                    })
+                    if not snapshots.search([
+                            ('folio_id', '=', folio.id),
+                            ('room_template_id', '=', room.id),
+                            ('hotel_date', '=', day),
+                            ('folio_line_id', '=', band_line.id),
+                    ], limit=1):
+                        snapshots.create({
+                            'company_id': folio_company.id,
+                            'hotel_date': day,
+                            'room_template_id': room.id,
+                            'plan_id': plan.id,
+                            'folio_id': folio.id,
+                            'folio_line_id': band_line.id,
+                            'base': 0.0, 'adjustment': 0.0,
+                            'occupancy': bline['total'],
+                            'board': 0.0, 'net': bline['total'],
+                            'tax': band_line.price_tax or 0.0,
+                            'fallback_reason': reason,
+                            'override': warn_mode,
+                            'source_rule_id': False,
+                        })
+            if warn_mode:
+                folio.message_post(body=(
+                    "Rate fallback used (%s) on %s for %s/%s."
+                    % (reason, day,
+                       room.room_type_id.display_name
+                       if room.room_type_id else room.display_name,
+                       board)))
         return lines
 
 
