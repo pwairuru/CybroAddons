@@ -80,6 +80,7 @@
         'views/reporting_views.xml',
         'wizard/hotel_report_pack_views.xml',
         'wizard/hotel_rate_line_generator_views.xml',
+        'views/hotel_rate_setup_views.xml',
         'report/room_booking_reports.xml',
         'report/sale_order_reports.xml',
         'report/combined_bill_report.xml',

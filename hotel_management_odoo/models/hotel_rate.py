@@ -332,8 +332,10 @@ class HotelRateEngine(models.AbstractModel):
         Returns ``{dates[], periods[], plan_id, rows[{type_id, name,
         cells[]}]}`` where each cell holds ``{date, price, base,
         delta_pct, rule_id, min_stay, closed, available, board,
-        total[, plans, period], basis, fallback_reason}``
-        (``plans`` only in all-plans mode). ``basis``/``fallback_reason``
+        total[, plans, plan_reasons, period], basis, fallback_reason}``
+        (``plans``/``plan_reasons`` only in all-plans mode;
+        ``plan_reasons`` maps meal code to its fallback_reason and
+        reports ``missing`` for strict-mode gaps instead of raising). ``basis``/``fallback_reason``
         pass through the engine fallback chain for traffic-light
         coverage (green explicit, yellow derived, red missing).
         """
@@ -480,18 +482,34 @@ class HotelRateEngine(models.AbstractModel):
                     # Per meal-plan price via the plan-price resolver.
                     # RO stays on the legacy path intentionally (Ruling 4):
                     # assigned explicitly from the cell price so it can
-                    # never drift through the resolver.
+                    # never drift through the resolver. Strict-mode misses
+                    # report 'missing' (red gap) instead of raising so the
+                    # setup coverage view can count them.
                     if plan and rep:
                         plans_cell = {}
+                        reasons_cell = {}
                         for code in meal_codes:
                             if code == 'RO':
                                 plans_cell[code] = float(price)
+                                reasons_cell[code] = fallback_reason
                             else:
-                                plans_cell[code] = float(self.price_for(
-                                    rep.id, day, plan.id, board=code))
+                                try:
+                                    code_detailed = self.price_detailed(
+                                        rep.id, day, plan.id, board=code)
+                                except ValidationError:
+                                    plans_cell[code] = 0.0
+                                    reasons_cell[code] = 'missing'
+                                else:
+                                    plans_cell[code] = float(
+                                        code_detailed['net'])
+                                    reasons_cell[code] = \
+                                        code_detailed.get(
+                                            'fallback_reason', 'missing')
                         cell['plans'] = plans_cell
+                        cell['plan_reasons'] = reasons_cell
                     else:
                         cell['plans'] = {}
+                        cell['plan_reasons'] = {}
                 cells.append(cell)
             rows.append({'type_id': rtype.id, 'name': rtype.name,
                          'cells': cells})

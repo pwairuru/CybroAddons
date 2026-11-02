@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Rate Setup: additive matrices over existing models.
+         Traffic light (single mapping everywhere): green = explicit,
+         yellow = derived (meal-uplift, period-fallback, plan-adjustment),
+         red = anything else (base-rate gap, missing). -->
+
+    <!-- Base = hotel.rate.line, RO-board only, editable setup list.
+         The existing one-line form stays the create/edit form. -->
+    <record id="hotel_rate_setup_base_list" model="ir.ui.view">
+        <field name="name">hotel.rate.line.view.list.setup.base</field>
+        <field name="model">hotel.rate.line</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="period_id"/>
+                <field name="room_type_id"/>
+                <field name="meal_plan_id"/>
+                <field name="price"/>
+                <field name="included_adults"/>
+                <field name="included_children"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_rate_setup_base_action" model="ir.actions.act_window">
+        <field name="name">Base Rates</field>
+        <field name="res_model">hotel.rate.line</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('hotel_rate_setup_base_list')}), (0, 0, {'view_mode': 'form', 'view_id': ref('hotel_rate_line_view_form')})]"/>
+        <field name="domain">[('meal_plan_id.code', '=', 'RO')]</field>
+        <field name="context">{'default_included_adults': 2, 'default_included_children': 0, 'default_extra_adult_mode': 'fixed', 'default_extra_child_mode': 'percent', 'default_extra_child_value': 50.0}</field>
+    </record>
+
+    <!-- Boards = meal supplements, editable setup lists. -->
+    <record id="hotel_rate_meal_supplement_view_list" model="ir.ui.view">
+        <field name="name">hotel.rate.meal.supplement.view.list</field>
+        <field name="model">hotel.rate.meal.supplement</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="room_type_id"/>
+                <field name="meal_plan_id"/>
+                <field name="active_uplift"/>
+                <field name="mode"/>
+                <field name="value"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_rate_meal_supplement_view_form" model="ir.ui.view">
+        <field name="name">hotel.rate.meal.supplement.view.form</field>
+        <field name="model">hotel.rate.meal.supplement</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="room_type_id"/>
+                        <field name="meal_plan_id"/>
+                        <field name="active_uplift"/>
+                        <field name="mode"/>
+                        <field name="value"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_rate_meal_supplement_action" model="ir.actions.act_window">
+        <field name="name">Board Supplements</field>
+        <field name="res_model">hotel.rate.meal.supplement</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Plans = plan adjustments, editable setup lists. -->
+    <record id="hotel_rate_plan_adjustment_view_list" model="ir.ui.view">
+        <field name="name">hotel.rate.plan.adjustment.view.list</field>
+        <field name="model">hotel.rate.plan.adjustment</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="plan_id"/>
+                <field name="room_type_id"/>
+                <field name="period_id"/>
+                <field name="mode"/>
+                <field name="value"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_rate_plan_adjustment_view_form" model="ir.ui.view">
+        <field name="name">hotel.rate.plan.adjustment.view.form</field>
+        <field name="model">hotel.rate.plan.adjustment</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="plan_id"/>
+                        <field name="room_type_id"/>
+                        <field name="period_id"/>
+                        <field name="mode"/>
+                        <field name="value"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_rate_plan_adjustment_action" model="ir.actions.act_window">
+        <field name="name">Plan Adjustments</field>
+        <field name="res_model">hotel.rate.plan.adjustment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Coverage = posted snapshots with traffic-light fallback_reason. -->
+    <record id="hotel_rate_snapshot_view_list_coverage" model="ir.ui.view">
+        <field name="name">hotel.rate.snapshot.view.list.coverage</field>
+        <field name="model">hotel.rate.snapshot</field>
+        <field name="arch" type="xml">
+            <list decoration-success="fallback_reason == 'explicit'" decoration-warning="fallback_reason in ('meal-uplift', 'period-fallback', 'plan-adjustment')" decoration-danger="fallback_reason not in ('explicit', 'meal-uplift', 'period-fallback', 'plan-adjustment')">
+                <field name="hotel_date"/>
+                <field name="room_template_id"/>
+                <field name="plan_id"/>
+                <field name="folio_id"/>
+                <field name="net"/>
+                <field name="fallback_reason"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_rate_snapshot_coverage_action" model="ir.actions.act_window">
+        <field name="name">Coverage</field>
+        <field name="res_model">hotel.rate.snapshot</field>
+        <field name="view_mode">list</field>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('hotel_rate_snapshot_view_list_coverage')})]"/>
+    </record>
+
+    <!-- Counts green/yellow/red over the all-plans matrix for the setup.
+         Test hook: coverage_type_ids / coverage_date_from /
+         coverage_date_to context keys pin the scope. -->
+    <record id="action_rate_coverage" model="ir.actions.server">
+        <field name="name">Rate Coverage</field>
+        <field name="model_id" ref="model_hotel_rate_snapshot"/>
+        <field name="binding_model_id" ref="model_hotel_rate_snapshot"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">covers = {'green': 0, 'yellow': 0, 'red': 0}
+yellow = {'meal-uplift', 'period-fallback', 'plan-adjustment'}
+engine = env['hotel.rate.engine']
+RoomType = env['hotel.room.type']
+Room = env['product.template']
+type_ids = env.context.get('coverage_type_ids')
+if type_ids:
+    types = RoomType.browse(type_ids)
+else:
+    types = RoomType.search([('company_id', '=', env.company.id)])
+date_from = env.context.get('coverage_date_from')
+if not date_from:
+    date_from = datetime.date.today().isoformat()
+date_to = env.context.get('coverage_date_to')
+if not date_to:
+    date_to = (datetime.date.today() + datetime.timedelta(days=29)).isoformat()
+for rtype in types:
+    room = Room.search([('is_room', '=', True), ('room_type_id', '=', rtype.id)], limit=1)
+    if not room:
+        continue
+    data = engine.matrix([rtype.id], date_from, date_to, False, board=False)
+    for row in data.get('rows', []):
+        for cell in row.get('cells', []):
+            for reason in cell.get('plan_reasons', {}).values():
+                if reason == 'explicit':
+                    covers['green'] = covers['green'] + 1
+                elif reason in yellow:
+                    covers['yellow'] = covers['yellow'] + 1
+                else:
+                    covers['red'] = covers['red'] + 1
+action = {'type': 'ir.actions.client', 'tag': 'display_notification', 'params': {'title': 'Rate coverage', 'message': '%s green / %s yellow / %s red' % (covers['green'], covers['yellow'], covers['red']), 'type': 'info', 'sticky': False}}</field>
+    </record>
+
+    <menuitem id="hotel_rate_setup_menu"
+              name="Rate Setup"
+              sequence="18"
+              parent="hotel_menu_pricing"/>
+    <menuitem id="hotel_rate_setup_base_menu"
+              name="Base Rates"
+              sequence="10"
+              parent="hotel_rate_setup_menu"
+              action="hotel_rate_setup_base_action"/>
+    <menuitem id="hotel_rate_setup_boards_menu"
+              name="Board Supplements"
+              sequence="20"
+              parent="hotel_rate_setup_menu"
+              action="hotel_rate_meal_supplement_action"/>
+    <menuitem id="hotel_rate_setup_plans_menu"
+              name="Plan Adjustments"
+              sequence="30"
+              parent="hotel_rate_setup_menu"
+              action="hotel_rate_plan_adjustment_action"/>
+    <menuitem id="hotel_rate_setup_coverage_menu"
+              name="Coverage"
+              sequence="40"
+              parent="hotel_rate_setup_menu"
+              action="hotel_rate_snapshot_coverage_action"/>
+</odoo>
