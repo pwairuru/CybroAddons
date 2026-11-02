@@ -244,3 +244,4 @@ class HotelRateSnapshot(models.Model):
                                      tracking=True)
     override = fields.Boolean(string="Manual Override", default=False,
                               tracking=True)
+    fallback_reason = fields.Char(default='explicit')

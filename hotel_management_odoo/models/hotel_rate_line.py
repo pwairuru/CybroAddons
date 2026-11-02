@@ -8,7 +8,7 @@ class HotelRateLine(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'period_id, room_type_id, meal_plan_id'
     _rate_line_uniq = models.Constraint(
-        'unique(period_id, room_type_id, meal_plan_id, company_id)',
+        'unique(period_id, room_type_id, meal_plan_id, company_id, plan_id)',
         'A rate already exists for this period, room type and meal plan.',
     )
     company_id = fields.Many2one('res.company', required=True, index=True, default=lambda self: self.env.company, tracking=True,
@@ -19,6 +19,8 @@ class HotelRateLine(models.Model):
                                    help="Room type this price is for. Only one line per period, type and board — duplicates are rejected.")
     meal_plan_id = fields.Many2one('hotel.meal.plan', required=True, ondelete='restrict', index=True, tracking=True,
                                    help="Board this price is for (Room Only, BB, HB, FB). A booking uses this line only when its board matches.")
+    plan_id = fields.Many2one('hotel.rate.plan', ondelete='cascade', index=True,
+        help='Plan this line prices; empty = shared base for all plans. Explicit plan lines win over adjustments.')
     currency_id = fields.Many2one('res.currency', required=True, default=lambda self: self.env.company.currency_id,
                                   help="Currency of the price below. Follows the company currency.")
     price = fields.Monetary(required=True, tracking=True,
@@ -69,14 +71,28 @@ class HotelRateLine(models.Model):
                 raise ValidationError("Line company must match period company.")
             if r.room_type_id.company_id.id != r.company_id.id:
                 raise ValidationError("Line company must match room type company.")
+            if r.plan_id and r.plan_id.company_id.id != r.company_id.id:
+                raise ValidationError("Line company must match rate plan company.")
+
+    @api.constrains('period_id', 'room_type_id', 'meal_plan_id', 'company_id', 'plan_id')
+    def _check_unique_plan(self):
+        for r in self:
+            domain = [('id', '!=', r.id),
+                      ('period_id', '=', r.period_id.id),
+                      ('room_type_id', '=', r.room_type_id.id),
+                      ('meal_plan_id', '=', r.meal_plan_id.id),
+                      ('company_id', '=', r.company_id.id),
+                      ('plan_id', '=', r.plan_id.id or False)]
+            if self.search_count(domain):
+                raise ValidationError("A rate already exists for this period, room type, meal plan and rate plan.")
 
     @api.model
-    def find_line(self, period_id, room_type_id, meal_code, company_id=None):
+    def find_line(self, period_id, room_type_id, meal_code, company_id=None, plan_id=None):
         company_id = company_id or self.env.company.id
         meal = self.env['hotel.meal.plan'].search([('code','=',meal_code)], limit=1)
         if not meal:
             return self.browse()
-        return self.search([('period_id','=',period_id),('room_type_id','=',room_type_id),('meal_plan_id','=',meal.id),('company_id','=',company_id)], limit=1)
+        return self.search([('period_id','=',period_id),('room_type_id','=',room_type_id),('meal_plan_id','=',meal.id),('company_id','=',company_id),('plan_id','=',plan_id or False)], limit=1)
 
     def compute_night(self, adults=0, children=0):
         self.ensure_one()

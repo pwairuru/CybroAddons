@@ -18,6 +18,9 @@ class ResCompany(models.Model):
         help='Preselected in the Post Stay wizard and rate calendar. '
         'Falls back to the Rack plan when empty.')
 
+    rate_missing_mode = fields.Selection([('strict','Strict'),('fallback','Fallback'),('warn','Warn')], default='strict', required=True,
+        help='Missing rate handling: strict raises, fallback resolves silently, warn resolves with folio note.')
+
     no_show_policy = fields.Selection(
         [('no_charge', 'No Charge'),
          ('first_night', 'Charge First Night'),
