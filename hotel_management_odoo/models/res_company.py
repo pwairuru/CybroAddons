@@ -21,6 +21,14 @@ class ResCompany(models.Model):
     rate_missing_mode = fields.Selection([('strict','Strict'),('fallback','Fallback'),('warn','Warn')], default='strict', required=True,
         help='Missing rate handling: strict raises, fallback resolves silently, warn resolves with folio note.')
 
+    hotel_capacity_policy = fields.Selection(
+        [('block', 'Block saving'), ('warn', 'Warn only')],
+        string='Over-capacity policy', default='block', required=True,
+        help='How to handle a room line where adults + children exceed '
+        'the room capacity (room persons or type max occupants; '
+        'toddlers never count). Block saving refuses to save the '
+        'line; Warn only allows it and flags the line.')
+
     no_show_policy = fields.Selection(
         [('no_charge', 'No Charge'),
          ('first_night', 'Charge First Night'),

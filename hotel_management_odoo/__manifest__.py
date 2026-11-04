@@ -70,6 +70,7 @@
         'views/hotel_rate_period_views.xml',
         'views/hotel_meal_plan_views.xml',
         'views/res_company_views.xml',
+        'views/hotel_settings_views.xml',
         'views/hotel_conference_views.xml',
         'views/hotel_cashier_views.xml',
         'views/dashboard_view.xml',

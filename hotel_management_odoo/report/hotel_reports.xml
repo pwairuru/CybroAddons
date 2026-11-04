@@ -50,7 +50,7 @@
         <field name="binding_type">report</field>
     </record>
     <record id="action_report_hotel_adr_revpar" model="ir.actions.report">
-        <field name="name">ADR / RevPAR</field>
+        <field name="name">Average Daily Rate / Revenue Per Available Room</field>
         <field name="model">hotel.report.pack</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">hotel_management_odoo.report_hotel_adr_revpar</field>
@@ -71,7 +71,7 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>
@@ -87,7 +87,7 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>
@@ -103,7 +103,7 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>
@@ -119,7 +119,7 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>
@@ -135,7 +135,7 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>
@@ -151,7 +151,7 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>
@@ -167,12 +167,12 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>
                     </table>
-                    <p>Revenue: <t t-out="totals.get('revenue', 0.0)"/> — ADR: <t t-out="totals.get('adr', 0.0)"/> — RevPAR: <t t-out="totals.get('revpar', 0.0)"/></p>
+                    <p>Revenue: <t t-out="totals.get('revenue', 0.0)"/> — Average Daily Rate: <t t-out="totals.get('adr', 0.0)"/> — Revenue Per Available Room: <t t-out="totals.get('revpar', 0.0)"/></p>
                 </div>
             </t>
         </t>
@@ -183,7 +183,7 @@
             <t t-call="web.external_layout">
                 <div class="page">
                     <h2><t t-out="title"/></h2>
-                    <p><t t-out="company"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
+                    <p><t t-out="company_name"/> — <t t-out="date_from"/> to <t t-out="date_to"/></p>
                     <table class="table">
                         <thead><tr><t t-foreach="columns" t-as="col"><th><t t-out="col['label']"/></th></t></tr></thead>
                         <tbody><t t-foreach="rows" t-as="row"><tr><t t-foreach="columns" t-as="col"><td><t t-out="row[col['key']]"/></td></t></tr></t></tbody>

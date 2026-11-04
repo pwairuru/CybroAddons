@@ -10,7 +10,7 @@
                     <button name="action_reserve" string="Reserve"
                             invisible="state != 'draft'" type="object"
                             class="btn-primary"/>
-                    <button name="action_print_combined_bill" string="PRINT BILL"
+                    <button name="action_print_combined_bill" string="Print"
                             invisible="state not in ['check_in', 'check_out', 'done']"
                             type="object"/>
                     <button name="hotel_management_odoo.hotel_post_stay_action" string="Post Stay"
@@ -30,7 +30,7 @@
                     <button name="action_charge_ancillaries"
                             string="Charge Ancillaries" type="object"
                             invisible="state != 'check_in'"/>
-                    <button name="action_register_payment" string="Register Payment" type="object"
+                    <button name="action_register_payment" string="Pay" type="object"
                              class="btn-primary" invisible="state != 'check_out' or amount_due == 0"/>
                     <button name="action_done" string="Set as Done"
                             class="btn-primary"
@@ -112,7 +112,7 @@
                             <field name="room_line_ids" colspan="4"
                                     string="Room Lines"
                                     context="{'default_checkin_date':checkin_date, 'default_checkout_date':checkout_date}">
-                                <list editable="bottom">
+                                <list editable="bottom" decoration-danger="over_capacity == True">
                                     <field name="room_id" string="Room"
                                             required="1"
                                             domain="[('is_room','=',True)]"
@@ -127,6 +127,9 @@
                                     <field name="adults" string="Adults"/>
                                     <field name="children" string="Children"/>
                                     <field name="toddlers" string="Toddlers"/>
+                                    <field name="meal_plan" string="Meal Plan"
+                                            readonly="locked == True"/>
+                                    <field name="over_capacity" invisible="1"/>
                                     <field name="uom_id"
                                             readonly="1"
                                             string="Unit of Measure"

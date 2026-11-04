@@ -26,7 +26,7 @@ CORE_REPORTS = [
     ('hotel_cashier_shifts', 'Cashier Shifts'),
     ('hotel_housekeeping_status', 'Housekeeping Status'),
     ('hotel_flash', 'Manager Flash'),
-    ('hotel_adr_revpar', 'ADR / RevPAR'),
+    ('hotel_adr_revpar', 'Average Daily Rate / Revenue Per Available Room'),
     ('hotel_asset_register', 'Asset Register'),
 ]
 
@@ -76,7 +76,15 @@ class HotelReportPack(models.TransientModel):
             'title': dict(CORE_REPORTS)[self.report_type],
             'date_from': str(self.date_from or ''),
             'date_to': str(self.date_to or ''),
-            'company': self.company_id,
+            # NOTE: never pass a recordset as 'company' here. It goes
+            # through report_action -> JSON (json_default str()s it) and
+            # then shadows the `company` recordset web.external_layout
+            # needs, crashing with "'str' has no attribute
+            # 'external_report_layout_id'". Keep layout's `company`
+            # reserved for a res.company record; display name lives in
+            # `company_name`.
+            'company_id': self.company_id.id,
+            'company_name': self.company_id.display_name or '',
             'columns': [{'key': k, 'label': v} for k, v in columns],
             'rows': rows,
             'totals': totals,
@@ -307,7 +315,8 @@ class HotelReportPack(models.TransientModel):
         sheet.write(0, 0, data.get('title', ''), bold)
         sheet.write(1, 0, '%s - %s' % (data.get('date_from', ''),
                                        data.get('date_to', '')))
-        sheet.write(2, 0, _company_name(data.get('company', '')))
+        sheet.write(2, 0, data.get('company_name')
+                    or _company_name(data.get('company', '')))
         for col, column in enumerate(data.get('columns', [])):
             sheet.write(4, col, column.get('label', ''), bold)
         for row_idx, row in enumerate(data.get('rows', [])):
@@ -336,3 +345,118 @@ class HotelReportPack(models.TransientModel):
         response = _Response()
         self.get_xlsx_report(data, response)
         return response.stream.buf.getvalue()
+
+
+class _HotelPackReportBase(models.AbstractModel):
+    """Shared rendering context for the 8 hotel.report.pack QWeb reports.
+
+    Odoo resolves QWeb context via `report.<report_name>` models. Without
+    one, only `docs`/`data` reach the template, and our custom keys
+    (title/rows/totals/...) stay nested inside `data`. Worse, a `company`
+    string from the JSON round-trip shadows web.external_layout's `company`
+    recordset. Each subclass below unpacks `data` to top level and always
+    provides a real res.company record as `company` (for the layout) plus
+    `company_name` (for display).
+    """
+    _name = 'report.hotel_management_odoo.report_pack_base'
+    _description = 'Hotel Report Pack base context'
+
+    _report_key = None
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        data = dict(data or {})
+        docs = self.env['hotel.report.pack'].browse(docids).exists()
+        # Prefer explicit company_id from pack data (JSON-safe int);
+        # fall back to wizard docs, then current company. Tolerate legacy
+        # payloads where 'company' held a recordset or a string.
+        company = self.env.company
+        company_id = data.get('company_id')
+        if company_id:
+            company = self.env['res.company'].browse(company_id).exists() \
+                or company
+        elif docs and docs[0].company_id:
+            company = docs[0].company_id
+        elif data.get('company') and hasattr(data.get('company'),
+                                             'external_report_layout_id'):
+            company = data['company']
+        company_name = (data.get('company_name')
+                        or _company_name(data.get('company', ''))
+                        or company.display_name or '')
+        # If template rendered without wizard data (direct print), build
+        # from the wizard docs so headers never crash on empty data.
+        if not data.get('columns') and docs:
+            try:
+                pack = docs[0].with_company(company.id) \
+                    if company else docs[0]
+                fresh = pack._pack_data()
+                for key in ('report', 'title', 'date_from', 'date_to',
+                            'columns', 'rows', 'totals'):
+                    data.setdefault(key, fresh.get(key))
+                company_name = company_name or fresh.get('company_name', '')
+            except Exception:
+                pass
+        return {
+            'doc_ids': docids,
+            'doc_model': 'hotel.report.pack',
+            'docs': docs,
+            'company': company,
+            'company_id': company,
+            'company_name': company_name,
+            'report': data.get('report', self._report_key or ''),
+            'title': data.get('title', ''),
+            'date_from': data.get('date_from', ''),
+            'date_to': data.get('date_to', ''),
+            'columns': data.get('columns', []),
+            'rows': data.get('rows', []),
+            'totals': data.get('totals', {}),
+            'data': data,
+        }
+
+
+class ReportHotelOccupancy(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_occupancy'
+    _description = 'Occupancy Report values'
+    _report_key = 'hotel_occupancy'
+
+
+class ReportHotelInhouse(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_inhouse'
+    _description = 'In-House Guests Report values'
+    _report_key = 'hotel_inhouse'
+
+
+class ReportHotelArrivalsDepartures(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_arrivals_departures'
+    _description = 'Arrivals & Departures Report values'
+    _report_key = 'hotel_arrivals_departures'
+
+
+class ReportHotelCashierShifts(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_cashier_shifts'
+    _description = 'Cashier Shifts Report values'
+    _report_key = 'hotel_cashier_shifts'
+
+
+class ReportHotelHousekeepingStatus(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_housekeeping_status'
+    _description = 'Housekeeping Status Report values'
+    _report_key = 'hotel_housekeeping_status'
+
+
+class ReportHotelFlash(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_flash'
+    _description = 'Manager Flash Report values'
+    _report_key = 'hotel_flash'
+
+
+class ReportHotelAdrRevpar(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_adr_revpar'
+    _description = 'Average Daily Rate / Revenue Per Available Room Report values'
+    _report_key = 'hotel_adr_revpar'
+
+
+class ReportHotelAssetRegister(_HotelPackReportBase):
+    _name = 'report.hotel_management_odoo.report_hotel_asset_register'
+    _description = 'Asset Register Report values'
+    _report_key = 'hotel_asset_register'

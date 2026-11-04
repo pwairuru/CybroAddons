@@ -116,8 +116,8 @@ class HotelDailyInventory(models.AbstractModel):
         lines = self.env['room.booking.line'].search([
             ('booking_id.company_id', '=', self.env.company.id),
             ('booking_id.state', 'in', ('reserved', 'check_in')),
-            ('checkin_date', '<=', window_end_dt),
-            ('checkout_date', '>', window_start_dt),
+            ('checkin_date', '<', window_end),
+            ('checkout_date', '>', window_start),
         ])
         # Per-day status resolution (line sets small; python loop fine).
         cells = []

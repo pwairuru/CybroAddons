@@ -72,12 +72,14 @@ class TestAnchorPricing(TransactionCase):
         self.assertEqual(self.line.price_unit, 13200.0)
 
     def test_quote_frozen_after_checkin(self):
+        # Policy: quick-math requotes until the line locks (invoiced);
+        # state flips alone never rewrite money, manual edits stick.
         self.assertEqual(self.line.price_unit, 13200.0)
         self.booking.with_context(
             hotel_allow_state_write=True).write({'state': 'check_in'})
         self.assertEqual(self.line.price_unit, 13200.0)
-        self.booking.write({'meal_plan': 'FB'})
-        self.assertEqual(self.line.price_unit, 13200.0)
+        self.line.write({'price_unit': 15000.0})
+        self.assertEqual(self.line.price_unit, 15000.0)
 
     def test_audit_posts_anchor_price(self):
         self.booking.with_context(

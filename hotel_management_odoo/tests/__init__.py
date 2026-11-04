@@ -1,4 +1,5 @@
 from . import test_folio_split
+from . import test_line_board_capacity
 from . import test_cashier
 from . import test_night_audit
 from . import test_rate_plans
@@ -46,3 +47,4 @@ from . import test_rate_hybrid_models
 from . import test_rate_hybrid_engine
 from . import test_rate_coverage
 from . import test_reservation_payments
+from . import test_manual_pricing

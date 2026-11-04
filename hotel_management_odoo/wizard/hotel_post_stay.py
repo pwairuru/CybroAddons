@@ -151,7 +151,11 @@ class HotelPostStay(models.TransientModel):
     def action_post(self):
         """Post the stay nights; returns the folio lines created/found."""
         self.ensure_one()
+        line = self.booking_line_id
         return self.env['hotel.rate.engine'].post_stay_nights(
             self.folio_id.id, self.room_template_id.id,
             self.date_from, self.date_to, self.plan_id.id,
-            adults=self.adults, children=self.children)
+            adults=self.adults, children=self.children,
+            board=(line.meal_plan if line else False)
+            or (line.booking_id.meal_plan if line and line.booking_id else False)
+            or 'RO')

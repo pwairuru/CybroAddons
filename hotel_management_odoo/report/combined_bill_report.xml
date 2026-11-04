@@ -75,6 +75,9 @@
                                     </thead>
                                     <tbody>
                                         <t t-foreach="folio_groups" t-as="g">
+                                            <tr t-if="not g_first">
+                                                <td colspan="6" style="height: 6px; padding: 0; border: none;"></td>
+                                            </tr>
                                             <tr class="fw-bold o_line_section">
                                                 <td colspan="5"><span t-out="g['label']">Rooms</span></td>
                                                 <td class="text-end o_price_total">
@@ -182,6 +185,9 @@
                 </thead>
                 <tbody>
                     <t t-foreach="bill_groups" t-as="g">
+                        <tr t-if="not g_first">
+                            <td colspan="6" style="height: 6px; padding: 0; border: none;"></td>
+                        </tr>
                         <tr class="fw-bold o_line_section">
                             <td colspan="5"><span t-out="g['label']">Rooms</span></td>
                             <td class="text-end o_price_total">

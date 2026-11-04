@@ -54,7 +54,7 @@
                            invisible="state != 'open'">Post Invoice</a>
                         <a role="menuitem" class="dropdown-item"
                            type="object" name="action_register_payment"
-                           invisible="state != 'open'">Register Payment</a>
+                           invisible="state != 'open'">Pay</a>
                         <a role="menuitem" class="dropdown-item"
                            type="object" name="action_apply_deposit"
                            invisible="state != 'open'">Apply Deposit</a>
@@ -145,7 +145,7 @@
                             invisible="state != 'open'" type="object"/>
                     <button name="action_post_invoice" string="Post"
                             invisible="state != 'open'" type="object"/>
-                    <button name="action_register_payment" string="Register Payment"
+                    <button name="action_register_payment" string="Pay"
                              type="object"
                              invisible="state != 'open' or amount_due == 0"/>
                     <button name="action_apply_deposit"

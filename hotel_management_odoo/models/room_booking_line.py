@@ -84,7 +84,20 @@ class RoomBookingLine(models.Model):
     children = fields.Integer(string="Children", default=0,
                               help="Child guests occupying this room line.")
     toddlers = fields.Integer(string="Toddlers", default=0,
-                              help="Toddler guests occupying this room line.")
+                               help="Toddler guests occupying this room line.")
+    meal_plan = fields.Selection(
+        [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
+         ('HB', 'Half Board'), ('FB', 'Full Board')],
+        string="Meal Plan", compute='_compute_meal_plan', store=True,
+        readonly=False, required=True, precompute=True, tracking=True,
+        help="Board priced for this room line. New lines inherit the "
+             "booking's meal plan; changing the booking later does not "
+             "overwrite lines that already have a value.")
+    over_capacity = fields.Boolean(
+        string="Over Capacity", compute='_compute_over_capacity',
+        help="Adults + children exceed the room capacity (toddlers "
+             "never count). Saving is blocked or allowed per the "
+             "company over-capacity policy.")
     rate_line_id = fields.Many2one('hotel.rate.line', string="Rate Line", copy=False, readonly=True,
                                      help="Rate line this night was priced from. Frozen at reserve so later price edits never change this booking.")
     rate_net = fields.Float(string="Rate Net", copy=False, readonly=True,
@@ -92,15 +105,71 @@ class RoomBookingLine(models.Model):
     rate_breakdown = fields.Text(string="Rate Breakdown", copy=False, readonly=True,
                                  help="How the net was built: base rent plus each extra-guest line. Read-only pricing trail for disputes.")
 
-    @api.constrains('adults', 'children', 'room_id')
+    @api.constrains('adults', 'children', 'room_id', 'meal_plan')
     def _check_capacity_line(self):
         for line in self:
+            if not line._is_over_capacity():
+                continue
+            policy = (line.company_id.hotel_capacity_policy
+                      if line.company_id
+                      else line.booking_id.company_id.hotel_capacity_policy
+                      if line.booking_id and line.booking_id.company_id
+                      else self.env.company.hotel_capacity_policy)
+            if policy == 'warn':
+                continue
             total = (line.adults or 0) + (line.children or 0)
             if line.room_id.num_person and total > line.room_id.num_person:
                 raise ValidationError("Room %s fits %d; requested %d." % (line.room_id.display_name, line.room_id.num_person, total))
             rt = line.room_id.room_type_id
             if rt and rt.max_occupants and total > rt.max_occupants:
                 raise ValidationError("Room type %s fits %d; requested %d." % (rt.display_name, rt.max_occupants, total))
+
+    def _is_over_capacity(self):
+        self.ensure_one()
+        total = (self.adults or 0) + (self.children or 0)
+        if self.room_id.num_person and total > self.room_id.num_person:
+            return True
+        rt = self.room_id.room_type_id
+        if rt and rt.max_occupants and total > rt.max_occupants:
+            return True
+        return False
+
+    @api.depends('adults', 'children', 'room_id')
+    def _compute_over_capacity(self):
+        for line in self:
+            if not line.room_id:
+                line.over_capacity = False
+                continue
+            line.over_capacity = line._is_over_capacity()
+
+    @api.depends('booking_id.meal_plan', 'meal_plan')
+    def _compute_meal_plan(self):
+        for line in self:
+            if not line.meal_plan and line.booking_id:
+                line.meal_plan = line.booking_id.meal_plan or False
+
+    @api.onchange('adults', 'children', 'room_id')
+    def _onchange_capacity_warn(self):
+        if not self.room_id or not self._is_over_capacity():
+            return
+        policy = (self.company_id.hotel_capacity_policy
+                  if self.company_id
+                  else self.booking_id.company_id.hotel_capacity_policy
+                  if self.booking_id and self.booking_id.company_id
+                  else self.env.company.hotel_capacity_policy)
+        if policy != 'warn':
+            return
+        total = (self.adults or 0) + (self.children or 0)
+        return {
+            'warning': {
+                'title': _("Over capacity"),
+                'message': _(
+                    "Room %s fits %d; requested %d (toddlers exempt). "
+                    "Saving is allowed under the Warn-only policy.")
+                % (self.room_id.display_name,
+                   self.room_id.num_person or 0, total),
+            }
+        }
 
     @api.model
     def _detailed_price(self, line, reraise=False):
@@ -127,7 +196,7 @@ class RoomBookingLine(models.Model):
             return self.env['hotel.rate.engine'].price_detailed(
                 line.room_id.id, day, plan.id,
                 adults=line.adults or 0, children=line.children or 0,
-                board=booking.meal_plan or 'RO',
+                board=line.meal_plan or booking.meal_plan or 'RO',
                 booking=booking) or {}
         except ValidationError:
             if reraise:
@@ -140,13 +209,12 @@ class RoomBookingLine(models.Model):
 
     def _compute_rate_snapshot(self):
         for line in self:
+            if line.locked:
+                continue
             if not line.room_id or not line.checkin_date:
                 continue
             booking = line.booking_id
             if not booking:
-                continue
-            state = booking.state if booking else False
-            if line.price_unit and state not in ('draft', 'reserved', False):
                 continue
             try:
                 d = self._detailed_price(line, reraise=True)
@@ -162,8 +230,12 @@ class RoomBookingLine(models.Model):
             line.rate_line_id = d.get('line_id') or d.get('rule_id') or False
             line.rate_net = d.get('net', 0.0)
             line.rate_breakdown = str(d.get('lines', []))
-            # Quote carries the full nightly net (base + occupancy extras); posting still itemizes base via 'resolved' + band lines.
-            line.price_unit = d.get('net', line.price_unit)
+            # Advisory quote only: fill an unpriced line, never wipe a
+            # manual edit. Checkout/date changes requote through
+            # _compute_price_unit instead.
+            if not line.price_unit:
+                # Quote carries the full nightly net (base + occupancy extras); posting still itemizes base via 'resolved' + band lines.
+                line.price_unit = d.get('net', line.price_unit)
 
     @api.constrains('adults', 'children', 'toddlers')
     def _check_pax(self):
@@ -218,18 +290,19 @@ class RoomBookingLine(models.Model):
                 ignore_booking=line.booking_id)
 
     @api.depends('room_id', 'booking_id.pricelist_id',
-                  'booking_id.partner_id', 'booking_id.company_id',
-                  'booking_id.meal_plan', 'checkin_date', 'adults',
-                  'children', 'uom_qty')
+                   'booking_id.partner_id', 'booking_id.company_id',
+                   'booking_id.meal_plan', 'meal_plan', 'checkin_date', 'adults',
+                   'children', 'uom_qty')
     def _compute_price_unit(self):
-        """Compute the rent from the first-night anchor price.
+        """Quick-math default for the rent (first-night anchor price).
 
         Quote = engine resolved nightly amount for the check-in
         date under the booking's board/pax/plan, applied flat to
-        every night (first-night-anchor policy). Recomputes while
-        the booking is draft/reserved or the line is still
-        unpriced; checked-in quotes stay frozen, as do invoiced
-        (locked) lines — no booking state flip may rewrite money.
+        every night (first-night-anchor policy). Manual edits stick
+        until a pricing input changes (room, dates/qty, pax, board,
+        pricelist); changing checkout dates therefore requotes and
+        overwrites a manual price by design — re-edit after dates
+        settle. Only invoiced (locked) lines freeze.
         Falls back to the booking pricelist (then room list price)
         when no plan matches or the engine cannot price.
         """
@@ -238,10 +311,6 @@ class RoomBookingLine(models.Model):
                 continue
             if not line.room_id:
                 line.price_unit = 0
-                continue
-            state = line.booking_id.state if line.booking_id else False
-            if line.price_unit and state not in (
-                    'draft', 'reserved', False):
                 continue
             anchor = self._anchor_price(line)
             if anchor is not None:
@@ -350,9 +419,9 @@ class RoomBookingLine(models.Model):
         help="Estimated extra-guest charge for the whole line.")
 
     @api.depends('adults', 'children', 'room_id',
-                 'uom_qty', 'checkin_date', 'checkout_date',
-                 'booking_id.meal_plan', 'booking_id.pricelist_id',
-                 'booking_id.company_id')
+                  'uom_qty', 'checkin_date', 'checkout_date',
+                  'meal_plan', 'booking_id.meal_plan', 'booking_id.pricelist_id',
+                  'booking_id.company_id')
     def _compute_extra_estimate(self):
         for line in self:
             line.extra_per_night = 0.0

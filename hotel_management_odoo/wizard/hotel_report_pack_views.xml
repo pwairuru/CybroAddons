@@ -74,7 +74,7 @@
         <field name="context">{'default_report_type': 'hotel_flash'}</field>
     </record>
     <record id="hotel_report_pack_action_adr" model="ir.actions.act_window">
-        <field name="name">ADR / RevPAR</field>
+        <field name="name">Average Daily Rate / Revenue Per Available Room</field>
         <field name="res_model">hotel.report.pack</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
@@ -106,7 +106,7 @@
     <menuitem id="hotel_report_pack_menu_flash" name="Manager Flash"
               sequence="60" parent="hotel_reporting_menu"
               action="hotel_report_pack_action_flash"/>
-    <menuitem id="hotel_report_pack_menu_adr" name="ADR / RevPAR"
+    <menuitem id="hotel_report_pack_menu_adr" name="Average Daily Rate / Revenue Per Available Room"
               sequence="70" parent="hotel_reporting_menu"
               action="hotel_report_pack_action_adr"/>
     <menuitem id="hotel_report_pack_menu_assets" name="Asset Register"

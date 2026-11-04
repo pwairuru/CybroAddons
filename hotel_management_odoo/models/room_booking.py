@@ -937,7 +937,7 @@ class RoomBooking(models.Model):
                     rline.room_id.id, anchor, plan.id,
                     adults=rline.adults or 0,
                     children=rline.children or 0,
-                    board=self.meal_plan or 'RO',
+                    board=rline.meal_plan or self.meal_plan or 'RO',
                     booking=self)['net']
             except ValidationError:
                 price = 0.0
@@ -1170,7 +1170,8 @@ class RoomBooking(models.Model):
                     fields.Date.to_string(date_from),
                     fields.Date.to_string(date_to),
                     plan.id, adults=rline.adults or 0,
-                    children=rline.children or 0)
+                    children=rline.children or 0,
+                    board=rline.meal_plan or self.meal_plan or 'RO')
             except ValidationError as e:
                 raise ValidationError(
                     _("Checkout blocked for %s: %s has no rate "

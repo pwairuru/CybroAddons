@@ -60,7 +60,7 @@ class RoomBookingFamily(models.Model):
     meal_plan = fields.Selection(
         [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
          ('HB', 'Half Board'), ('FB', 'Full Board')],
-        string="Meal Plan", default='RO', required=True)
+        string="Meal Plan", default='BB', required=True)
 
     @api.depends('child_ids')
     def _compute_is_master(self):

@@ -2,7 +2,7 @@
 <odoo>
     <!--    Main Menu (Hoteli: sequence -20 keeps Hotel first, ahead of HR/inventory dashboards)-->
     <menuitem id="hotel_management_menu_root"
-              name="Hotel Management"
+              name="Hotel"
               web_icon="hotel_management_odoo,static/description/icon.png"
               sequence="-20"/>
     <!--    Configuration menu: managers + admins ONLY (Task 11).

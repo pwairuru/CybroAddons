@@ -1040,7 +1040,7 @@ class HotelRateEngine(models.AbstractModel):
     @api.model
     def post_stay_nights(self, folio_id, room_template_id,
                          date_from, date_to, plan_id, pax=1,
-                         adults=None, children=0):
+                         adults=None, children=0, board=False):
         """Post one folio line per night + one rate snapshot per night.
 
         Pre-validates ALL nights are open and resolves + validates every
@@ -1077,7 +1077,7 @@ class HotelRateEngine(models.AbstractModel):
         charge = self.env['hotel.charge.service']
         snapshots = self.env['hotel.rate.snapshot']
         booking = folio.booking_id or False
-        board = (booking.meal_plan or 'RO') if booking else 'RO'
+        board = board or (booking.meal_plan or 'RO') if booking else 'RO'
         days = [start + timedelta(days=offset) for offset in range(nights)]
         detailed_by_day = {}
         bands_by_day = {}

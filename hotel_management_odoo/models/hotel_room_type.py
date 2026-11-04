@@ -40,7 +40,7 @@ class HotelRoomType(models.Model):
     default_board = fields.Selection(
         [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
          ('HB', 'Half Board'), ('FB', 'Full Board')],
-        default='RO', required=True, tracking=True,
+        default='BB', required=True, tracking=True,
         help="Board pre-filled on new bookings of this type. Only a suggestion: any booking can still pick another board, and a board only changes the price if a rate line exists for it.")
     meal_price_ids = fields.One2many('hotel.room.type.meal.price',
                                      'room_type_id',
