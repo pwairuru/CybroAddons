@@ -251,19 +251,29 @@
               parent="hotel_menu_pricing"
               action="hotel_rate_plan_action"/>
 
+    <!-- HOTELI-SIMPLIFY 2026-11-05: hidden for v1 to reduce confusion.
+         Rate Rules = seasonal %/fixed overrides per plan + min-stay/weekday
+         logic (hotel.rate.rule). Engine (price_detailed/check_stay) still
+         calls it; data intact. Re-enable by uncommenting this menuitem.
     <menuitem id="hotel_rate_rule_menu"
               name="Rate Rules"
               sequence="20"
               parent="hotel_menu_pricing"
               groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_rate_rule_action"/>
+    -->
 
+    <!-- HOTELI-SIMPLIFY 2026-11-05: hidden for v1 to reduce confusion.
+         Occupancy = extra adult/child charges beyond included counts per
+         type x band (hotel.rate.occupancy). Engine adds them on top of the
+         resolved rate; no record = extras free. Re-enable by uncommenting.
     <menuitem id="hotel_rate_occupancy_menu"
               name="Occupancy"
               sequence="30"
               parent="hotel_menu_pricing"
               groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_rate_occupancy_action"/>
+    -->
 
     <menuitem id="hotel_board_rule_menu"
               name="Boards"

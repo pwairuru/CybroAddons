@@ -183,19 +183,34 @@ action = {'type': 'ir.actions.client', 'tag': 'display_notification', 'params': 
               sequence="10"
               parent="hotel_rate_setup_menu"
               action="hotel_rate_setup_base_action"/>
+    <!-- HOTELI-SIMPLIFY 2026-11-05: hidden for v1 to reduce confusion.
+         Board Supplements = RO line + uplift shortcut (hotel.rate.meal.
+         supplement) so you skip full BB/HB/FB lines. Engine fallback step 2
+         still uses it when active_uplift=True. Re-enable by uncommenting.
     <menuitem id="hotel_rate_setup_boards_menu"
               name="Board Supplements"
               sequence="20"
               parent="hotel_rate_setup_menu"
               action="hotel_rate_meal_supplement_action"/>
+    -->
+    <!-- HOTELI-SIMPLIFY 2026-11-05: hidden for v1 to reduce confusion.
+         Plan Adjustments = final %/fixed tweak per plan x type x period
+         (hotel.rate.plan.adjustment, most-specific wins). Applied last
+         unless an explicit plan-override line won. Re-enable by uncommenting.
     <menuitem id="hotel_rate_setup_plans_menu"
               name="Plan Adjustments"
               sequence="30"
               parent="hotel_rate_setup_menu"
               action="hotel_rate_plan_adjustment_action"/>
+    -->
+    <!-- HOTELI-SIMPLIFY 2026-11-05: hidden for v1 to reduce confusion.
+         Coverage = diagnostics only (hotel.rate.snapshot green/yellow/red
+         gap counts). No pricing input; safe to hide. Re-enable by
+         uncommenting.
     <menuitem id="hotel_rate_setup_coverage_menu"
               name="Coverage"
               sequence="40"
               parent="hotel_rate_setup_menu"
               action="hotel_rate_snapshot_coverage_action"/>
+    -->
 </odoo>

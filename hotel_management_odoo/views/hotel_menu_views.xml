@@ -22,10 +22,17 @@
               name="Rooms"
               sequence="10"
               parent="hotel_config_menu"/>
+    <!-- HOTELI-SIMPLIFY 2026-11-05: Pricing moved under Configuration for
+         v1 (fewer top-levels; Task 7 did the same for Rooms). Managers +
+         admins only — reception/housekeeping/cashier/auditor never set
+         prices. Children (Rate Plans / Rate Setup / Base Rates) inherit
+         visibility through this parent. To restore top-level Pricing,
+         change parent back to hotel_management_menu_root. -->
     <menuitem id="hotel_menu_pricing"
               name="Pricing"
               sequence="11"
-              parent="hotel_management_menu_root"/>
+              parent="hotel_config_menu"
+              groups="hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"/>
     <!-- REMOVED per 2026-10-29 Task 7: Folio merged into Reservations
          (room.booking menu); folio/deposit/ledger/documents reparented there.
     <menuitem id="hotel_menu_folio"
