@@ -80,7 +80,7 @@
                 <field name="booking_id"/>
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter name="by_room" string="Room"
                             domain="[]" context="{'group_by': 'room_id'}"/>
                     <filter name="by_checkin" string="Check-In Month"

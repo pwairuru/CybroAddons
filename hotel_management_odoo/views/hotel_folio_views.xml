@@ -266,7 +266,7 @@
                         domain="[('state', '=', 'open')]"/>
                 <filter name="settled" string="Settled"
                         domain="[('state', '=', 'settled')]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter name="by_state" string="State"
                             domain="[]" context="{'group_by': 'state'}"/>
                     <filter name="by_customer" string="Customer"

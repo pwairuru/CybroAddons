@@ -443,7 +443,7 @@
                         domain="[('state', '=', 'check_in')]"/>
                 <filter name="done" string="Done"
                         domain="[('state', '=', 'done')]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter name="by_state" string="State"
                             domain="[]" context="{'group_by': 'state'}"/>
                     <filter name="by_month" string="Order Month"
