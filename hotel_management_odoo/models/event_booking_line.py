@@ -48,9 +48,14 @@ class EventBookingLine(models.Model):
                              related='ticket_id.uom_id', help="This will set "
                                                               "the unit of"
                                                               " measure used")
-    price_unit = fields.Float(related='ticket_id.lst_price', string='Price',
-                              digits='Product Price',
-                              help="The selling price of the selected ticket.")
+    price_unit = fields.Float(string='Price',
+                               compute='_compute_price_unit',
+                               store=True, readonly=False,
+                               precompute=True,
+                               digits='Product Price',
+                               help="The selling price of the selected ticket. "
+                                    "Defaults from the ticket but editable "
+                                    "per line.")
     tax_ids = fields.Many2many('account.tax',
                                'hotel_event_order_line_taxes_rel',
                                'event_id',
@@ -72,6 +77,13 @@ class EventBookingLine(models.Model):
             raise ValidationError(
                 _("Event line %s has no ticket.") % self.id)
         return self._charge_product_from_field('ticket_id')
+
+    @api.depends('ticket_id')
+    def _compute_price_unit(self):
+        """Default price from the ticket; manual edits stick."""
+        for line in self:
+            if line.ticket_id:
+                line.price_unit = line.ticket_id.lst_price
 
     @api.depends('ticket_id', 'booking_id.company_id')
     def _compute_tax_ids(self):

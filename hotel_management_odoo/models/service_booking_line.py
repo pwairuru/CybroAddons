@@ -40,16 +40,35 @@ class ServiceBookingLine(models.Model):
                              string="Unit of Measure",
                              help="This will set the unit of measure used",
                              default=lambda self: self._get_default_unit_uom())
-    price_unit = fields.Float(string='Price', related='service_id.unit_price',
-                              digits='Product Price',
-                              help="The price of the selected service.")
+    price_unit = fields.Float(string='Price',
+                               compute='_compute_price_unit',
+                               store=True, readonly=False,
+                               precompute=True,
+                               digits='Product Price',
+                               help="The price of the selected service. "
+                                    "Defaults from the service but editable "
+                                    "per line since services are not fixed.")
     tax_ids = fields.Many2many('account.tax',
                                'hotel_service_order_line_taxes_rel',
                                'service_id', 'tax_id',
-                               related='service_id.taxes_ids', string='Taxes',
+                               compute='_compute_tax_ids',
+                               store=True, readonly=False,
+                               string='Taxes',
                                help="Default taxes used when selling the "
                                     "services.",
                                domain=[('type_tax_use', '=', 'sale')])
+
+    @api.depends('service_id')
+    def _compute_price_unit(self):
+        """Default price from the service; manual edits stick."""
+        for line in self:
+            if line.service_id:
+                line.price_unit = line.service_id.unit_price
+
+    @api.depends('service_id')
+    def _compute_tax_ids(self):
+        for line in self:
+            line.tax_ids = line.service_id.taxes_ids if line.service_id else False
     def _charge_product(self):
         """Sellable product for folio charges."""
         self.ensure_one()

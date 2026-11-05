@@ -43,9 +43,14 @@ class FoodBookingLine(models.Model):
                              default=lambda self: self._get_default_unit_uom(), help="This will set "
                                                                 "the unit of"
                                                                 " measure used")
-    price_unit = fields.Float(related='food_id.price', string='Price',
-                              digits='Product Price',
-                              help="The price of the selected food item.")
+    price_unit = fields.Float(string='Price',
+                               compute='_compute_price_unit',
+                               store=True, readonly=False,
+                               precompute=True,
+                               digits='Product Price',
+                               help="The price of the selected food item. "
+                                    "Defaults from the product but editable "
+                                    "per line.")
     tax_ids = fields.Many2many('account.tax',
                                'hotel_food_order_line_taxes_rel',
                                'food_id', 'tax_id',
@@ -53,6 +58,13 @@ class FoodBookingLine(models.Model):
                                help="Default taxes used when selling the food"
                                     " products.",
                                domain=[('type_tax_use', '=', 'sale')])
+
+    @api.depends('food_id')
+    def _compute_price_unit(self):
+        """Default price from the food product; manual edits stick."""
+        for line in self:
+            if line.food_id:
+                line.price_unit = line.food_id.price
     def _charge_product(self):
         """Sellable product for folio charges.
 

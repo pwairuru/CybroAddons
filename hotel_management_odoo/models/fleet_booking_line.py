@@ -45,9 +45,13 @@ class FleetBookingLine(models.Model):
                                                               "the unit of"
                                                               " measure used")
     price_unit = fields.Float(string='Rent/KM',
-                              related='fleet_id.price_per_km',
-                              digits='Product Price',
-                              help="The rent/km of the selected fleet.")
+                               compute='_compute_price_unit',
+                               store=True, readonly=False,
+                               precompute=True,
+                               digits='Product Price',
+                               help="The rent/km of the selected fleet. "
+                                    "Defaults from the vehicle but editable "
+                                    "per line.")
     tax_ids = fields.Many2many('account.tax',
                                'hotel_fleet_order_line_taxes_rel',
                                'fleet_id',
@@ -55,6 +59,13 @@ class FleetBookingLine(models.Model):
                                help="Default taxes used when renting the fleet"
                                     "models.",
                                domain=[('type_tax_use', '=', 'sale')])
+
+    @api.depends('fleet_id')
+    def _compute_price_unit(self):
+        """Default rent from the vehicle; manual edits stick."""
+        for line in self:
+            if line.fleet_id:
+                line.price_unit = line.fleet_id.price_per_km
     def _charge_product(self):
         """Sellable product for folio charges.
 

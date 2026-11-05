@@ -8,10 +8,11 @@
             <list editable="bottom">
                 <field name="food_id" string="Product" required="1" options="{'no_open': True,'no_create': True}"/>
                 <field name="description"/>
-                <field name="uom_qty" string="Qty" force_save="1"/>
+                <field name="folio_line_id" invisible="1"/>
+                <field name="uom_qty" string="Qty" force_save="1" readonly="folio_line_id != False"/>
                 <field name="uom_id" string="Unit of Measure" options="{'no_open': True,'no_create': True}"/>
-                <field name="price_unit"/>
-                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags"/>
+                <field name="price_unit" readonly="folio_line_id != False"/>
+                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags" readonly="folio_line_id != False"/>
                 <field name="price_subtotal" widget="monetary"/>
                 <field name="price_total" groups="account.group_account_manager" widget="monetary"/>
             </list>
@@ -25,10 +26,11 @@
             <list editable="bottom">
                 <field name="service_id" string="Service" required="1" options="{'no_open': True,'no_create': True}"/>
                 <field name="description"/>
-                <field name="uom_qty" string="Qty" force_save="1"/>
+                <field name="folio_line_id" invisible="1"/>
+                <field name="uom_qty" string="Qty" force_save="1" readonly="folio_line_id != False"/>
                 <field name="uom_id" string="Unit of Measure" options="{'no_open': True,'no_create': True}"/>
-                <field name="price_unit"/>
-                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags"/>
+                <field name="price_unit" readonly="folio_line_id != False"/>
+                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags" readonly="folio_line_id != False"/>
                 <field name="price_subtotal" widget="monetary"/>
                 <field name="price_total" groups="account.group_account_manager" widget="monetary"/>
             </list>
@@ -42,10 +44,11 @@
             <list editable="bottom">
                 <field name="fleet_id" string="Vehicle" required="1" options="{'no_open': True,'no_create': True}"/>
                 <field name="description"/>
-                <field name="uom_qty" string="Allotted KM" force_save="1"/>
+                <field name="folio_line_id" invisible="1"/>
+                <field name="uom_qty" string="Allotted KM" force_save="1" readonly="folio_line_id != False"/>
                 <field name="uom_id" string="Unit of Measure" options="{'no_open': True, 'no_create': True}"/>
-                <field name="price_unit"/>
-                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags"/>
+                <field name="price_unit" readonly="folio_line_id != False"/>
+                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags" readonly="folio_line_id != False"/>
                 <field name="price_subtotal" widget="monetary"/>
                 <field name="price_total" groups="account.group_account_manager" widget="monetary"/>
             </list>
@@ -60,10 +63,11 @@
                 <field name="event_id" string="Event" required="1" options="{'no_open': True,'no_create': True}"/>
                 <field name="description"/>
                 <field name="ticket_id" string="Ticket" required="1"/>
-                <field name="uom_qty" string="Qty" force_save="1"/>
+                <field name="folio_line_id" invisible="1"/>
+                <field name="uom_qty" string="Qty" force_save="1" readonly="folio_line_id != False"/>
                 <field name="uom_id" string="Unit of Measure" options="{'no_open': True, 'no_create': True}"/>
-                <field name="price_unit"/>
-                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags"/>
+                <field name="price_unit" readonly="folio_line_id != False"/>
+                <field name="tax_ids" options="{'no_create': True}" widget="many2many_tags" readonly="folio_line_id != False"/>
                 <field name="price_subtotal" widget="monetary"/>
                 <field name="price_total" groups="account.group_account_manager" widget="monetary"/>
             </list>
