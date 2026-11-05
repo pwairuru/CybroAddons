@@ -13,7 +13,6 @@
                     </t>
                 </select>
                 <select class="form-select form-select-sm o_rc_board" t-on-change="(e) => this.onBoardChange(e)" title="Board basis">
-                    <option value="RO" t-att-selected="this.state.board === 'RO' ? 'selected' : false">Room Only</option>
                     <option value="BB" t-att-selected="this.state.board === 'BB' ? 'selected' : false">Bed &amp; Breakfast</option>
                     <option value="HB" t-att-selected="this.state.board === 'HB' ? 'selected' : false">Half Board</option>
                     <option value="FB" t-att-selected="this.state.board === 'FB' ? 'selected' : false">Full Board</option>

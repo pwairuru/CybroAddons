@@ -29,7 +29,7 @@ export class HotelRateCalendar extends Component {
         this.state = proxy({
             dates: [], periods: [], rows: [], plans: [], types: [],
             ratePeriods: [],
-            planId: false, board: 'RO',
+            planId: false, board: 'BB',
             zoom: 'day', year: new Date().getFullYear(), month: null,
             days: 14, dateFrom: false, loading: true,
             bulk: false, sel: false, bulkForm: {
@@ -307,7 +307,7 @@ export class HotelRateCalendar extends Component {
     async onZoomChange(e) {
         this.state.zoom = e.target.value;
         if (this.state.zoom !== 'day' && this.isAll()) {
-            this.state.board = 'RO';
+            this.state.board = 'BB';
             this.state.notice = 'All-plans view is day-zoom only.';
         }
         if (this.state.zoom === 'month') {

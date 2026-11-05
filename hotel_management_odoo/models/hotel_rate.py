@@ -308,7 +308,7 @@ class HotelRateEngine(models.AbstractModel):
 
     @api.model
     def matrix(self, type_ids, date_from, date_to, plan_id=None,
-               board='RO'):
+               board='BB'):
         """Rate calendar grid for room types x dates.
 
         Per type/date calls the ``price_for`` float path on the type's
@@ -415,9 +415,14 @@ class HotelRateEngine(models.AbstractModel):
                 basis = 'explicit'
                 fallback_reason = 'explicit'
                 if plan and rep:
+                    # House default board is BB (RO is deactivated: no RO
+                    # lines exist, so the legacy RO fallback would raise in
+                    # strict mode). Explicit single-board callers still pass
+                    # their own board; this fallback only serves all-plans
+                    # mode (board=False) and empty-board callers.
                     detailed = self.price_detailed(
                         rep.id, day, plan.id,
-                        board=board if board else 'RO')
+                        board=board if board else 'BB')
                     price = float(detailed['net'])
                     basis = detailed.get('basis', 'explicit')
                     fallback_reason = detailed.get(
@@ -526,7 +531,7 @@ class HotelRateEngine(models.AbstractModel):
         }
 
     @api.model
-    def period_matrix(self, year, type_ids, plan_id=None, board='RO'):
+    def period_matrix(self, year, type_ids, plan_id=None, board='BB'):
         """Rate calendar grid for room types x rate periods.
 
         One column per active ``hotel.rate.period`` (sequence order) for
