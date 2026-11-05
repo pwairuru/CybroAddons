@@ -99,12 +99,9 @@
                             <field name="hotel_policy"/>
                             <field name="need_service"
                                     invisible=" state not in ('draft','reserved','check_in')"/>
-                            <field name="need_fleet"
-                                   invisible=" state not in ('draft','reserved','check_in')"/>
-                            <field name="need_food"
-                                   invisible=" state not in ('draft','reserved','check_in')"/>
-                            <field name="need_event"
-                                   invisible=" state not in ('draft','reserved','check_in')"/>
+                            <field name="need_fleet" invisible="1"/>
+                            <field name="need_food" invisible="1"/>
+                            <field name="need_event" invisible="1"/>
                         </group>
                     </group>
                     <notebook>
@@ -152,8 +149,7 @@
                             </field>
                             <div class="oe_clear"/>
                         </page>
-                        <page name="food" string="Food"
-                              invisible="need_food == False ">
+                        <page name="food" string="Food" invisible="1">
                             <field name="food_order_line_ids" colspan="4" string="Food Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
@@ -184,8 +180,7 @@
                             </group>
                             <div class="oe_clear"/>
                         </page>
-                        <page name="fleet" string="Fleet"
-                              invisible="need_fleet == False">
+                        <page name="fleet" string="Fleet" invisible="1">
                             <field name="vehicle_line_ids" colspan="4" string="Fleet Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
@@ -200,8 +195,7 @@
                             </group>
                             <div class="oe_clear"/>
                         </page>
-                        <page name="event" string="Events"
-                              invisible=" need_event == False ">
+                        <page name="event" string="Events" invisible="1">
                             <field name="event_line_ids" colspan="4" string="Event Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
@@ -228,20 +222,17 @@
                                widget="monetary"/>
                         <field name="amount_untaxed_food"
                                sum="Untaxed amount for Food"
-                               widget="monetary"
-                               invisible="need_food == False"/>
+                               widget="monetary" invisible="1"/>
                         <field name="amount_untaxed_service"
                                sum="Untaxed amount for Service"
                                widget="monetary"
                                invisible="need_service == False"/>
                         <field name="amount_untaxed_fleet"
                                sum="Untaxed amount for Fleet"
-                               widget="monetary"
-                               invisible="need_fleet == False"/>
+                               widget="monetary" invisible="1"/>
                         <field name="amount_untaxed_event"
                                sum="Untaxed amount for Event"
-                               widget="monetary"
-                               invisible="need_event == False"/>
+                               widget="monetary" invisible="1"/>
                         <div colspan="2" class="text-end fw-bold mt-1">Totals<hr class="ms-auto my-1" style="width: 40%;"/></div>
                         <field name="amount_untaxed"
                                sum="Untaxed amount" widget="monetary"/>
