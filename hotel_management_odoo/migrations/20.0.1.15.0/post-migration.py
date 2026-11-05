@@ -7,10 +7,12 @@ exists for the same room type + plan, the duplicate merges by keeping
 the lowest id row and deleting the other (constraint
 ``_check_unique_band`` would otherwise reject the rewrite).
 
-Step 2 (rule meal-line backfill): rules created before the
-``hotel.rate.rule.meal.line`` model existed (or before the rule-create
-backfill hook) have no per-plan lines. Creates the missing lines at
-0% percent — one per active meal plan.
+Step 2 (period meal-line backfill): periods created before the
+``hotel.rate.period.meal.line`` auto-create hook have no per-plan
+lines. Creates the missing lines at 0% percent — one per active
+meal plan. (Ported from the old rule-owned backfill when meal lines
+moved from rules to periods; the ``hotel.rate.rule.meal.line`` model
+no longer exists.)
 
 Step 3 (type meal-line coverage): calls ``ensure_meal_price_lines``
 on every room type so each type keeps one price line per active
@@ -55,33 +57,33 @@ def _migrate_toddler_to_child(env):
                  "merged %s duplicate(s).", rewritten, merged)
 
 
-def _backfill_rule_meal_lines(env):
+def _backfill_period_meal_lines(env):
     plans = env['hotel.meal.plan'].search([('active', '=', True)])
     if not plans:
-        _logger.info("RULE_LINE_MIGRATION: no active meal plans; "
+        _logger.info("PERIOD_LINE_MIGRATION: no active meal plans; "
                      "nothing to do.")
         return
-    line_model = env['hotel.rate.rule.meal.line']
+    line_model = env['hotel.rate.period.meal.line']
     created = 0
-    for rule in env['hotel.rate.rule'].search([]):
-        have = set(rule.meal_line_ids.mapped('meal_plan_id.id'))
+    for period in env['hotel.rate.period'].search([]):
+        have = set(period.meal_line_ids.mapped('meal_plan_id.id'))
         for plan in plans:
             if plan.id not in have:
                 line_model.create({
-                    'rule_id': rule.id,
+                    'period_id': period.id,
                     'meal_plan_id': plan.id,
                     'rate_type': 'percent',
                     'value': 0.0,
                 })
                 created += 1
-    _logger.info("RULE_LINE_MIGRATION: created %s missing rule meal "
+    _logger.info("PERIOD_LINE_MIGRATION: created %s missing period meal "
                  "line(s) at 0%%.", created)
 
 
 def migrate(cr, version):
     env = api.Environment(cr, SUPERUSER_ID, {})
     _migrate_toddler_to_child(env)
-    _backfill_rule_meal_lines(env)
+    _backfill_period_meal_lines(env)
     env['hotel.room.type'].search([]).ensure_meal_price_lines()
     _logger.info("TYPE_LINE_MIGRATION: ensured meal price line coverage "
                  "for all room types.")
