@@ -148,7 +148,8 @@ class PosOrder(models.Model):
                     'order_id': order.id,
                     'config_id': order.config_id.id,
                     'lines': order.lines.read([
-                        'id', 'product_id', 'qty', 'order_status', 'is_cooking'
+                        'id', 'product_id', 'qty', 'order_status', 'is_cooking',
+                        'note', 'customer_note', 'full_product_name'
                     ])
                 }
                 channel = f'pos_order_created_{order.config_id.id}'
@@ -174,7 +175,14 @@ class PosOrder(models.Model):
                 for categ in line.product_id.pos_categ_ids
             )
         )
-        values = {"orders": pos_orders.read(), "order_lines": pos_lines.read()}
+        values = {"orders": pos_orders.read([
+            'name', 'date_order', 'pos_reference', 'table_id', 'user_id',
+            'config_id', 'lines', 'order_status', 'order_ref', 'is_cooking',
+            'avg_prepare_time', 'general_customer_note', 'internal_note',
+        ]), "order_lines": pos_lines.read([
+            'product_id', 'qty', 'full_product_name', 'order_status',
+            'is_cooking', 'note', 'customer_note',
+        ])}
         user_tz_str = self.env.user.tz or 'UTC'
         user_tz = pytz.timezone(user_tz_str)
         utc = pytz.utc
@@ -391,6 +399,7 @@ class PosOrder(models.Model):
                         'product_name': line.product_id.name,
                         'qty': line.qty,
                         'note': line.note or '',
+                        'customer_note': line.customer_note or '',
                         'order_status': line.order_status or 'draft'
                     })
                 orders_data.append({
@@ -400,6 +409,8 @@ class PosOrder(models.Model):
                     'table_id': order.table_id.id if order.table_id else False,
                     'table_name': order.table_id.name if order.table_id else '',
                     'order_status': order.order_status,
+                    'general_customer_note': order.general_customer_note or '',
+                    'internal_note': order.internal_note or '',
                     'lines': line_data,
                     'date_order': order.date_order,
                     'amount_total': order.amount_total

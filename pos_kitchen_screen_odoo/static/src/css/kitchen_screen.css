@@ -748,3 +748,66 @@ padding-top:8px;
     color: #d32f2f;
     font-weight: 700;
 }
+/* Order + line notes: single strip under header, stacked lines, no clutter. */
+#kitchen_screen .kitchen-order-notes {
+    padding: 10px 15px 0 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+#kitchen_screen .kitchen-order-customer {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    color: #664d03;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 4px;
+    line-height: 1.4;
+}
+#kitchen_screen .kitchen-order-internal {
+    background: #e9ecef;
+    border-left: 4px solid #6c757d;
+    color: #343a40;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 4px;
+    line-height: 1.4;
+}
+#kitchen_screen .kitchen-line-notes {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+#kitchen_screen .kitchen-customer-note {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    color: #664d03;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 4px;
+    line-height: 1.4;
+}
+#kitchen_screen .kitchen-internal-note {
+    background: #e9ecef;
+    border-left: 4px solid #6c757d;
+    color: #343a40;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 4px;
+    line-height: 1.4;
+}
+#kitchen_screen.kitchen-dark .kitchen-order-customer,
+#kitchen_screen.kitchen-dark .kitchen-customer-note {
+    background: #3a2f10;
+    color: #ffd970;
+    border-left-color: #ffc107;
+}
+#kitchen_screen.kitchen-dark .kitchen-order-internal,
+#kitchen_screen.kitchen-dark .kitchen-internal-note {
+    background: #2a2e34;
+    color: #cfd4da;
+    border-left-color: #6c757d;
+}

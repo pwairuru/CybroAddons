@@ -40,7 +40,8 @@ class PosSession(models.Model):
             'domain': [],
             'fields': ['name', 'date_order', 'pos_reference',
                        'partner_id', 'lines', 'order_status', 'order_ref',
-                       'is_cooking']}}
+                       'is_cooking', 'general_customer_note',
+                       'internal_note']}}
 
     def _get_pos_ui_pos_order(self, params):
         """Get pos ui pos order"""
@@ -52,7 +53,8 @@ class PosSession(models.Model):
         return {'search_params': {'domain': [],
                                   'fields': ['product_id', 'qty',
                                              'order_status', 'order_ref',
-                                             'customer_id',
+                                             'customer_id', 'full_product_name',
+                                             'note', 'customer_note',
                                              'price_subtotal', 'total_cost']}}
 
     def _get_pos_ui_pos_order_line(self, params):

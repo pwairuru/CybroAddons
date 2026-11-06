@@ -261,6 +261,16 @@
                                                              alt=""/>
                                                     </div>
                                                 </div>
+                                                <t t-if="order.general_customer_note or order.internal_note">
+                                                    <div class="kitchen-order-notes">
+                                                        <t t-if="order.general_customer_note">
+                                                            <div class="kitchen-order-customer"><i class="fa fa-clipboard fa-lg" role="img" aria-label="Order note" title="Order note"/> <span>Order: <t t-esc="order.general_customer_note"/></span></div>
+                                                        </t>
+                                                        <t t-if="order.internal_note">
+                                                            <div class="kitchen-order-internal"><span>Staff: <t t-esc="order.internal_note"/></span></div>
+                                                        </t>
+                                                    </div>
+                                                </t>
                                                 <t t-if="order.order_status=='ready'">
                                                     <t t-foreach="order.lines"
                                                        t-as="lines"
@@ -279,14 +289,15 @@
                                                                         </span>
                                                                         <t t-esc="line.full_product_name"/>
                                                                         <br/>
-                                                                        <t t-if="line.note">
-                                                                            <i class="fa fa-tag fa-lg"
-                                                                               role="img"
-                                                                               aria-label="Note"
-                                                                               title="Note"/>
-                                                                            <span style="font-size:14px">
-                                                                                <t t-esc="line.note"/><t t-if="line.customer_note"> (<t t-esc="line.customer_note"/>)</t>
-                                                                            </span>
+                                                                        <t t-if="line.customer_note or line.note">
+                                                                                <div class="kitchen-line-notes">
+                                                                                <t t-if="line.customer_note">
+                                                                                    <div class="kitchen-customer-note"><i class="fa fa-tag fa-lg" role="img" aria-label="Customer note" title="Customer note"/> <span>Customer: <t t-esc="line.customer_note"/></span></div>
+                                                                                </t>
+                                                                                <t t-if="line.note">
+                                                                                    <div class="kitchen-internal-note"><span>Kitchen: <t t-esc="line.note"/></span></div>
+                                                                                </t>
+                                                                            </div>
                                                                         </t>
                                                                     </button>
                                                                 </ul>
@@ -439,6 +450,16 @@
                                                              alt=""/>
                                                     </div>
                                                 </div>
+                                                <t t-if="order.general_customer_note or order.internal_note">
+                                                    <div class="kitchen-order-notes">
+                                                        <t t-if="order.general_customer_note">
+                                                            <div class="kitchen-order-customer"><i class="fa fa-clipboard fa-lg" role="img" aria-label="Order note" title="Order note"/> <span>Order: <t t-esc="order.general_customer_note"/></span></div>
+                                                        </t>
+                                                        <t t-if="order.internal_note">
+                                                            <div class="kitchen-order-internal"><span>Staff: <t t-esc="order.internal_note"/></span></div>
+                                                        </t>
+                                                    </div>
+                                                </t>
                                                 <t t-if="order.order_status=='draft'">
                                                     <button class="btn accept_order btn-primary"
                                                             t-attf-id="order_id_{{order.id}}"
@@ -487,14 +508,15 @@
                                                                                 </t>
                                                                             </t>
                                                                             <br/>
-                                                                            <t t-if="line.note">
-                                                                                <i class="fa fa-tag fa-lg"
-                                                                                   role="img"
-                                                                                   aria-label="Note"
-                                                                                   title="Note"/>
-                                                                                <span style="font-size:14px">
-                                                                                    <t t-esc="line.note"/><t t-if="line.customer_note"> (<t t-esc="line.customer_note"/>)</t>
-                                                                                </span>
+                                                                            <t t-if="line.customer_note or line.note">
+                                                                                    <div class="kitchen-line-notes">
+                                                                                <t t-if="line.customer_note">
+                                                                                    <div class="kitchen-customer-note"><i class="fa fa-tag fa-lg" role="img" aria-label="Customer note" title="Customer note"/> <span>Customer: <t t-esc="line.customer_note"/></span></div>
+                                                                                </t>
+                                                                                <t t-if="line.note">
+                                                                                    <div class="kitchen-internal-note"><span>Kitchen: <t t-esc="line.note"/></span></div>
+                                                                                </t>
+                                                                            </div>
                                                                             </t>
                                                                         </button>
                                                                     </t>
@@ -511,14 +533,15 @@
                                                                             </span>
                                                                             <t t-esc="line.full_product_name"/>
                                                                             <br/>
-                                                                            <t t-if="line.note">
-                                                                                <i class="fa fa-tag fa-lg"
-                                                                                   role="img"
-                                                                                   aria-label="Note"
-                                                                                   title="Note"/>
-                                                                                <span style="font-size:14px">
-                                                                                    <t t-esc="line.note"/><t t-if="line.customer_note"> (<t t-esc="line.customer_note"/>)</t>
-                                                                                </span>
+                                                                            <t t-if="line.customer_note or line.note">
+                                                                                    <div class="kitchen-line-notes">
+                                                                                <t t-if="line.customer_note">
+                                                                                    <div class="kitchen-customer-note"><i class="fa fa-tag fa-lg" role="img" aria-label="Customer note" title="Customer note"/> <span>Customer: <t t-esc="line.customer_note"/></span></div>
+                                                                                </t>
+                                                                                <t t-if="line.note">
+                                                                                    <div class="kitchen-internal-note"><span>Kitchen: <t t-esc="line.note"/></span></div>
+                                                                                </t>
+                                                                            </div>
                                                                             </t>
                                                                             <br/>
                                                                         </button>
@@ -648,6 +671,16 @@
                                                              alt=""/>
                                                     </div>
                                                 </div>
+                                                <t t-if="order.general_customer_note or order.internal_note">
+                                                    <div class="kitchen-order-notes">
+                                                        <t t-if="order.general_customer_note">
+                                                            <div class="kitchen-order-customer"><i class="fa fa-clipboard fa-lg" role="img" aria-label="Order note" title="Order note"/> <span>Order: <t t-esc="order.general_customer_note"/></span></div>
+                                                        </t>
+                                                        <t t-if="order.internal_note">
+                                                            <div class="kitchen-order-internal"><span>Staff: <t t-esc="order.internal_note"/></span></div>
+                                                        </t>
+                                                    </div>
+                                                </t>
                                                 <ul class="list-group list-group-flush">
                                                     <t t-foreach="order.lines"
                                                        t-as="lines"
@@ -675,14 +708,15 @@
                                                                         </t>
                                                                     </t>
                                                                     <br/>
-                                                                    <t t-if="line.note">
-                                                                        <i class="fa fa-tag fa-lg"
-                                                                           role="img"
-                                                                           aria-label="Note"
-                                                                           title="Note"/>
-                                                                        <span style="font-size:14px">
-                                                                            <t t-esc="line.note"/><t t-if="line.customer_note"> (<t t-esc="line.customer_note"/>)</t>
-                                                                        </span>
+                                                                    <t t-if="line.customer_note or line.note">
+                                                                            <div class="kitchen-line-notes">
+                                                                                <t t-if="line.customer_note">
+                                                                                    <div class="kitchen-customer-note"><i class="fa fa-tag fa-lg" role="img" aria-label="Customer note" title="Customer note"/> <span>Customer: <t t-esc="line.customer_note"/></span></div>
+                                                                                </t>
+                                                                                <t t-if="line.note">
+                                                                                    <div class="kitchen-internal-note"><span>Kitchen: <t t-esc="line.note"/></span></div>
+                                                                                </t>
+                                                                            </div>
                                                                     </t>
                                                                 </button>
                                                             </t>
@@ -777,6 +811,16 @@
                                                              alt=""/>
                                                     </div>
                                                 </div>
+                                                <t t-if="order.general_customer_note or order.internal_note">
+                                                    <div class="kitchen-order-notes">
+                                                        <t t-if="order.general_customer_note">
+                                                            <div class="kitchen-order-customer"><i class="fa fa-clipboard fa-lg" role="img" aria-label="Order note" title="Order note"/> <span>Order: <t t-esc="order.general_customer_note"/></span></div>
+                                                        </t>
+                                                        <t t-if="order.internal_note">
+                                                            <div class="kitchen-order-internal"><span>Staff: <t t-esc="order.internal_note"/></span></div>
+                                                        </t>
+                                                    </div>
+                                                </t>
                                                 <ul class="list-group list-group-flush">
                                                     <t t-foreach="order.lines"
                                                        t-as="lines"
@@ -794,14 +838,15 @@
                                                                     <t t-esc="line.full_product_name"/>
                                                                     <br/>
                                                                     <br/>
-                                                                    <t t-if="line.note">
-                                                                        <i class="fa fa-tag fa-lg"
-                                                                           role="img"
-                                                                           aria-label="Note"
-                                                                           title="Note"/>
-                                                                        <span style="font-size:14px">
-                                                                            <t t-esc="line.note"/><t t-if="line.customer_note"> (<t t-esc="line.customer_note"/>)</t>
-                                                                        </span>
+                                                                    <t t-if="line.customer_note or line.note">
+                                                                            <div class="kitchen-line-notes">
+                                                                                <t t-if="line.customer_note">
+                                                                                    <div class="kitchen-customer-note"><i class="fa fa-tag fa-lg" role="img" aria-label="Customer note" title="Customer note"/> <span>Customer: <t t-esc="line.customer_note"/></span></div>
+                                                                                </t>
+                                                                                <t t-if="line.note">
+                                                                                    <div class="kitchen-internal-note"><span>Kitchen: <t t-esc="line.note"/></span></div>
+                                                                                </t>
+                                                                            </div>
                                                                     </t>
                                                                 </button>
                                                             </t>
