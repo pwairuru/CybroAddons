@@ -67,8 +67,9 @@
                             </group>
                             <group>
                                     <field name="room_type" invisible="1"/>
+                                    <label for="list_price" string="Rent"/>
                                     <field name="list_price" widget="monetary"
-                                           string="Rent" readonly="is_room == True"/>
+                                           nolabel="1" readonly="is_room == True"/>
                                     <field name="num_person"/>
                                     <field name="status" readonly="1"/>
                                     <field name="is_room_avail" readonly="1"/>
@@ -126,7 +127,7 @@
                 <field name="floor_id"/>
                 <field name="room_type_id"/>
                 <field name="num_person"/>
-                <field name="list_price" widget="monetary"/>
+                <field name="list_price" widget="monetary" string="Rent"/>
                 <button name="action_reserve_room" type="object"
                         string="Reserve" class="btn-primary"/>
             </list>
@@ -225,7 +226,7 @@
                     <group>
                         <field name="name"/>
                         <field name="room_type_id"/>
-                        <field name="list_price" widget="monetary"/>
+                        <field name="list_price" widget="monetary" string="Rent"/>
                         <field name="num_person"/>
                     </group>
                 </sheet>
