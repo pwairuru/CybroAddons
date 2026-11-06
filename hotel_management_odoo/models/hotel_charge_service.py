@@ -7,6 +7,14 @@ from .hotel_business_date import _to_date
 
 ROUTINGS = ('to_guest', 'to_master', 'to_personal', 'to_company')
 
+MEAL_NAMES = {
+    'RO': 'Room Only',
+    'BB': 'Bed & Breakfast',
+    'HB': 'Half Board',
+    'FB': 'Full Board',
+    'DP': 'Day Pass',
+}
+
 
 class HotelFolioLine(models.Model):
     """Single charge on a folio ledger."""
@@ -58,6 +66,16 @@ class HotelFolioLine(models.Model):
                                 help="Qty already covered by a folio invoice.")
     locked = fields.Boolean(string="Locked", default=False,
                             help="Set once a folio invoice covers the line.")
+    meal_plan = fields.Selection(
+        [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
+         ('HB', 'Half Board'), ('FB', 'Full Board'),
+         ('DP', 'Day Pass')],
+        string="Meal Plan", index=True,
+        help="Board for this charge. Room nights inherit the booking "
+             "line meal plan; other charges stay blank.")
+    meal_name = fields.Char(string="Meal", compute='_compute_meal_name',
+                            store=True,
+                            help="Full meal plan name for reports.")
     price_subtotal = fields.Float(string="Subtotal",
                                   compute='_compute_price_subtotal',
                                   store=True)
@@ -67,6 +85,11 @@ class HotelFolioLine(models.Model):
     price_total = fields.Float(string="Total",
                                compute='_compute_price_subtotal',
                                store=True)
+
+    @api.depends('meal_plan')
+    def _compute_meal_name(self):
+        for line in self:
+            line.meal_name = MEAL_NAMES.get(line.meal_plan or '', '')
 
     @api.depends('quantity', 'price_unit', 'tax_ids',
                  'folio_id.partner_id', 'folio_id.company_id')
@@ -154,7 +177,7 @@ class HotelChargeService(models.AbstractModel):
     def post_charge(self, folio_id, product_id, qty, price_unit,
                     routing='to_guest', hotel_date=None,
                     room_template_id=None, booking_line_id=None,
-                    source='rate', pos_order_id=None):
+                    source='rate', pos_order_id=None, meal_plan=False):
         day = _to_date(hotel_date)
         if routing not in ROUTINGS:
             raise ValidationError("Unknown routing %s." % routing)
@@ -174,6 +197,16 @@ class HotelChargeService(models.AbstractModel):
         product = self.env['product.product'].browse(product_id)
         if not product.exists():
             raise ValidationError("Product %s does not exist." % product_id)
+        if not meal_plan and booking_line_id:
+            bline = self.env['room.booking.line'].browse(booking_line_id)
+            if bline.exists():
+                meal_plan = bline.meal_plan or (
+                    bline.booking_id.meal_plan or False)
+        if not meal_plan and (source or 'rate') in (
+                'rate', 'meal', 'no_show'):
+            booking = folio.booking_id
+            if booking:
+                meal_plan = booking.meal_plan or False
         line = self.env['hotel.folio.line'].create({
             'folio_id': folio.id,
             'product_id': product.id,
@@ -186,5 +219,6 @@ class HotelChargeService(models.AbstractModel):
             'booking_line_id': booking_line_id or False,
             'source': source or 'rate',
             'pos_order_id': pos_order_id or False,
+            'meal_plan': meal_plan or False,
         })
         return line

@@ -32,3 +32,7 @@ class AccountMoveLine(models.Model):
                                      ('fleet', 'Fleet')],
                                     string="Product Type",
                                     help="Choose the product type")
+    hotel_meal_plan = fields.Char(string="Meal",
+                                  help="Full meal plan name carried from "
+                                       "the folio charge (folio invoices "
+                                       "only).")

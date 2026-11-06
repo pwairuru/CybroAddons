@@ -183,6 +183,17 @@ class HotelFolio(models.Model):
                 key=lambda l: (l.hotel_date or False, l.id)):
             label = labels.get((line.source or '').lower(),
                                (line.source or 'Other').title())
+            meal = line.meal_name or ''
+            if not meal and line.booking_line_id:
+                from .hotel_charge_service import MEAL_NAMES as _MN
+                meal = _MN.get(
+                    line.booking_line_id.meal_plan or '', '')
+            if not meal and (line.source or 'rate') in (
+                    'rate', 'meal', 'no_show'):
+                from .hotel_charge_service import MEAL_NAMES as _MN2
+                booking = line.folio_id.booking_id
+                if booking:
+                    meal = _MN2.get(booking.meal_plan or '', '')
             buckets.setdefault(label, []).append({
                 'description': line.product_id.display_name or '-',
                 'detail': line.room_template_id.display_name
@@ -191,6 +202,7 @@ class HotelFolio(models.Model):
                 'qty': line.quantity,
                 'unit': line.price_unit,
                 'total': line.price_total,
+                'meal': meal,
             })
         ordered = [l for l in order if l in buckets]
         ordered += [k for k in buckets if k not in order]
@@ -323,6 +335,17 @@ class HotelFolio(models.Model):
         self.ensure_one()
         account = self._line_income_account(folio_line.product_id,
                                             journal)
+        meal = folio_line.meal_name or ''
+        if not meal and folio_line.booking_line_id:
+            from .hotel_charge_service import MEAL_NAMES as _MN
+            meal = _MN.get(
+                folio_line.booking_line_id.meal_plan or '', '')
+        if not meal and (folio_line.source or 'rate') in (
+                'rate', 'meal', 'no_show'):
+            from .hotel_charge_service import MEAL_NAMES as _MN2
+            booking = folio_line.folio_id.booking_id
+            if booking and booking.meal_plan:
+                meal = _MN2.get(booking.meal_plan or '', '')
         return {
             'name': folio_line.product_id.display_name or '/',
             'product_id': folio_line.product_id.id,
@@ -330,6 +353,7 @@ class HotelFolio(models.Model):
             'price_unit': folio_line.price_unit,
             'account_id': account.id,
             'tax_ids': [(6, 0, folio_line.tax_ids.ids)],
+            'hotel_meal_plan': meal or False,
         }
 
     def action_generate_draft_invoice(self):

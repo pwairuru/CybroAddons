@@ -66,6 +66,7 @@
                                     <thead>
                                         <tr>
                                             <th name="th_description" class="text-start"><span>Description</span></th>
+                                            <th name="th_meal" class="text-start"><span>Meal</span></th>
                                             <th name="th_detail" class="text-start"><span>Detail</span></th>
                                             <th name="th_date" class="text-start"><span>Date</span></th>
                                             <th name="th_quantity" class="text-end"><span>Quantity</span></th>
@@ -76,10 +77,10 @@
                                     <tbody>
                                         <t t-foreach="folio_groups" t-as="g">
                                             <tr t-if="not g_first">
-                                                <td colspan="6" style="height: 6px; padding: 0; border: none;"></td>
+                                                <td colspan="7" style="height: 6px; padding: 0; border: none;"></td>
                                             </tr>
                                             <tr class="fw-bold o_line_section">
-                                                <td colspan="5"><span t-out="g['label']">Rooms</span></td>
+                                                <td colspan="6"><span t-out="g['label']">Rooms</span></td>
                                                 <td class="text-end o_price_total">
                                                     <span t-out="g['subtotal']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/>
                                                 </td>
@@ -87,8 +88,9 @@
                                             <t t-foreach="g['rows']" t-as="r">
                                                 <tr>
                                                     <td><span t-out="r['description']">SIMBA</span></td>
+                                                    <td><span t-out="r.get('meal', '')">-</span></td>
                                                     <td><span t-out="r['detail']">1 night(s)</span></td>
-                                                    <td><span t-out="r['date']" t-options='{"widget": "datetime"}'/></td>
+                                                    <td><span t-out="r['date']" t-options='{"widget": "date"}'/></td>
                                                     <td class="text-end"><span t-out="r['qty']" class="text-nowrap">1.0</span></td>
                                                     <td class="text-end"><span t-out="r['unit']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
                                                     <td class="text-end o_price_total"><span t-out="r['total']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": o.booking_id.currency_id}'/></td>
@@ -138,7 +140,7 @@
                                                 <tr>
                                                     <td><span t-field="line.pos_reference">000001</span></td>
                                                     <td><span t-out="line.session_id.config_id.name or line.session_id.name or 'POS'">Restaurant</span></td>
-                                                    <td><span t-field="line.date_order" t-options='{"widget": "datetime"}'/></td>
+                                                    <td><span t-field="line.date_order" t-options='{"widget": "date"}'/></td>
                                                     <td class="text-end o_price_total"><span t-field="line.amount_total"/></td>
                                                 </tr>
                                             </t>
@@ -176,6 +178,7 @@
                 <thead>
                     <tr>
                         <th name="th_description" class="text-start"><span>Description</span></th>
+                        <th name="th_meal" class="text-start"><span>Meal</span></th>
                         <th name="th_detail" class="text-start"><span>Detail / Counter</span></th>
                         <th name="th_date" class="text-start"><span>Date</span></th>
                         <th name="th_quantity" class="text-end"><span>Quantity</span></th>
@@ -186,10 +189,10 @@
                 <tbody>
                     <t t-foreach="bill_groups" t-as="g">
                         <tr t-if="not g_first">
-                            <td colspan="6" style="height: 6px; padding: 0; border: none;"></td>
+                            <td colspan="7" style="height: 6px; padding: 0; border: none;"></td>
                         </tr>
                         <tr class="fw-bold o_line_section">
-                            <td colspan="5"><span t-out="g['label']">Rooms</span></td>
+                            <td colspan="6"><span t-out="g['label']">Rooms</span></td>
                             <td class="text-end o_price_total">
                                 <span t-out="g['subtotal']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/>
                             </td>
@@ -197,8 +200,9 @@
                         <t t-foreach="g['rows']" t-as="r">
                             <tr>
                                 <td><span t-out="r['description']">SIMBA</span></td>
+                                <td><span t-out="r.get('meal', '')">-</span></td>
                                 <td><span t-out="r['detail']">1 night(s)</span></td>
-                                <td><span t-out="r['date']" t-options='{"widget": "datetime"}'/></td>
+                                <td><span t-out="r['date']" t-options='{"widget": "date"}'/></td>
                                 <td class="text-end"><span t-out="r['qty']" class="text-nowrap">1.0</span></td>
                                 <td class="text-end"><span t-out="r['unit']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/></td>
                                 <td class="text-end o_price_total"><span t-out="r['total']" class="text-nowrap" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/></td>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="report_invoice_document_hotel_meal"
+              inherit_id="account.report_invoice_document">
+        <xpath expr="//th[@name='th_description']" position="after">
+            <th name="th_hotel_meal" class="text-start text-nowrap" t-if="o.hotel_folio_id" style="min-width: 140px;"><span>Meal</span></th>
+        </xpath>
+        <xpath expr="//td[@name='account_invoice_line_name']" position="after">
+            <td name="td_hotel_meal" class="text-start text-nowrap" t-if="o.hotel_folio_id" style="min-width: 140px;">
+                <span t-field="line.hotel_meal_plan"/>
+            </td>
+        </xpath>
+    </template>
+</odoo>

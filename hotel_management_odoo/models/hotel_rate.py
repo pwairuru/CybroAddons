@@ -1185,7 +1185,7 @@ class HotelRateEngine(models.AbstractModel):
                     folio.id, product.id, 1, base_price,
                     'to_guest', hotel_date=day,
                     room_template_id=room.id,
-                    booking_line_id=False)
+                    booking_line_id=False, meal_plan=board)
                 lines |= line
             existing = snapshots.search([
                 ('folio_id', '=', folio.id),

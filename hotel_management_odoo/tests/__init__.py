@@ -48,3 +48,4 @@ from . import test_rate_hybrid_engine
 from . import test_rate_coverage
 from . import test_reservation_payments
 from . import test_manual_pricing
+from . import test_meal_column

@@ -87,6 +87,7 @@
         'report/combined_bill_report.xml',
         'report/hotel_reports.xml',
         'report/hotel_folio_statement.xml',
+        'report/account_invoice_report.xml',
     ],
     'assets': {
         'web.assets_backend': [

@@ -148,6 +148,15 @@ class RoomBooking(models.Model):
         Group subtotals sum to get_bill_summary_total().
         """
         self.ensure_one()
+        meal_names = dict(
+            self.env['room.booking.line']._fields['meal_plan'].selection)
+        try:
+            plans = self.env['hotel.meal.plan'].search([])
+            for plan in plans:
+                if plan.code and plan.name:
+                    meal_names.setdefault(plan.code, plan.name)
+        except Exception:
+            pass
         groups = []
 
         def _add(label, rows):
@@ -166,6 +175,7 @@ class RoomBooking(models.Model):
             'qty': l.uom_qty,
             'unit': l.price_unit,
             'total': l.price_total,
+            'meal': meal_names.get(l.meal_plan or '', ''),
         } for l in self.room_line_ids])
         _add('Food', [{
             'description': l.food_id.display_name,
@@ -174,6 +184,7 @@ class RoomBooking(models.Model):
             'qty': l.uom_qty,
             'unit': l.price_unit,
             'total': l.price_total,
+            'meal': '',
         } for l in self.food_order_line_ids])
         _add('Services', [{
             'description': l.service_id.display_name,
@@ -182,6 +193,7 @@ class RoomBooking(models.Model):
             'qty': l.uom_qty,
             'unit': l.price_unit,
             'total': l.price_total,
+            'meal': '',
         } for l in self.service_line_ids])
         _add('Fleet', [{
             'description': l.fleet_id.display_name,
@@ -190,6 +202,7 @@ class RoomBooking(models.Model):
             'qty': l.uom_qty,
             'unit': l.price_unit,
             'total': l.price_total,
+            'meal': '',
         } for l in self.vehicle_line_ids])
         _add('Events', [{
             'description': l.event_id.display_name,
@@ -198,6 +211,7 @@ class RoomBooking(models.Model):
             'qty': l.uom_qty,
             'unit': l.price_unit,
             'total': l.price_total,
+            'meal': '',
         } for l in self.event_line_ids])
 
         pos_rows = []
@@ -216,6 +230,7 @@ class RoomBooking(models.Model):
                 'unit': order.amount_total,
                 'total': order.amount_total,
                 'counter': counter,
+                'meal': '',
             })
         _add('POS Orders', pos_rows)
         return groups
