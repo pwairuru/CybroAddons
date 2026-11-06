@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="hotel_post_stay_action" model="ir.actions.act_window">
-        <field name="name">Post Stay</field>
+        <field name="name">Post Room Charges</field>
         <field name="res_model">hotel.post.stay</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
@@ -11,8 +11,13 @@
         <field name="name">hotel.post.stay.form</field>
         <field name="model">hotel.post.stay</field>
         <field name="arch" type="xml">
-            <form string="Post Stay">
+            <form string="Post Room Charges">
                 <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Optional mid-stay step: adds nightly room charges to the folio now
+                        so the guest can pay or preview the bill. Check-out posts
+                        any remaining nights automatically.
+                    </div>
                     <group>
                         <group>
                             <field name="booking_id"
@@ -36,7 +41,7 @@
                     </group>
                 </sheet>
                 <footer>
-                    <button name="action_post" string="Post" type="object"
+                    <button name="action_post" string="Post Charges" type="object"
                             class="btn-primary"/>
                     <button string="Cancel" class="btn-secondary"
                             special="cancel"/>

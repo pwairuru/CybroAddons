@@ -1074,7 +1074,7 @@ class RoomBooking(models.Model):
 
         Full-stay default (only_consumed=False) posts every night in
         the booked range so the invoice always covers the stay even
-        when Post Stay was never clicked. The consumed-only variant
+        when room charges were never manually posted. The consumed-only variant
         (early checkout) caps each line at the current business day so
         future nights are never posted in the first place.
         post_stay_nights dedups on (folio, product, hotel date, room),

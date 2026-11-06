@@ -13,10 +13,6 @@
                     <button name="action_print_combined_bill" string="Print"
                             invisible="state not in ['check_in', 'check_out', 'done']"
                             type="object"/>
-                    <button name="hotel_management_odoo.hotel_post_stay_action" string="Post Stay"
-                            invisible="state not in ['reserved', 'check_in']"
-                            type="action"
-                            context="{'default_booking_id': id}"/>
                     <button name="action_checkin" string="Check-In"
                             class="btn-primary"
                             invisible="state != 'reserved'"
@@ -333,7 +329,7 @@
                         <a role="menuitem" class="dropdown-item"
                            type="action"
                            name="%(hotel_management_odoo.hotel_post_stay_action)d"
-                           invisible="state not in ['reserved', 'check_in']">Post Stay</a>
+                           invisible="state not in ['reserved', 'check_in']">Post Room Charges</a>
                         <a role="menuitem" class="dropdown-item"
                            type="object" name="action_view_folio">View Folio</a>
                         <a role="menuitem" class="dropdown-item"

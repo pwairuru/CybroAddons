@@ -13,7 +13,7 @@ class HotelPostStay(models.TransientModel):
     company guards stay in one place.
     """
     _name = 'hotel.post.stay'
-    _description = 'Post Stay Nights to Folio'
+    _description = 'Post Room Charges to Folio'
 
     booking_id = fields.Many2one('room.booking', string='Booking')
     booking_line_id = fields.Many2one(

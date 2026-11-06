@@ -6,7 +6,7 @@ from odoo.exceptions import ValidationError
 class ResCompany(models.Model):
     """Company-level hotel defaults.
 
-    ``default_rate_plan_id`` preselects the Post Stay wizard plan
+    ``default_rate_plan_id`` preselects the Post Room Charges wizard plan
     (and rate calendar) so front desk never starts on an arbitrary
     lowest-id plan. Must belong to the same company.
     """
@@ -15,7 +15,7 @@ class ResCompany(models.Model):
     default_rate_plan_id = fields.Many2one(
         'hotel.rate.plan', string='Default Rate Plan',
         ondelete='set null',
-        help='Preselected in the Post Stay wizard and rate calendar. '
+        help='Preselected in the Post Room Charges wizard and rate calendar. '
         'Falls back to the Rack plan when empty.')
 
     rate_missing_mode = fields.Selection([('strict','Strict'),('fallback','Fallback'),('warn','Warn')], default='strict', required=True,
