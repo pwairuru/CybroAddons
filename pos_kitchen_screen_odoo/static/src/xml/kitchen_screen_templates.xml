@@ -409,7 +409,8 @@
                                                                             <t t-esc="order.floor"/>
                                                                         </span>
                                                                     </li>
-                                                                    <li>
+                                                                    <!-- hidden for now: order prep countdown unused -->
+                                                                    <li t-if="false">
                                                                         <b>
                                                                             <span style="font-size: 24px;">
                                                                                 ⏰:
@@ -500,7 +501,9 @@
                                                                             <t t-foreach="this.state.prepare_times"
                                                                                t-as="time"
                                                                                t-key="time.id">
-                                                                                <t t-if="time.id == line.product_id[0]">
+                                                                                <!-- hidden for now: product prep time unused -->
+                                                                                <t t-if="false">
+                                                                                    <!-- <t t-if="time.id == line.product_id[0]"> -->
                                                                                     <span>⏰ :
                                                                                         <t t-esc="time.prepare_time"/>
                                                                                         Mins.
@@ -630,7 +633,8 @@
                                                                             <t t-esc="order.floor"/>
                                                                         </span>
                                                                     </li>
-                                                                    <li>
+                                                                    <!-- hidden for now: order prep countdown unused -->
+                                                                    <li t-if="false">
                                                                         <b>
                                                                             <span style="font-size: 24px;">
                                                                                 ⏰:
@@ -697,10 +701,12 @@
                                                                     </span>
                                                                     <t t-esc="line.full_product_name"/>
                                                                     <br/>
+                                                                    <!-- hidden for now: product prep time unused -->
                                                                     <t t-foreach="this.state.prepare_times"
                                                                        t-as="time"
                                                                        t-key="time.id">
-                                                                        <t t-if="time.id == line.product_id[0]">
+                                                                        <t t-if="false">
+                                                                            <!-- <t t-if="time.id == line.product_id[0]"> -->
                                                                             <span>⏰ :
                                                                                 <t t-esc="time.prepare_time"/>
                                                                                 Mins.
