@@ -3,7 +3,7 @@
     <!-- POS app (cashier UI): replace the default Odoo logo with the POS config logo -->
     <t t-name="hotel_pos_extension.NavbarDebrand" t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('pos-logo')]" position="replace">
-            <img t-att-src="'/web/image/pos.config/' + this.pos.config.id + '/logo'" alt="Logo" class="mh-100 mw-100" style="object-fit: contain; max-height: 100%;"/>
+            <img t-att-src="'/web/image/pos.config/' + this.pos.config.id + '/logo'" alt="Logo" class="mh-100" style="height: 40px; max-height: 100%; max-width: 140px; object-fit: contain;"/>
         </xpath>
     </t>
     <!-- POS lock screen: same replacement -->
