@@ -28,7 +28,7 @@
                             invisible="state != 'check_in'"/>
                     <button name="action_register_payment" string="Pay" type="object"
                              class="btn-primary" invisible="state != 'check_out' or amount_due == 0"/>
-                    <button name="action_done" string="Set as Done"
+                    <button name="action_done" string="Done"
                             class="btn-primary"
                             invisible="state != 'check_out'" type="object"/>
                     <button name="action_reopen" string="Back to Check-In" type="object"
