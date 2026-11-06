@@ -20,3 +20,31 @@
 .oe_kanban_global_click .oe_kanban_details {
     min-width: 0;
 }
+
+/* Image-led kanban covers (room types + rooms): website photo banner. */
+.hotel_kanban_cover_card {
+    flex-direction: column !important;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.hotel_kanban_cover_card .hotel_kanban_cover {
+    width: 100%;
+    height: 150px;
+    overflow: hidden;
+    background: #f0ede6;
+    flex-shrink: 0;
+}
+
+.hotel_kanban_cover_card .hotel_kanban_cover img {
+    width: 100% !important;
+    height: 150px !important;
+    object-fit: cover;
+    display: block;
+    border-radius: 0;
+}
+
+.hotel_kanban_cover_card .oe_kanban_details {
+    padding: 8px 12px 12px;
+    width: 100%;
+}

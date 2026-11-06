@@ -150,13 +150,18 @@
                 <field name="list_price"/>
                 <templates>
                     <t t-name="card">
-                        <div class="oe_kanban_global_click d-flex">
-                            <div class="flex-shrink-0 me-2">
-                                <field name="avatar_128" widget="image"
-                                       class="o_kanban_avatar"
-                                       style="width:64px;height:64px;"/>
+                        <!-- Image-led cover: website photo on top, details below.
+                             Falls back to the letter avatar when no photo. -->
+                        <div class="oe_kanban_global_click hotel_kanban_cover_card">
+                            <div class="hotel_kanban_cover">
+                                <t t-if="record.image_1920.raw_value">
+                                    <field name="image_1920" widget="image"/>
+                                </t>
+                                <t t-else="">
+                                    <field name="avatar_128" widget="image"/>
+                                </t>
                             </div>
-                            <div class="oe_kanban_details flex-grow-1">
+                            <div class="oe_kanban_details">
                                 <div class="oe_kanban_record_heading">
                                     <strong>
                                         <field name="name"/>
@@ -176,7 +181,7 @@
                                 <div>
                                     <strong>
                                         <field name="list_price"
-                                               widget="monetary"/>
+                                                widget="monetary"/>
                                     </strong>
                                 </div>
                                 <div>
