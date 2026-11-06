@@ -87,7 +87,7 @@ class PosOrder(models.Model):
             processed_vals_to_create) if processed_vals_to_create else self.browse()
         orders_to_notify = []
         for order in res:
-            kitchen_screen = self.env["kitchen.screen"].search(
+            kitchen_screen = self.env["kitchen.screen"].sudo().search(
                 [("pos_config_id", "=", order.config_id.id)], limit=1
             )
             if kitchen_screen:
@@ -122,7 +122,7 @@ class PosOrder(models.Model):
         """Override write function for adding order status in vals"""
         res = super(PosOrder, self).write(vals)
         for order in self:
-            kitchen_screen = self.env["kitchen.screen"].search(
+            kitchen_screen = self.env["kitchen.screen"].sudo().search(
                 [("pos_config_id", "=", order.config_id.id)], limit=1
             )
             if kitchen_screen:
@@ -209,7 +209,7 @@ class PosOrder(models.Model):
     def action_pos_order_paid(self):
         """Inherited method called when a POS order transitions to 'paid' state."""
         res = super().action_pos_order_paid()
-        kitchen_screen = self.env["kitchen.screen"].search(
+        kitchen_screen = self.env["kitchen.screen"].sudo().search(
             [("pos_config_id", "=", self.config_id.id)], limit=1
         )
         if kitchen_screen:
@@ -282,7 +282,7 @@ class PosOrder(models.Model):
         """Action for "Done" button: Move order from 'waiting' (ready) to 'ready' (completed) status."""
         self.ensure_one()
         self.order_status = "ready"
-        kitchen_screen = self.env["kitchen.screen"].search(
+        kitchen_screen = self.env["kitchen.screen"].sudo().search(
             [("pos_config_id", "=", self.config_id.id)], limit=1)
         if kitchen_screen:
             for line in self.lines:
@@ -333,7 +333,7 @@ class PosOrder(models.Model):
         ], limit=1)
         if not pos_order:
             return False
-        kitchen_screen = self.env["kitchen.screen"].search([
+        kitchen_screen = self.env["kitchen.screen"].sudo().search([
             ("pos_config_id", "=", config_id)
         ], limit=1)
         if not kitchen_screen:
@@ -370,7 +370,7 @@ class PosOrder(models.Model):
     @api.model
     def get_kitchen_orders(self, config_id):
         """Get all orders that have kitchen items for the kitchen screen."""
-        kitchen_screen = self.env["kitchen.screen"].search([
+        kitchen_screen = self.env["kitchen.screen"].sudo().search([
             ("pos_config_id", "=", config_id)
         ], limit=1)
         if not kitchen_screen:
