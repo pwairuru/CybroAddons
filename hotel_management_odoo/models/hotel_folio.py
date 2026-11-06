@@ -293,28 +293,77 @@ class HotelFolio(models.Model):
         if self.invoice_ids.filtered(lambda m: m.state == 'posted'):
             raise ValidationError(msg)
 
+    def _pending_lines(self):
+        """Folio lines with uninvoiced qty (single canonical definition).
+
+        Shared by draft generation and checkout so both entry points
+        agree on what still needs invoicing.
+        """
+        self.ensure_one()
+        return self.line_ids.filtered(
+            lambda l: (l.quantity - (l.invoiced_qty or 0.0)) > 0.0)
+
+    def _open_draft(self):
+        """Existing draft customer invoice for this folio, if any."""
+        self.ensure_one()
+        return self.env['account.move'].search([
+            ('hotel_folio_id', '=', self.id),
+            ('state', '=', 'draft'),
+            ('move_type', '=', 'out_invoice'),
+        ], limit=1, order='id desc')
+
+    def _invoice_line_vals(self, folio_line, qty, journal):
+        """Single invoice-line builder for folio charges.
+
+        Used both when creating a fresh draft and when topping up an
+        existing draft so the two paths can never drift (e.g. POS or
+        service lines present on the folio but missing from the
+        invoice).
+        """
+        self.ensure_one()
+        account = self._line_income_account(folio_line.product_id,
+                                            journal)
+        return {
+            'name': folio_line.product_id.display_name or '/',
+            'product_id': folio_line.product_id.id,
+            'quantity': qty,
+            'price_unit': folio_line.price_unit,
+            'account_id': account.id,
+            'tax_ids': [(6, 0, folio_line.tax_ids.ids)],
+        }
+
     def action_generate_draft_invoice(self):
         """Idempotent draft invoice for uninvoiced folio lines.
 
-        Returns the open draft if one exists; otherwise creates a draft
-        from lines where invoiced_qty < quantity (empty folio yields an
-        empty draft so history stays idempotent). Marks covered qty via
-        invoiced_qty/locked so later drafts only pick up new charges.
-        Never posts a negative revenue line.
+        Single canonical path: an existing draft is topped up with any
+        pending lines added after it was created (instead of returning
+        it stale), otherwise a draft is created from pending lines
+        (empty folio yields an empty draft so history stays
+        idempotent). Marks covered qty via invoiced_qty/locked so
+        later drafts only pick up new charges. Never posts a negative
+        revenue line.
         """
         self.ensure_one()
         if self.state == 'settled' and self.move_id:
             return self.move_id
         self._assert_open("Only open folios can be invoiced.")
-        draft = self.env['account.move'].search([
-            ('hotel_folio_id', '=', self.id),
-            ('state', '=', 'draft'),
-            ('move_type', '=', 'out_invoice'),
-        ], limit=1, order='id desc')
+        draft = self._open_draft()
+        pending = self._pending_lines()
         if draft:
+            if not pending:
+                return draft
+            journal = self._ensure_sale_journal()
+            new_lines = [(0, 0, self._invoice_line_vals(
+                line, line.quantity - (line.invoiced_qty or 0.0),
+                journal)) for line in pending]
+            draft.write({'invoice_line_ids': new_lines})
+            for line in pending:
+                line.write({'invoiced_qty': line.quantity,
+                            'locked': True})
+            self.message_post(
+                body="Draft invoice %s topped up (%d line(s))."
+                % (draft.name or draft.id, len(new_lines)))
             return draft
-        pending = self.line_ids.filtered(
-            lambda l: (l.quantity - (l.invoiced_qty or 0.0)) > 0.0)
         if not pending and self.invoice_ids:
             latest = self.env['account.move'].search(
                 [('hotel_folio_id', '=', self.id),
@@ -324,18 +373,9 @@ class HotelFolio(models.Model):
                 return latest
         journal = self._ensure_sale_journal()
         company = self.company_id
-        move_lines = []
-        for line in pending:
-            qty = line.quantity - (line.invoiced_qty or 0.0)
-            account = self._line_income_account(line.product_id, journal)
-            move_lines.append((0, 0, {
-                'name': line.product_id.display_name or '/',
-                'product_id': line.product_id.id,
-                'quantity': qty,
-                'price_unit': line.price_unit,
-                'account_id': account.id,
-                'tax_ids': [(6, 0, line.tax_ids.ids)],
-            }))
+        move_lines = [(0, 0, self._invoice_line_vals(
+            line, line.quantity - (line.invoiced_qty or 0.0),
+            journal)) for line in pending]
         move = self.env['account.move'].create({
             'move_type': 'out_invoice',
             'journal_id': journal.id,

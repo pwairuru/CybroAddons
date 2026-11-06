@@ -560,71 +560,6 @@ class RoomBooking(models.Model):
         self.ensure_one()
         return 0.0, 0.0
 
-    def _to_invoice_lines(self):
-        """Booking lines minus what hotel_booking_id invoices already
-        cover. Separate from the totals compute so stored amounts never
-        depend on invoice state."""
-        self.ensure_one()
-        invoiced = {}
-        for aml in self.env['account.move.line'].search([
-                ('move_id.hotel_booking_id', '=', self.id),
-                ('display_type', '!=', 'payment_term')]):
-            key = (aml.name, aml.price_unit, aml.product_type)
-            invoiced[key] = invoiced.get(key, 0.0) + aml.quantity
-        pending = []
-
-        def _delta(name, qty, price, ptype):
-            return max(0.0, qty - invoiced.get((name, price, ptype), 0.0))
-
-        for room in self.room_line_ids:
-            qty = _delta(room.room_id.name, room.uom_qty,
-                         room.price_unit, 'room')
-            if qty > 0:
-                pending.append({'name': room.room_id.name, 'quantity': qty,
-                                'price_unit': room.price_unit,
-                                'product_type': 'room',
-                                'product_id':
-                                room.room_id.product_variant_id.id,
-                                'tax_ids': room.tax_ids.ids})
-        for food in self.food_order_line_ids:
-            qty = _delta(food.food_id.name, food.uom_qty,
-                         food.price_unit, 'food')
-            if qty > 0:
-                pending.append({'name': food.food_id.name, 'quantity': qty,
-                                'price_unit': food.price_unit,
-                                'product_type': 'food',
-                                'product_id': False,
-                                'tax_ids': food.tax_ids.ids})
-        for service in self.service_line_ids:
-            qty = _delta(service.service_id.name, service.uom_qty,
-                         service.price_unit, 'service')
-            if qty > 0:
-                pending.append({'name': service.service_id.name,
-                                'quantity': qty,
-                                'price_unit': service.price_unit,
-                                'product_type': 'service',
-                                'product_id': False,
-                                'tax_ids': service.tax_ids.ids})
-        for fleet in self.vehicle_line_ids:
-            qty = _delta(fleet.fleet_id.name, fleet.uom_qty,
-                         fleet.price_unit, 'fleet')
-            if qty > 0:
-                pending.append({'name': fleet.fleet_id.name, 'quantity': qty,
-                                'price_unit': fleet.price_unit,
-                                'product_type': 'fleet',
-                                'product_id': False,
-                                'tax_ids': fleet.tax_ids.ids})
-        for event in self.event_line_ids:
-            qty = _delta(event.event_id.name, event.uom_qty,
-                         event.price_unit, 'event')
-            if qty > 0:
-                pending.append({'name': event.event_id.name, 'quantity': qty,
-                                'price_unit': event.price_unit,
-                                'product_type': 'event',
-                                'product_id': False,
-                                'tax_ids': event.tax_ids.ids})
-        return pending
-
     def _clear_if_not_needed(self, flag, field_name):
         """Unlink cleared booking lines when their need-flag is off."""
         lines = self[field_name]
@@ -1064,9 +999,12 @@ class RoomBooking(models.Model):
             record._ensure_folio()
             posted_any = False
             for folio in record._get_folios('open'):
-                pending = folio.line_ids.filtered(
-                    lambda l: (l.quantity - (l.invoiced_qty or 0.0)) > 0.0)
-                if not pending:
+                # Same canonical pending definition as the folio
+                # invoice path: post when there is anything new to
+                # bill OR an unposted draft waiting (a preview draft
+                # must still post, never silently skip). Only a folio
+                # with neither is truly empty.
+                if not folio._pending_lines() and not folio._open_draft():
                     continue
                 posted_move = folio.action_post_invoice()
                 record.message_post(
