@@ -54,9 +54,17 @@ class PosOrder(models.Model):
 
     def _is_fully_hotel_charge(self):
         self.ensure_one()
-        pays = self.payment_ids
-        return bool(pays) and all(
-            p.payment_method_id.is_hotel_charge for p in pays)
+        pays = self.payment_ids.filtered(lambda p: not p.is_change)
+        if pays:
+            return all(
+                p.payment_method_id.is_hotel_charge for p in pays)
+        # Zero-total room orders validate with no payment lines: core
+        # strips zero-amount payments before sync, so booking linkage
+        # is the hotel intent. Treat them as fully hotel-charged so the
+        # folio stays the sole bill and the order posts/links like paid.
+        if self.booking_id and self.currency_id.is_zero(self.amount_total or 0.0):
+            return True
+        return False
 
     def _ensure_hotel_invoice_flag(self):
         """Folio is the sole bill for fully room-charged orders.

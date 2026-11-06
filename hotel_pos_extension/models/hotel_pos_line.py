@@ -49,7 +49,7 @@ class HotelPosLine(models.Model):
              "mean the hotel has the money.")
 
     @api.depends('pos_order_id.payment_ids.payment_method_id.is_hotel_charge',
-                 'pos_order_id.state', 'booking_id')
+                 'pos_order_id.state', 'pos_order_id.amount_total', 'booking_id')
     def _compute_checkout_due(self):
         Folio = self.env['hotel.folio']
         for link in self:
@@ -57,6 +57,11 @@ class HotelPosLine(models.Model):
             pay_at_checkout = bool(order) and any(
                 p.payment_method_id.is_hotel_charge
                 for p in order.payment_ids)
+            if not pay_at_checkout and order and order.booking_id and order.currency_id.is_zero(
+                    order.amount_total or 0.0):
+                # Zero-total room orders carry no payment lines (core strips
+                # zero amounts): booking linkage is the hotel intent.
+                pay_at_checkout = True
             link.is_pay_at_checkout = pay_at_checkout
             if not (pay_at_checkout and order
                     and order.state in ('paid', 'done', 'invoiced')

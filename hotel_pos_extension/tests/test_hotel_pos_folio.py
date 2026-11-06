@@ -277,3 +277,52 @@ class TestHotelPosFolio(TransactionCase):
                          "(allocation is ambiguous)")
         self.assertTrue(order.to_invoice,
                         "split-tender orders keep normal POS invoicing")
+
+    def test_zero_total_booking_order_links_and_posts(self):
+        """Zero-total room orders validate with no payments (core strips
+        zero-amount lines) yet must still link, suppress the outlet
+        invoice, and post a zero folio line so they show with 0.00."""
+        guest = self.env['res.partner'].create({'name': 'Zero Guest'})
+        room = self._available_room()
+        bk = self.env['room.booking'].create({
+            'partner_id': guest.id,
+            'room_line_ids': [(0, 0, {'room_id': room.id,
+                                      'checkin_date': '2026-11-01 14:00:00',
+                                      'checkout_date': '2026-11-02 11:00:00'})],
+        })
+        bk.action_reserve()
+        bk.action_checkin()
+        sess = self.env['pos.session'].search(
+            [('state', '=', 'opened')], limit=1)
+        prod = self.env['product.product'].search(
+            [('available_in_pos', '=', True)], limit=1)
+        order = self._create_pos_order({
+            'session_id': sess.id, 'partner_id': guest.id,
+            'booking_id': bk.id, 'company_id': self.env.company.id,
+            'to_invoice': True,
+            'amount_tax': 0.0, 'amount_total': 0.0,
+            'amount_paid': 0.0, 'amount_return': 0.0,
+            'lines': [(0, 0, {'product_id': prod.id, 'qty': 1,
+                              'price_unit': 0.0, 'price_subtotal': 0.0,
+                              'price_subtotal_incl': 0.0})]})
+        # No payment lines: core strips zero amounts before sync.
+        self.assertTrue(order._is_fully_hotel_charge(),
+                        "zero-total booking orders must count as hotel charge")
+        order.action_pos_order_paid()
+        self.assertEqual(order.state, 'paid')
+        order._generate_order_invoice()
+        self.assertFalse(order.to_invoice,
+                         "zero hotel orders must not generate a POS invoice")
+        self.assertFalse(order.account_move,
+                         "folio is the sole bill for zero hotel orders")
+        link = self.env['hotel.pos.line'].search(
+            [('pos_order_id', '=', order.id)], limit=1)
+        self.assertTrue(link, "zero order must link to booking")
+        self.assertTrue(link.is_pay_at_checkout)
+        bk.invalidate_recordset()
+        self.assertEqual(bk.amount_total_pos, 0.0)
+        totals = [l['total'] for l in bk.get_bill_summary_lines()
+                  if l.get('order_no') == order.pos_reference
+                  or l.get('reference') == order.name]
+        self.assertTrue(totals, "zero order must appear in bill summary")
+        self.assertEqual(totals[0], 0.0)

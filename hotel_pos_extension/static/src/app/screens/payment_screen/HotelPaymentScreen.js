@@ -41,7 +41,10 @@ patch(PaymentScreen.prototype, {
                 });
                 return false;
             }
-            if (!order.isToInvoice()) {
+            // Zero-total room orders need no outlet invoice: the folio is
+            // the sole bill and backend suppresses POS invoicing anyway.
+            const isZero = order.currency?.isZero?.(order.priceIncl ?? order.totalDue ?? 0);
+            if (!isZero && !order.isToInvoice()) {
                 const confirmed = await new Promise((resolve) => {
                     this.dialog.add(ConfirmationDialog, {
                         title: _t("Invoice required"),
@@ -86,18 +89,22 @@ patch(PaymentScreen.prototype, {
         }
 
         if (hotel_payments.length > 0 && !order.isToInvoice()) {
-            const confirmed = await new Promise((resolve) => {
-                this.dialog.add(ConfirmationDialog, {
-                    title: _t("Please select the Invoice"),
-                    body: _t("You need to select the invoice before using Pay at Checkout."),
-                    confirm: () => resolve(true),
-                    cancel: () => resolve(false),
+            // Zero-total room orders skip the outlet invoice (folio bills).
+            const isZero = order.currency?.isZero?.(order.priceIncl ?? order.totalDue ?? 0);
+            if (!isZero) {
+                const confirmed = await new Promise((resolve) => {
+                    this.dialog.add(ConfirmationDialog, {
+                        title: _t("Please select the Invoice"),
+                        body: _t("You need to select the invoice before using Pay at Checkout."),
+                        confirm: () => resolve(true),
+                        cancel: () => resolve(false),
+                    });
                 });
-            });
-            if (!confirmed) {
+                if (!confirmed) {
+                    return;
+                }
                 return;
             }
-            return;
         }
 
         return await super.validateOrder(isForceValidate);
