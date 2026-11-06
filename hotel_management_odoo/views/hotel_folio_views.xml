@@ -140,27 +140,20 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_generate_draft_invoice"
-                            string="Generate Draft"
-                            invisible="state != 'open'" type="object"/>
-                    <button name="action_post_invoice" string="Post"
-                            invisible="state != 'open'" type="object"/>
+                    <!-- Normal flow (reserve/checkin/pay) never needs the
+                         four steps below; they live in the cog Action menu
+                         as Folio / ... alongside Print -> Folio Statement. -->
                     <button name="action_register_payment" string="Pay"
                              type="object"
                              invisible="state != 'open' or amount_due == 0"/>
                     <button name="action_apply_deposit"
                             string="Apply Deposit"
                             invisible="state != 'open'" type="object"/>
-                    <button name="action_settle" string="Settle"
-                             invisible="state != 'open'" type="object"
-                             class="btn-primary"/>
                     <button name="hotel_management_odoo.hotel_folio_split_action"
                             string="Split Bill"
                             invisible="state != 'open'"
                             type="action"
                             context="{'default_folio_id': id}"/>
-                    <button name="action_void" string="Void"
-                            invisible="state != 'open'" type="object"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="open,settled,void"/>
                 </header>
@@ -233,6 +226,44 @@
                 <chatter/>
             </form>
         </field>
+    </record>
+
+    <!-- Back-office billing steps in the cog Action menu (with Print ->
+         Folio Statement). Grouped by the Folio / prefix; normal
+         reserve/checkin/pay flow never needs them. Draft = preview
+         idempotent invoice; Post = formalize debt; Settle = post +
+         apply deposits + close; Void = abort open folio, drafts only. -->
+    <record id="action_server_folio_generate_draft" model="ir.actions.server">
+        <field name="name">Folio / Generate Draft</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="binding_model_id" ref="model_hotel_folio"/>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">action = records.action_generate_draft_invoice()</field>
+    </record>
+    <record id="action_server_folio_post" model="ir.actions.server">
+        <field name="name">Folio / Post Invoice</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="binding_model_id" ref="model_hotel_folio"/>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">action = records.action_post_invoice()</field>
+    </record>
+    <record id="action_server_folio_settle" model="ir.actions.server">
+        <field name="name">Folio / Settle</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="binding_model_id" ref="model_hotel_folio"/>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">action = records.action_settle()</field>
+    </record>
+    <record id="action_server_folio_void" model="ir.actions.server">
+        <field name="name">Folio / Void</field>
+        <field name="model_id" ref="model_hotel_folio"/>
+        <field name="binding_model_id" ref="model_hotel_folio"/>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">action = records.action_void()</field>
     </record>
 
     <record id="hotel_folio_line_view_list" model="ir.ui.view">
