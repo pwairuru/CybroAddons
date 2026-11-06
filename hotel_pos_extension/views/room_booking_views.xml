@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Inherits the Room Booking form view to integrate POS-related features
-     such as POS invoice stat button and Bar/Restaurant orders tab with order details and total amount -->
+     such as POS invoice stat button and POS orders tab with order details and total amount -->
     <record id="room_booking_view_form_inherit_hotel_pos" model="ir.ui.view">
         <field name="name">room.booking.view.form.inherit.hotel.pos</field>
         <field name="model">room.booking</field>
@@ -19,7 +19,7 @@
                 <field name="has_pos_orders" invisible="1"/>
                 <field name="amount_total_pos" invisible="1"/>
                 <field name="amount_total_combined" invisible="1"/>
-                <page string="Bar/Restaurant orders" name="pos_orders" invisible="not has_pos_orders">
+                <page string="POS orders" name="pos_orders" invisible="not has_pos_orders">
                     <field name="pos_order_line_ids" readonly="1">
                         <list>
                             <field name="pos_order_id" string="Order Ref"/>

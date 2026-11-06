@@ -31,12 +31,26 @@ export class HotelRoomPopup extends Component {
             return this.props.bookings;
         }
         return this.props.bookings.filter((b) => {
-            const name = (b.name || "").toLowerCase();
+            const room = (b.room_label || "").toLowerCase();
+            const ref = (b.name || "").toLowerCase();
             const customer = Array.isArray(b.partner_id)
                 ? (b.partner_id[1] || "").toLowerCase()
                 : "";
-            return name.includes(q) || customer.includes(q);
+            return room.includes(q) || ref.includes(q) || customer.includes(q);
         });
+    }
+
+    // Privacy: cashier screen shows the guest's first name only,
+    // never the full customer name.
+    firstName(booking) {
+        const full = Array.isArray(booking.partner_id)
+            ? (booking.partner_id[1] || "")
+            : "";
+        return (full.trim().split(/\s+/)[0] || "");
+    }
+
+    roomLabel(booking) {
+        return booking.room_label || booking.name || "";
     }
 
     clickBooking(booking) {

@@ -24,14 +24,14 @@
                                 t-att-data-id="booking.id"
                                 t-on-click="() => this.clickBooking(booking)">
                                 <td class="text-break w-25">
-                                    <b t-esc="booking.name or ''"/>
+                                    <b t-esc="this.roomLabel(booking)"/>
                                 </td>
                                 <td class="text-break w-25">
                                     <div class="partner-line-adress" t-esc="booking.name or ''"/>
                                 </td>
                                 <td class="partner-line-email w-100">
                                     <div t-if="booking.partner_id">
-                                        <t t-esc="booking.partner_id[1]"/>
+                                        <t t-esc="this.firstName(booking)"/>
                                     </div>
                                 </td>
                             </tr>

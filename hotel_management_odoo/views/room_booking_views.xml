@@ -210,25 +210,22 @@
                     <!-- Booking summary at end of form: same right-side
                          footer position/styling as before, out of the
                          way of the line tabs. -->
+                    <!-- Booking summary: one tax-inclusive line per group
+                         so group totals tally to Total by eye. The
+                         Untaxed/Taxes lines stay as the audit trail. -->
                     <group name="booking_summary" colspan="2"
                            class="oe_subtotal_footer oe_right">
-                        <div colspan="2" class="text-end fw-bold">Charges<hr class="ms-auto my-1" style="width: 40%;"/></div>
-                        <field name="amount_untaxed_room"
-                               sum="Untaxed amount for Room"
-                               widget="monetary"/>
-                        <field name="amount_untaxed_food"
-                               sum="Untaxed amount for Food"
-                               widget="monetary" invisible="1"/>
-                        <field name="amount_untaxed_service"
-                               sum="Untaxed amount for Service"
-                               widget="monetary"
+                        <field name="amount_total_room" string="Rooms"
+                               sum="Rooms total" widget="monetary"/>
+                        <field name="amount_total_food" string="Food"
+                               sum="Food total" widget="monetary" invisible="1"/>
+                        <field name="amount_total_service" string="Services"
+                               sum="Services total" widget="monetary"
                                invisible="need_service == False"/>
-                        <field name="amount_untaxed_fleet"
-                               sum="Untaxed amount for Fleet"
-                               widget="monetary" invisible="1"/>
-                        <field name="amount_untaxed_event"
-                               sum="Untaxed amount for Event"
-                               widget="monetary" invisible="1"/>
+                        <field name="amount_total_fleet" string="Fleet"
+                               sum="Fleet total" widget="monetary" invisible="1"/>
+                        <field name="amount_total_event" string="Events"
+                               sum="Events total" widget="monetary" invisible="1"/>
                         <div colspan="2" class="text-end fw-bold mt-1">Totals<hr class="ms-auto my-1" style="width: 40%;"/></div>
                         <field name="amount_untaxed"
                                sum="Untaxed amount" widget="monetary"/>

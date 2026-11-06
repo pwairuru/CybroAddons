@@ -36,6 +36,11 @@ class ProductTemplate(models.Model):
     is_room_avail = fields.Boolean(default=True, string="Available",
                                    help="Check if the room is available",
                                    tracking=True)
+    room_number = fields.Char(string="Room No.",
+                              help="Door/number staff know the room by "
+                                   "(e.g. 101). Shown first in the POS room "
+                                   "picker; the room name follows it.",
+                              tracking=True, index=True)
     room_amenities_ids = fields.Many2many("hotel.amenity",
                                           string="Room Amenities",
                                           help="List of room amenities.")

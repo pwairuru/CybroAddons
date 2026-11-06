@@ -28,12 +28,63 @@ patch(ProductScreen.prototype, {
     async onClickAddRoom() {
         const bookings = await this.orm.searchRead("room.booking",
             [["state", "=", "check_in"]],
-            ["id", "name", "partner_id"]
+            ["id", "name", "partner_id", "room_line_ids"]
         );
 
         if (bookings.length === 0) {
             this.env.services.notification.add(_t("No active hotel bookings found."), { type: 'warning' });
             return;
+        }
+
+        // Room labels for the picker: "number · name" (number = the
+        // Room No. staff know; falls back to the room name, which for
+        // numbered rooms already is the number). Bookings can hold
+        // several rooms: join them, fall back to the booking ref.
+        try {
+            const lineIds = [...new Set(bookings.flatMap((b) => b.room_line_ids || []))];
+            if (lineIds.length) {
+                const lines = await this.orm.searchRead("room.booking.line",
+                    [["id", "in", lineIds]],
+                    ["booking_id", "room_id"]
+                );
+                const tmplIds = [...new Set(lines.map(
+                    (l) => Array.isArray(l.room_id) ? l.room_id[0] : null
+                ).filter(Boolean))];
+                const tmpls = tmplIds.length ? await this.orm.searchRead(
+                    "product.template", [["id", "in", tmplIds]],
+                    ["name", "room_number"]
+                ) : [];
+                const labelByTmpl = {};
+                for (const t of tmpls) {
+                    const num = (t.room_number || "").trim();
+                    const nm = t.name || "";
+                    labelByTmpl[t.id] = num && num !== nm
+                        ? `${num} \u00b7 ${nm}` : (nm || num);
+                }
+                const byBooking = {};
+                for (const line of lines) {
+                    const bid = Array.isArray(line.booking_id) ? line.booking_id[0] : line.booking_id;
+                    const tid = Array.isArray(line.room_id) ? line.room_id[0] : null;
+                    const label = (tid && labelByTmpl[tid])
+                        || (Array.isArray(line.room_id) ? line.room_id[1] : "");
+                    if (!bid || !label) {
+                        continue;
+                    }
+                    (byBooking[bid] ??= []).push(label);
+                }
+                for (const b of bookings) {
+                    const rooms = byBooking[b.id] || [];
+                    b.room_label = rooms.join(", ") || b.name || "";
+                }
+            } else {
+                for (const b of bookings) {
+                    b.room_label = b.name || "";
+                }
+            }
+        } catch {
+            for (const b of bookings) {
+                b.room_label = b.name || "";
+            }
         }
 
         const selectedBooking = await makeAwaitable(this.dialog, HotelRoomPopup, {
