@@ -24,6 +24,7 @@ class KitchenScreenDashboard extends Component {
         this.cancel_order = this.cancel_order.bind(this);
         this.accept_order_line = this.accept_order_line.bind(this);
         this.forceRefresh = this.forceRefresh.bind(this);
+        this.parseKitchenNote = this.parseKitchenNote.bind(this);
 
         // Stage change methods
         this.ready_stage = (e) => this.state.stages = 'ready';
@@ -99,6 +100,27 @@ class KitchenScreenDashboard extends Component {
         return parseInt(session_shop_id, 10) || 0;
     }
 
+    parseKitchenNote(note) {
+        if (!note) {
+            return "";
+        }
+        if (Array.isArray(note)) {
+            return note.map((n) => (typeof n === "string" ? n : n.text || "")).filter(Boolean).join(", ");
+        }
+        if (typeof note === "string") {
+            try {
+                const parsed = JSON.parse(note);
+                if (Array.isArray(parsed)) {
+                    return parsed.map((n) => (typeof n === "string" ? n : n.text || "")).filter(Boolean).join(", ");
+                }
+                return note;
+            } catch {
+                return note;
+            }
+        }
+        return "";
+    }
+
     async loadOrders() {
         if (this.state.isLoading) return;
 
@@ -108,6 +130,16 @@ class KitchenScreenDashboard extends Component {
 
             this.state.order_details = result.orders || [];
             this.state.lines = result.order_lines || [];
+            // Internal notes (line.note, order.internal_note) are stored as
+            // JSON arrays [{text, colorIndex}] by POS (see InternalNoteButton
+            // reframeNotes). Parse to plain text for display; fall back to raw
+            // for legacy plain-text notes.
+            for (const order of this.state.order_details) {
+                order.internal_note_display = this.parseKitchenNote(order.internal_note);
+            }
+            for (const line of this.state.lines) {
+                line.note_display = this.parseKitchenNote(line.note);
+            }
 
             const activeOrders = this.state.order_details.filter(order => {
                 const configMatch = Array.isArray(order.config_id) ?

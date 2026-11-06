@@ -21,7 +21,25 @@
 ############################################################################
 from odoo import api, fields, models
 from datetime import datetime
+import json
 import pytz
+
+
+def _parse_kitchen_note(note):
+    """POS stores internal notes as JSON [{text, colorIndex}]; return plain text."""
+    if not note:
+        return ''
+    if isinstance(note, list):
+        return ', '.join(n if isinstance(n, str) else (n.get('text') or '') for n in note).strip(', ')
+    if isinstance(note, str):
+        try:
+            parsed = json.loads(note)
+            if isinstance(parsed, list):
+                return ', '.join(n if isinstance(n, str) else (n.get('text') or '') for n in parsed).strip(', ')
+            return note
+        except (ValueError, TypeError, AttributeError):
+            return note
+    return ''
 
 
 class PosOrder(models.Model):
@@ -398,7 +416,7 @@ class PosOrder(models.Model):
                         'product_id': line.product_id.id,
                         'product_name': line.product_id.name,
                         'qty': line.qty,
-                        'note': line.note or '',
+                        'note': _parse_kitchen_note(line.note),
                         'customer_note': line.customer_note or '',
                         'order_status': line.order_status or 'draft'
                     })
@@ -410,7 +428,7 @@ class PosOrder(models.Model):
                     'table_name': order.table_id.name if order.table_id else '',
                     'order_status': order.order_status,
                     'general_customer_note': order.general_customer_note or '',
-                    'internal_note': order.internal_note or '',
+                    'internal_note': _parse_kitchen_note(order.internal_note),
                     'lines': line_data,
                     'date_order': order.date_order,
                     'amount_total': order.amount_total
