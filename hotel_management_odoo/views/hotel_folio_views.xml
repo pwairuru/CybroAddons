@@ -340,11 +340,13 @@
         <field name="search_view_id" ref="hotel_folio_view_search"/>
     </record>
 
-    <!-- Task 7: Folio merged into Reservations (room_booking_menu). -->
+    <!-- Task 7: Folio merged into Reservations (room_booking_menu).
+         Reception + managers only (POS cashiers: POS frontend only). -->
     <menuitem id="hotel_folio_menu_action"
               name="Folios"
               sequence="20"
               parent="room_booking_menu"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_folio_action"/>
 
     <record id="hotel_deposit_view_list" model="ir.ui.view">
@@ -395,6 +397,7 @@
               name="Deposits"
               sequence="30"
               parent="room_booking_menu"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_deposit_action"/>
 
     <record id="hotel_city_ledger_view_list" model="ir.ui.view">
@@ -450,6 +453,7 @@
               name="City Ledger"
               sequence="40"
               parent="room_booking_menu"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_city_ledger_action"/>
 
     <!-- Task-4 intermediate menu, now empty (action moved above). No-op

@@ -26,9 +26,17 @@ patch(ProductScreen.prototype, {
     },
 
     async onClickAddRoom() {
-        const bookings = await this.orm.searchRead("room.booking",
-            [["state", "=", "check_in"]],
-            ["id", "name", "partner_id", "room_line_ids"]
+        // Least privilege: only in-house bookings of the current company,
+        // capped so a POS operator can never dump the full guest list.
+        // (Server-side company record rules enforce the same scope.)
+        const domain = [["state", "=", "check_in"]];
+        const companyId = this.pos.company?.id;
+        if (companyId) {
+            domain.push(["company_id", "in", [false, companyId]]);
+        }
+        const bookings = await this.orm.searchRead("room.booking", domain,
+            ["id", "name", "partner_id", "room_line_ids"],
+            { limit: 80 }
         );
 
         if (bookings.length === 0) {

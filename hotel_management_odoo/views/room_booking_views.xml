@@ -475,9 +475,12 @@
             </p>
         </field>
     </record>
-    <!--     Reservation menu -->
+    <!--     Reservation menu: reception + managers only. POS cashiers work
+             from the POS frontend (room picker + charge-to-room) and plain
+             internal users have no hotel role, so neither sees this. -->
     <menuitem id="room_booking_menu" name="Reservation" sequence="10"
               parent="hotel_management_menu_root"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="room_booking_action"/>
     <!--     Leaf opening the booking view: navbar never fires parent-menu
           actions (see navbar.xml MenuSlot/SectionMenu), so a menu with

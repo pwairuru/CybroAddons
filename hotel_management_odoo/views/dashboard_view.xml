@@ -6,9 +6,10 @@
         <field name="tag">custom_dashboard_tags</field>
     </record>
     <!--Menu Dashboard (Hoteli: first child, app opens on dashboard;
-        all operational roles see it, Task 11)-->
+        POS cashiers work from the POS frontend only, so the cashier role
+        no longer sees the backend dashboard)-->
     <menuitem name="Dashboard" id="hotel_dashboard_menu"
-              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_housekeeping,hotel_management_odoo.hotel_group_cashier,hotel_management_odoo.hotel_group_auditor,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_housekeeping,hotel_management_odoo.hotel_group_auditor,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               parent="hotel_management_menu_root"
               sequence="1"
               action="hotel_dashboard_action"/>
