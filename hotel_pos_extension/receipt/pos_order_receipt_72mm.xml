@@ -19,6 +19,10 @@
                 #pos-receipt .text-insane { font-size: 37.5px !important; line-height: 55px !important; }
                 @page { size: 72mm auto; margin: 0; }
                 @media print { #pos-receipt { zoom: 1 !important; } }
+                /** Dashed rhythm between major ticket sections **/
+                #pos-receipt [name='prices'] { border-top: 1px dashed black !important; padding-top: 8px !important; margin-top: 8px !important; }
+                #pos-receipt [name='before-footer'] { border-top: 1px dashed black !important; margin: 8px 0 !important; height: 0 !important; }
+                #pos-receipt tr.receipt-payments-separator td { border-top: 1px dashed black !important; height: 6px !important; padding: 0 !important; }
         </xpath>
     </template>
 </odoo>

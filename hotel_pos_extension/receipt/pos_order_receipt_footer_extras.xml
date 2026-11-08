@@ -28,4 +28,13 @@
     <template id="pos_order_receipt_hide_tax_base" inherit_id="point_of_sale.pos_order_receipt" name="POS receipt hide tax base row">
         <xpath expr="//t[@name='taxes_foreach']/tr[2]" position="replace"/>
     </template>
+
+    <!-- Dashed divider between the totals block and the payment lines
+         (inside the same prices table, so it needs a real row, not CSS).
+         Shown only when payment lines exist; lands after TOTAL/Discount. -->
+    <template id="pos_order_receipt_payments_separator" inherit_id="point_of_sale.pos_order_receipt" name="POS receipt payments divider">
+        <xpath expr="//t[@name='payments']" position="before">
+            <tr t-if="payments" class="receipt-payments-separator"><td colspan="2"></td></tr>
+        </xpath>
+    </template>
 </odoo>
