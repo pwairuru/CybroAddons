@@ -15,8 +15,17 @@
             </div>
         </xpath>
         <!-- Small vendor credit appended at the very bottom of the ticket. -->
-        <xpath expr="//div[@class='w-100 text-center mt-3']" position="inside">
+        <xpath expr="//div[hasclass('w-100','text-center','mt-3')]" position="inside">
             <div class="w-100 text-center text-small" style="margin-top: 8px;">Powered by colorchase.co.ke</div>
         </xpath>
+    </template>
+
+    <!-- Hide the per-tax "Base <tax>" row (e.g. "Base VAT 16%") from the
+         totals table. The base usually equals the Subtotal and confuses
+         customers; the "VAT 16%: <amount>" row already states the tax.
+         Assumes core layout: inside t[name='taxes_foreach'] the first tr
+         is the tax-amount line and the second tr is the base line. -->
+    <template id="pos_order_receipt_hide_tax_base" inherit_id="point_of_sale.pos_order_receipt" name="POS receipt hide tax base row">
+        <xpath expr="//t[@name='taxes_foreach']/tr[2]" position="replace"/>
     </template>
 </odoo>
