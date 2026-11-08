@@ -37,4 +37,13 @@
             <tr t-if="payments" class="receipt-payments-separator"><td colspan="2"></td></tr>
         </xpath>
     </template>
+
+    <!-- Dashed divider between the header block and the order lines, so
+         every major section boundary on the ticket carries a rule:
+         header | lines | totals | payments | footer. -->
+    <template id="pos_order_receipt_header_separator" inherit_id="point_of_sale.pos_order_receipt" name="POS receipt header divider">
+        <xpath expr="//t[@t-call='point_of_sale.pos_order_receipt_header']" position="after">
+            <div class="w-100 receipt-section-separator"></div>
+        </xpath>
+    </template>
 </odoo>
