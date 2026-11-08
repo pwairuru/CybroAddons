@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Receipt content extras: M-Pesa till notice + vendor credit.
+         Applies to both Bill (pro forma, draft orders) and final Receipt:
+         both render point_of_sale.pos_order_receipt, whose footer this
+         extends. Core classes only (text-normal/text-small/text-bold),
+         so the 72mm scaling override keeps applying automatically. -->
+    <template id="pos_order_receipt_footer_extras" inherit_id="point_of_sale.pos_order_receipt_footer" name="POS receipt M-Pesa + powered-by">
+        <!-- M-Pesa paybill block, right after company info (KRA PIN etc.),
+             always visible regardless of receipt_header/footer config. -->
+        <xpath expr="//t[@t-call='point_of_sale.company_info_receipt']" position="after">
+            <div class="w-100 text-center mt-2 mb-2" style="border-top: 1px dashed black; border-bottom: 1px dashed black; padding: 6px 0;">
+                <div class="text-normal text-bold">M-PESA PAYBILL: 4141717</div>
+                <div class="text-normal text-bold">ACCOUNT: CAMP DAVID UNITED</div>
+            </div>
+        </xpath>
+        <!-- Small vendor credit appended at the very bottom of the ticket. -->
+        <xpath expr="//div[@class='w-100 text-center mt-3']" position="inside">
+            <div class="w-100 text-center text-small" style="margin-top: 8px;">Powered by colorchase.co.ke</div>
+        </xpath>
+    </template>
+</odoo>
