@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!--    Reports Menu (operational)-->
+    <!--    Reports Menu (revenue data: managers + auditors only)-->
     <menuitem id="hotel_reporting_menu"
               name="Reports"
               sequence="30"
+              groups="hotel_management_odoo.hotel_group_auditor,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               parent="hotel_management_menu_root"/>
     <!--    Room Booking Report Menu-->
     <menuitem id="room_booking_detail_menu"

@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!-- Conferences menu (operational, NOT under Configuration) -->
+    <!-- REMOVED per 2026-11-07: Conferences top-level hidden (v1 scope cut).
+         Restore by uncommenting together with hotel_conference_menu_action.
     <menuitem id="hotel_conference_menu"
               name="Conferences"
               sequence="12"
               parent="hotel_management_menu_root"/>
+    -->
 
     <!-- Venue master (Configuration) -->
     <record id="hotel_venue_view_list" model="ir.ui.view">
@@ -49,11 +51,14 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- REMOVED per 2026-11-07: Venues config menu hidden with Conferences.
+         Action hotel_venue_action kept; restore by uncommenting.
     <menuitem id="hotel_venue_menu_action"
               name="Venues"
               sequence="10"
               parent="hotel_config_menu"
               action="hotel_venue_action"/>
+    -->
 
     <!-- Conference list/form -->
     <record id="hotel_conference_view_list" model="ir.ui.view">
@@ -133,9 +138,13 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- REMOVED per 2026-11-07: Conferences child hidden with parent menu.
+         Action hotel_conference_action kept; restore together with
+         hotel_conference_menu.
     <menuitem id="hotel_conference_menu_action"
               name="Conferences"
               sequence="10"
               parent="hotel_conference_menu"
               action="hotel_conference_action"/>
+    -->
 </odoo>

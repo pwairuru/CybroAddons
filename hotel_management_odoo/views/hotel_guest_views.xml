@@ -142,10 +142,13 @@
         <field name="context">{'res_partner_search_mode': 'customer', 'default_is_hotel_guest': True}</field>
     </record>
 
+    <!-- Guests: res.partner list. Reception + managers only — this menu
+         plus core Contacts is how partner/guest data leaked to POS users. -->
     <menuitem id="hotel_customer_menu"
               name="Guests"
               sequence="10"
               parent="room_booking_menu"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_customer_action"/>
 
     <record id="hotel_document_action" model="ir.actions.act_window">
@@ -154,11 +157,13 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <!-- Task 7: Folio merged into Reservations (room_booking_menu). -->
+    <!-- Task 7: Folio merged into Reservations (room_booking_menu).
+         Guest ID documents: reception + managers only. -->
     <menuitem id="hotel_document_menu"
               name="Guest Documents"
               sequence="50"
               parent="room_booking_menu"
+              groups="hotel_management_odoo.hotel_group_reception,hotel_management_odoo.hotel_group_manager,hotel_management_odoo.hotel_group_admin"
               action="hotel_document_action"/>
 
     <record id="hotel_loyalty_program_action" model="ir.actions.act_window">

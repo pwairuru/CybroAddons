@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- 72mm paper-native receipt scaling.
+         Core POS style is 512px / 22px base (~80mm). On 72mm Edge browser
+         print that overflows, forcing a manual 75% dialog scale that Windows
+         does not persist. This override bakes the 75% scale into the ticket
+         itself, so Bill (pro forma, draft orders) and final Receipt both fit
+         72mm at 100% / Default dialog scale.
+         512 * 0.75 = 384px; fonts scaled by 0.75. If Edge still clips ~3px
+         of driver padding, lower 384px toward 368px. -->
+    <template id="pos_order_receipt_style_72mm" inherit_id="point_of_sale.pos_order_receipt_style" name="POS receipt 72mm paper scaling">
+        <xpath expr="//style" position="inside">
+                /** 72mm override (hotel_pos_extension): paper-native 75% scale **/
+                #pos-receipt { width: 384px !important; font-size: 16.5px !important; }
+                #pos-receipt .text-small { font-size: 13.5px !important; line-height: 19.5px !important; }
+                #pos-receipt .text-normal { font-size: 16.5px !important; line-height: 23px !important; }
+                #pos-receipt .text-large { font-size: 22.5px !important; line-height: 30px !important; }
+                #pos-receipt .text-huge { font-size: 34px !important; line-height: 45px !important; }
+                #pos-receipt .text-insane { font-size: 37.5px !important; line-height: 55px !important; }
+                @page { size: 72mm auto; margin: 0; }
+                @media print { #pos-receipt { zoom: 1 !important; } }
+        </xpath>
+    </template>
+</odoo>
