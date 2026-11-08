@@ -811,3 +811,44 @@ padding-top:8px;
     color: #cfd4da;
     border-left-color: #6c757d;
 }
+
+/* New/changed order alert: pulsing amber ring + pill. Applied while the
+   alarm loops for the card (state.alertIds); clears with Accept/mute. */
+.kitchen .kitchen-card-alert {
+    position: relative;
+    outline: 3px solid #f59e0b;
+    outline-offset: -3px;
+    animation: kitchen-alert-pulse 1.2s ease-in-out infinite;
+}
+.kitchen .kitchen-card-alert::after {
+    content: "● NEW";
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 5;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+    pointer-events: none;
+}
+@keyframes kitchen-alert-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+    50% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .kitchen .kitchen-card-alert { animation: none; }
+}
+
+/* Tab-level alert badge: marks which stage tab holds new/changed cards.
+   Same lifecycle as the card glow (state.alertIds). */
+.kitchen .kitchen_tab_alert {
+    background: #f59e0b;
+    color: #fff;
+    animation: kitchen-alert-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .kitchen .kitchen_tab_alert { animation: none; }
+}

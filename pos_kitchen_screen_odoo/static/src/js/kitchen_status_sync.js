@@ -55,7 +55,7 @@ patch(PosStore.prototype, {
         // Poll fallback: bus delivery depends on the websocket worker, which
         // is fragile (proxy/gevent/flaps). One small read every 15s keeps
         // tables fresh even when live push dies. Same pattern as the kitchen
-        // dashboard's own 30s refresh.
+        // dashboard's own 5s refresh.
         this._kitchenPollId = setInterval(() => {
             this._backfillKitchenStatus().catch(() => {});
         }, 15000);

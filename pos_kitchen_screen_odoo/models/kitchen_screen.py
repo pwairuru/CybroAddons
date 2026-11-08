@@ -20,6 +20,7 @@
 #
 ############################################################################
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 from datetime import datetime, time
 
 import pytz
@@ -59,6 +60,27 @@ class KitchenScreen(models.Model):
         string='Change Stage',
         default=False,
         help='Change the cooking stage when completing the preparation time',
+    )
+
+    notification_sound = fields.Selection(
+        selection=[
+            ('none', 'No Sound'),
+            ('bell', 'Bell'),
+            ('chime', 'Chime'),
+            ('ding', 'Ding'),
+            ('printer', 'Kitchen Printer'),
+        ],
+        string='Notification Sound',
+        default='chime',
+        required=True,
+        help='Sound played on the kitchen screen when a new order arrives. '
+             'Audio files ship with the module and are cached by the browser.',
+    )
+    notification_repeat_delay = fields.Integer(
+        string='Alert Repeat (seconds)',
+        default=8,
+        help='Seconds between alert repeats while unacknowledged orders remain. '
+             'Loop stops when orders are accepted or sound is muted.',
     )
 
     cooking_count = fields.Integer(
@@ -108,6 +130,36 @@ class KitchenScreen(models.Model):
                 base + [('order_status', '=', 'waiting')])
             rec.completed_count = Order.search_count(
                 base + [('order_status', '=', 'ready')])
+
+    @api.constrains('notification_repeat_delay')
+    def _check_notification_repeat_delay(self):
+        for rec in self:
+            if rec.notification_repeat_delay < 3 or rec.notification_repeat_delay > 60:
+                raise ValidationError(
+                    'Alert repeat must be between 3 and 60 seconds.')
+
+    def action_preview_notification_sound(self):
+        """Open the configured alert sound in a new tab for preview.
+
+        The form auto-saves before object buttons run, so this plays
+        the just-selected sound."""
+        self.ensure_one()
+        sound = self.notification_sound or 'chime'
+        if sound == 'none':
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'No Sound',
+                    'message': 'Alert sound is disabled for this kitchen.',
+                    'type': 'warning',
+                },
+            }
+        return {
+            'type': 'ir.actions.act_url',
+            'target': 'new',
+            'url': f'/pos_kitchen_screen_odoo/static/src/sounds/{sound}.mp3',
+        }
 
     @api.model_create_multi
     def create(self, vals_list):

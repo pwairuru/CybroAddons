@@ -68,6 +68,32 @@
                             </div>
                         </div>
                         <div class="col-12 col-lg-6 o_setting_box"
+                             id="notification_sound">
+                            <div class="o_setting_left_pane">
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="notification_sound"/>
+                                <div class="text-muted">
+                                    <div>
+                                        <field name="notification_sound"/>
+                                        <button name="action_preview_notification_sound"
+                                                type="object"
+                                                string="🔊 Preview"
+                                                class="btn-secondary ms-2"
+                                                help="Play the selected alert sound"/>
+                                    </div>
+                                    Sound played on the kitchen screen when a new order arrives
+                                </div>
+                                <label for="notification_repeat_delay"/>
+                                <div class="text-muted">
+                                    <div>
+                                        <field name="notification_repeat_delay"/>
+                                    </div>
+                                    Seconds between alert repeats (3-60) while orders await accept
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box"
                              id="kitchen_screen">
                             <div class="o_setting_left_pane">
                             </div>

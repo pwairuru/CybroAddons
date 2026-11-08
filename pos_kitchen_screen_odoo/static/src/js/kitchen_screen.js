@@ -25,6 +25,9 @@ class KitchenScreenDashboard extends Component {
         this.accept_order_line = this.accept_order_line.bind(this);
         this.forceRefresh = this.forceRefresh.bind(this);
         this.parseKitchenNote = this.parseKitchenNote.bind(this);
+        this.toggleMute = this.toggleMute.bind(this);
+        this.unlockAudio = this.unlockAudio.bind(this);
+        this.loadSoundConfig = this.loadSoundConfig.bind(this);
 
         // Stage change methods
         this.ready_stage = (e) => this.state.stages = 'ready';
@@ -35,6 +38,19 @@ class KitchenScreenDashboard extends Component {
         this.currentShopId = this.getCurrentShopId();
         this.channel = `pos_order_created_${this.currentShopId}`;
         this.countdownIntervals = {};
+        // Single-audio new-order alerter: one Audio element, one repeat
+        // timer. Never one player per card.
+        this.alertAudio = null;
+        this.audioUnlocked = false;
+        this.knownOrderIds = new Set();
+        this.knownLineIds = new Set();
+        this.knownFingerprints = new Map();
+        this.knownStatuses = new Map();
+        this.unackedOrderIds = new Set();
+        this.alerterReady = false;
+        this.repeatTimer = null;
+        this.soundChoice = 'chime';
+        this.repeatDelay = 8;
 
         // State management
         this.state = proxy({
@@ -49,7 +65,10 @@ class KitchenScreenDashboard extends Component {
             lines: [],
             prepare_times: [],
             countdowns: {},
-            isLoading: false
+            isLoading: false,
+            muted: localStorage.getItem('kitchen_muted') === '1',
+            alertIds: [],
+            audioReady: false,
         });
 
         // Component lifecycle
@@ -64,16 +83,27 @@ class KitchenScreenDashboard extends Component {
                 this.busService.addChannel(this.channel);
                 this.busService.subscribe('notification', this.onPosOrderCreation);
             }
+            this.state.muted = localStorage.getItem(this.muteKey()) === '1';
+            await this.loadSoundConfig();
+            window.addEventListener('pointerdown', this.unlockAudio, { once: true });
+            window.addEventListener('keydown', this.unlockAudio, { once: true });
             this.loadOrders();
 
+            // Poll fallback: bus push depends on the websocket worker,
+            // which is fragile (proxy/gevent/flaps), so refresh on a short
+            // tick. get_details is a few small reads; 5s keeps new tickets
+            // and note edits within seconds even when live push dies.
             this.autoRefreshInterval = setInterval(() => {
                 this.loadOrders();
-            }, 30000);
+            }, 5000);
         });
 
         onWillUnmount(() => {
             this.busService.deleteChannel(this.channel);
             this.busService.unsubscribe('notification', this.onPosOrderCreation);
+            window.removeEventListener('pointerdown', this.unlockAudio);
+            window.removeEventListener('keydown', this.unlockAudio);
+            this.stopAlertLoop();
             if (this.autoRefreshInterval) {
                 clearInterval(this.autoRefreshInterval);
             }
@@ -121,6 +151,280 @@ class KitchenScreenDashboard extends Component {
         return "";
     }
 
+    muteKey() {
+        return `kitchen_muted_${this.currentShopId || 'all'}`;
+    }
+
+    async loadSoundConfig() {
+        if (!this.currentShopId) {
+            return;
+        }
+        try {
+            const rows = await this.orm.searchRead(
+                'kitchen.screen',
+                [['pos_config_id', '=', this.currentShopId]],
+                ['notification_sound', 'notification_repeat_delay'],
+                { limit: 1 }
+            );
+            if (rows && rows[0]) {
+                this.soundChoice = rows[0].notification_sound || 'chime';
+                const delay = Number(rows[0].notification_repeat_delay) || 8;
+                this.repeatDelay = Math.min(60, Math.max(3, delay));
+            }
+        } catch (error) {
+            console.error("Error loading kitchen sound config:", error);
+        }
+        this.alertAudio = this.soundChoice === 'none' ? null : new Audio(this.soundUrl());
+        if (this.alertAudio) {
+            this.alertAudio.preload = 'auto';
+        }
+        if (this.unackedOrderIds.size && !this.state.muted) {
+            this.startAlertLoop();
+        }
+    }
+
+    soundUrl() {
+        return `/pos_kitchen_screen_odoo/static/src/sounds/${this.soundChoice}.mp3`;
+    }
+
+    unlockAudio() {
+        // Browsers block audio before a user gesture; first tap/click
+        // arms the single shared Audio element for the alert loop.
+        this.audioUnlocked = true;
+        this.state.audioReady = true;
+        if (this.alertAudio && this.unackedOrderIds.size && !this.state.muted) {
+            this.playAlert();
+        }
+    }
+
+    playAlert() {
+        if (!this.alertAudio || this.state.muted || !this.audioUnlocked) {
+            return;
+        }
+        try {
+            this.alertAudio.currentTime = 0;
+            const playPromise = this.alertAudio.play();
+            if (playPromise && playPromise.catch) {
+                playPromise.catch((err) => {
+                    // Only a policy block re-arms the banner. Interrupt
+                    // aborts (pause/play races on repeat ticks) are benign
+                    // and must not resurrect it after a tap.
+                    if (err && err.name === 'NotAllowedError' && this.state.audioReady) {
+                        this.state.audioReady = false;
+                    }
+                });
+            }
+        } catch (error) {
+            // Autoplay policy or missing file: stay silent, retry next tick.
+        }
+    }
+
+    startAlertLoop() {
+        this.stopAlertLoop();
+        // 'none' = silent kitchen: card glow still marks changes, but no
+        // audio element exists and no repeat timer is armed.
+        if (this.state.muted || !this.unackedOrderIds.size || this.soundChoice === 'none') {
+            return;
+        }
+        this.playAlert();
+        this.repeatTimer = setInterval(() => {
+            this.playAlert();
+        }, this.repeatDelay * 1000);
+    }
+
+    stopAlertLoop() {
+        if (this.repeatTimer) {
+            clearInterval(this.repeatTimer);
+            this.repeatTimer = null;
+        }
+        if (this.alertAudio) {
+            try {
+                this.alertAudio.pause();
+            } catch (error) {
+                // Ignore pause errors on teardown.
+            }
+        }
+    }
+
+    orderFingerprint(order, linesById) {
+        // Content that matters to the kitchen: notes + kitchen line set
+        // with quantities and notes. Only lines visible on this screen
+        // (present in linesById) count, so adding a non-kitchen item
+        // (e.g. a drink) never rings the kitchen. Statuses/dates excluded
+        // so Accept/stage moves never count as content changes.
+        const parts = [
+            order.general_customer_note || '',
+            order.internal_note || '',
+        ];
+        const lineIds = [...(order.lines || [])]
+            .filter((id) => id in linesById)
+            .sort((a, b) => a - b);
+        for (const id of lineIds) {
+            const line = linesById[id];
+            parts.push([
+                id,
+                line.qty,
+                line.note || '',
+                line.customer_note || '',
+                line.full_product_name || '',
+            ].join('|'));
+        }
+        return parts.join('~');
+    }
+
+    clearMute() {
+        // A new kitchen-relevant change re-arms sound: mute silences the
+        // current alarm, it never deafens the screen.
+        if (!this.state.muted) {
+            return;
+        }
+        this.state.muted = false;
+        try {
+            localStorage.setItem(this.muteKey(), '0');
+        } catch (error) {
+            // Private mode etc: keep unmute session-only.
+        }
+    }
+
+    syncAlertState() {
+        // Mirror the alerter set into reactive state so changed cards
+        // glow for exactly as long as the alarm loops for them.
+        this.state.alertIds = [...this.unackedOrderIds];
+    }
+
+    alertCountFor(status) {
+        // Tab badges share the card-glow lifecycle: same ids, same stop
+        // rules (Accept/mute/stage move). Counts alerts per order_status.
+        const statusById = {};
+        for (const order of this.state.order_details) {
+            statusById[order.id] = order.order_status;
+        }
+        return this.state.alertIds.filter((id) => statusById[id] === status).length;
+    }
+
+    detectArrivals(orders, lines) {
+        // Baseline first load so pre-existing cards stay silent; alert
+        // afterwards on new draft ids, new line ids, or content changes
+        // (notes/quantities) on draft + waiting orders.
+        const draftOrders = orders.filter((o) => o.order_status === 'draft');
+        const draftIds = new Set(draftOrders.map((o) => o.id));
+        const lineIds = new Set((lines || []).map((l) => l.id));
+        const linesById = {};
+        for (const line of lines || []) {
+            linesById[line.id] = line;
+        }
+        const activeOrders = orders.filter(
+            (o) => o.order_status === 'draft' || o.order_status === 'waiting'
+        );
+        if (!this.alerterReady) {
+            this.knownOrderIds = draftIds;
+            this.knownLineIds = lineIds;
+            for (const order of activeOrders) {
+                this.knownFingerprints.set(
+                    order.id, this.orderFingerprint(order, linesById));
+                this.knownStatuses.set(order.id, order.order_status);
+            }
+            this.alerterReady = true;
+            return;
+        }
+        let arrived = false;
+        const lineToOrder = {};
+        for (const order of orders) {
+            for (const lineId of order.lines || []) {
+                lineToOrder[lineId] = order.id;
+            }
+        }
+        for (const id of draftIds) {
+            if (!this.knownOrderIds.has(id)) {
+                this.unackedOrderIds.add(id);
+                arrived = true;
+            }
+        }
+        for (const line of lines || []) {
+            if (!this.knownLineIds.has(line.id)) {
+                const ownerId = lineToOrder[line.id];
+                if (ownerId && draftIds.has(ownerId)) {
+                    this.unackedOrderIds.add(ownerId);
+                    arrived = true;
+                }
+                // Lines owned by waiting orders are covered by the
+                // fingerprint check below; other unknowns stay silent.
+            }
+        }
+        for (const order of activeOrders) {
+            const prevStatus = this.knownStatuses.get(order.id);
+            if (prevStatus === 'draft' && order.order_status === 'waiting') {
+                // Accepted elsewhere: stage move is the acknowledgment,
+                // no alarm needed.
+                this.unackedOrderIds.delete(order.id);
+            } else {
+                const fp = this.orderFingerprint(order, linesById);
+                const prevFp = this.knownFingerprints.get(order.id);
+                if (prevFp === undefined) {
+                    // First sight in waiting (e.g. accepted elsewhere
+                    // before this screen loaded it): baseline silently.
+                    this.knownFingerprints.set(order.id, fp);
+                } else if (prevFp !== fp) {
+                    this.knownFingerprints.set(order.id, fp);
+                    this.unackedOrderIds.add(order.id);
+                    arrived = true;
+                }
+            }
+            this.knownStatuses.set(order.id, order.order_status);
+        }
+        for (const id of [...this.knownFingerprints.keys()]) {
+            if (!activeOrders.some((o) => o.id === id)) {
+                this.knownFingerprints.delete(id);
+                this.knownStatuses.delete(id);
+            }
+        }
+        this.knownOrderIds = draftIds;
+        this.knownLineIds = lineIds;
+        this.pruneUnacked(orders);
+        this.syncAlertState();
+        if (arrived && this.unackedOrderIds.size) {
+            this.clearMute();
+            this.startAlertLoop();
+        } else if (!this.unackedOrderIds.size) {
+            this.stopAlertLoop();
+        }
+    }
+
+    pruneUnacked(orders) {
+        const stillActive = new Set(
+            orders.filter((o) => o.order_status === 'draft' || o.order_status === 'waiting')
+                .map((o) => o.id)
+        );
+        for (const id of [...this.unackedOrderIds]) {
+            if (!stillActive.has(id)) {
+                this.unackedOrderIds.delete(id);
+            }
+        }
+        if (!this.unackedOrderIds.size) {
+            this.stopAlertLoop();
+        }
+    }
+
+    toggleMute() {
+        this.audioUnlocked = true;
+        this.state.audioReady = true;
+        this.state.muted = !this.state.muted;
+        try {
+            localStorage.setItem(this.muteKey(), this.state.muted ? '1' : '0');
+        } catch (error) {
+            // Private mode etc: keep mute session-only.
+        }
+        if (this.state.muted) {
+            // Muting acknowledges the current batch: silence now, stay
+            // armed for the next new order, line, or note change.
+            this.unackedOrderIds.clear();
+            this.syncAlertState();
+            this.stopAlertLoop();
+        } else if (this.unackedOrderIds.size) {
+            this.startAlertLoop();
+        }
+    }
+
     async loadOrders() {
         if (this.state.isLoading) return;
 
@@ -140,6 +444,7 @@ class KitchenScreenDashboard extends Component {
             for (const line of this.state.lines) {
                 line.note_display = this.parseKitchenNote(line.note);
             }
+            this.detectArrivals(this.state.order_details, this.state.lines);
 
             const activeOrders = this.state.order_details.filter(order => {
                 const configMatch = Array.isArray(order.config_id) ?
@@ -266,6 +571,11 @@ class KitchenScreenDashboard extends Component {
 
     async accept_order(e) {
         const orderId = Number(e.target.value);
+        this.unackedOrderIds.delete(orderId);
+        this.syncAlertState();
+        if (!this.unackedOrderIds.size) {
+            this.stopAlertLoop();
+        }
         try {
             await this.orm.call("pos.order", "order_progress_draft", [orderId]);
 
@@ -285,6 +595,11 @@ class KitchenScreenDashboard extends Component {
 
     async done_order(e) {
         const orderId = Number(e.target.value);
+        this.unackedOrderIds.delete(orderId);
+        this.syncAlertState();
+        if (!this.unackedOrderIds.size) {
+            this.stopAlertLoop();
+        }
         try {
             await this.orm.call("pos.order", "order_progress_change", [orderId]);
 
@@ -306,6 +621,11 @@ class KitchenScreenDashboard extends Component {
 
     async cancel_order(e) {
         const orderId = Number(e.target.value);
+        this.unackedOrderIds.delete(orderId);
+        this.syncAlertState();
+        if (!this.unackedOrderIds.size) {
+            this.stopAlertLoop();
+        }
         try {
             await this.orm.call("pos.order", "order_progress_cancel", [orderId]);
 
@@ -382,6 +702,16 @@ class KitchenScreenDashboard extends Component {
         this.channel = `pos_order_created_${shopId}`;
         this.busService.addChannel(this.channel);
         this.busService.subscribe('notification', this.onPosOrderCreation);
+        this.stopAlertLoop();
+        this.knownOrderIds = new Set();
+        this.knownLineIds = new Set();
+        this.knownFingerprints = new Map();
+        this.knownStatuses = new Map();
+        this.unackedOrderIds = new Set();
+        this.syncAlertState();
+        this.alerterReady = false;
+        this.state.muted = localStorage.getItem(this.muteKey()) === '1';
+        await this.loadSoundConfig();
         await this.loadOrders();
     }
 

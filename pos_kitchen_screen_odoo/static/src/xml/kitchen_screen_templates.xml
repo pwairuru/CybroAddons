@@ -12,11 +12,20 @@
                                 ‹ Back
                             </button>
                             <button class="btn btn-sm btn-outline-secondary ms-auto"
+                                    t-on-click="() => this.toggleMute()"
+                                    t-att-title="this.state.muted ? 'Unmute new-order sound' : 'Mute new-order sound'">
+                                <t t-if="this.state.muted">🔇 Muted</t>
+                                <t t-else="">🔔 Sound</t>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary"
                                     t-on-click="() => this.toggleDark()"
                                     t-att-title="this.state.dark ? 'Light mode' : 'Dark mode'">
                                 <t t-if="this.state.dark">☀ Light</t>
                                 <t t-else="">🌙 Dark</t>
                             </button>
+                        </div>
+                        <div t-if="!this.state.audioReady and this.alertAudio" class="alert alert-warning py-1 my-1 text-center" role="alert">
+                            🔔 Tap anywhere once to enable new-order sound
                         </div>
                         <div t-if="!this.state.shop_id" class="d-flex align-items-center gap-2 py-1">
                                 <span class="text-muted">Select kitchen:</span>
@@ -53,6 +62,11 @@
                                         <t t-else="">
                                             <span class="ms-2 px-2 fw-bold rounded kitchen_order_count">
                                                 0
+                                            </span>
+                                        </t>
+                                        <t t-if="this.alertCountFor('draft') > 0">
+                                            <span class="ms-1 px-2 fw-bold rounded kitchen_tab_alert">
+                                                🔔 <t t-esc="this.alertCountFor('draft')"/>
                                             </span>
                                         </t>
                                     </a>
@@ -113,6 +127,11 @@
                                                 0
                                             </span>
                                         </t>
+                                        <t t-if="this.alertCountFor('waiting') > 0">
+                                            <span class="ms-1 px-2 fw-bold rounded kitchen_tab_alert">
+                                                🔔 <t t-esc="this.alertCountFor('waiting')"/>
+                                            </span>
+                                        </t>
                                     </a>
                                 </li>
                                 <li>
@@ -154,6 +173,11 @@
                                                 0
                                             </span>
                                         </t>
+                                        <t t-if="this.alertCountFor('ready') > 0">
+                                            <span class="ms-1 px-2 fw-bold rounded kitchen_tab_alert">
+                                                🔔 <t t-esc="this.alertCountFor('ready')"/>
+                                            </span>
+                                        </t>
                                     </a>
                                 </li>
                             </ul>
@@ -178,7 +202,8 @@
                                 <t t-if="this.state.stages=='ready'">
                                     <t t-if="order.order_status=='ready'">
                                         <div class="col-lg-4 col-md-6 col-12">
-                                            <div class="card" style="">
+                                            <div class="card" style=""
+                                                 t-att-class="this.state.alertIds.includes(order.id) ? 'kitchen-card-alert' : ''">
                                                 <div class="card-header bg_green">
                                                     <div class="left"
                                                          style="padding-bottom: 8px">
@@ -324,7 +349,8 @@
                                 <t t-elif="this.state.stages=='waiting'">
                                     <t t-if="order.order_status=='waiting'">
                                         <div class="col-lg-4 col-md-6 col-12">
-                                            <div class="card" style="">
+                                            <div class="card" style=""
+                                                 t-att-class="this.state.alertIds.includes(order.id) ? 'kitchen-card-alert' : ''">
                                                 <div class="card-header bg_blue">
                                                     <div class="left"
                                                          style="padding-bottom: 8px">
@@ -571,7 +597,8 @@
                                     <t t-if="order.order_status=='draft'">
                                         <div id="s1"
                                              class="col-lg-4 col-md-6 col-12">
-                                            <div class="card">
+                                            <div class="card"
+                                                 t-att-class="this.state.alertIds.includes(order.id) ? 'kitchen-card-alert' : ''">
                                                 <div class="card-header bg_grey">
                                                     <div class="left"
                                                          style="padding-bottom: 8px">
@@ -755,7 +782,8 @@
                                     <t t-if="order.order_status=='draft'">
                                         <div id="s1"
                                              class="col-lg-4 col-md-6 col-12">
-                                            <div class="card">
+                                            <div class="card"
+                                                 t-att-class="this.state.alertIds.includes(order.id) ? 'kitchen-card-alert' : ''">
                                                 <div class="card-header bg_grey">
                                                     <div class="left"
                                                          style="padding-bottom: 8px">
