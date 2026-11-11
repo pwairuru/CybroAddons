@@ -48,3 +48,63 @@
     padding: 8px 12px 12px;
     width: 100%;
 }
+
+/* Room card info grid: two columns fill card width. */
+.hotel_kanban_cover_card .hotel_room_grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 8px;
+    margin-top: 4px;
+}
+
+.hotel_kanban_cover_card .hotel_room_footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.hotel_kanban_cover_card .hotel_web_tag {
+    font-size: 0.75em;
+    font-weight: 600;
+    color: #5f6368;
+    border: 1px solid #c0c4c9;
+    border-radius: 4px;
+    padding: 0 5px;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+.hotel_kanban_cover_card .hotel_next_guest {
+    font-size: 0.85em;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Room status: muted text-only label, revenue logic.
+   label_selection renders `badge rounded-pill text-bg-<class>`, so target
+   the rendered classes. Transparent bg + dark-muted text overrides the
+   badge default (white text).
+   grey = empty, needs sale · amber = revenue coming · green = revenue now */
+.text-bg-hotel-status-available,
+.text-bg-hotel-status-reserved,
+.text-bg-hotel-status-occupied {
+    background: transparent !important;
+    font-weight: 600;
+    /* undo badge-pill sizing so status matches card text */
+    font-size: inherit !important;
+    line-height: inherit !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+}
+.text-bg-hotel-status-available {
+    color: #5f6368 !important;
+}
+.text-bg-hotel-status-reserved {
+    color: #9a6a00 !important;
+}
+.text-bg-hotel-status-occupied {
+    color: #2e7d4f !important;
+}

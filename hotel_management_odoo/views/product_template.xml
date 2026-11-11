@@ -63,7 +63,11 @@
                                 <field name="floor_id" string="Floor"/>
                                 <field name="user_id" select="2"
                                            string="Room Manager"/>
+                                <field name="manager_override_id"
+                                           string="Manager (override)"/>
                                 <field name="website_published" readonly="1"/>
+                                <field name="website_excluded"
+                                           string="Hide from website"/>
                                 <field name="active"/>
                             </group>
                             <group>
@@ -117,14 +121,12 @@
         <field name="name">product.template.view.list.rooms</field>
         <field name="model">product.template</field>
         <field name="arch" type="xml">
-            <list>
+            <list default_order="room_number">
                 <field name="image_1920" widget="image" class="oe_avatar"/>
                 <field name="room_number" optional="show"/>
                 <field name="name"/>
-                <field name="status" widget="badge"
-                       decoration-success="status == 'available'"
-                       decoration-warning="status == 'reserved'"
-                       decoration-danger="status == 'occupied'"/>
+                <field name="status" widget="label_selection"
+                       options="{'classes': {'available': 'hotel-status-available', 'reserved': 'hotel-status-reserved', 'occupied': 'hotel-status-occupied'}}"/>
                 <field name="is_room_avail" widget="boolean_toggle"/>
                 <field name="floor_id"/>
                 <field name="room_type_id"/>
@@ -140,8 +142,9 @@
         <field name="name">product.template.view.kanban.rooms</field>
         <field name="model">product.template</field>
         <field name="arch" type="xml">
-            <kanban>
+            <kanban default_order="room_number">
                 <field name="name"/>
+                <field name="room_number"/>
                 <field name="image_1920"/>
                 <field name="avatar_128"/>
                 <field name="status"/>
@@ -150,6 +153,9 @@
                 <field name="room_type_id"/>
                 <field name="num_person"/>
                 <field name="list_price"/>
+                <field name="website_published"/>
+                <field name="next_checkin_date"/>
+                <field name="next_guest_name"/>
                 <templates>
                     <t t-name="card">
                         <!-- Image-led cover: website photo on top, details below.
@@ -166,31 +172,49 @@
                             <div class="oe_kanban_details">
                                 <div class="oe_kanban_record_heading">
                                     <strong>
+                                        <t t-if="record.room_number.raw_value">
+                                            <field name="room_number"/>
+                                            ·
+                                        </t>
                                         <field name="name"/>
                                     </strong>
+                                    <t t-if="record.website_published.raw_value">
+                                        <span class="hotel_web_tag">Web</span>
+                                    </t>
                                 </div>
-                                <div>
-                                    <field name="status"/>
-                                    ·
-                                    <field name="floor_id"/>
+                                <div class="hotel_room_grid">
+                                    <div>
+                                        <field name="status" widget="label_selection"
+                                               options="{'classes': {'available': 'hotel-status-available', 'reserved': 'hotel-status-reserved', 'occupied': 'hotel-status-occupied'}}"/>
+                                    </div>
+                                    <div class="text-end">
+                                        <field name="floor_id"/>
+                                    </div>
+                                    <div>
+                                        <field name="room_type_id"/>
+                                    </div>
+                                    <div class="text-end">
+                                        <field name="num_person"/>
+                                        pers
+                                    </div>
                                 </div>
-                                <div>
-                                    <field name="room_type_id"/>
-                                    ·
-                                    <field name="num_person"/>
-                                    pers
-                                </div>
-                                <div>
+                                <div class="hotel_room_footer">
                                     <strong>
                                         <field name="list_price"
                                                 widget="monetary"/>
                                     </strong>
-                                </div>
-                                <div>
                                     <button name="action_reserve_room"
                                             type="object" string="Reserve"
                                             class="btn btn-primary btn-sm"/>
                                 </div>
+                                <t t-if="record.next_checkin_date.raw_value">
+                                    <div class="hotel_next_guest text-muted">
+                                        <field name="next_guest_name"/>
+                                        ·
+                                        <field name="next_checkin_date"
+                                                widget="date"/>
+                                    </div>
+                                </t>
                             </div>
                         </div>
                     </t>
