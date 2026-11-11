@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel Management',
-    'version': '20.0.2.17.0',
+    'version': '20.0.2.18.0',
     'category': 'Industries',
     'summary': """A complete Hotel Management System that cover all areas of 
      Hotel services""" ,
@@ -39,6 +39,7 @@
         'security/ir.access.csv',
         'data/ir_data_sequence.xml',
         'data/account_payment_fix.xml',
+        'report/report_paybill_block.xml',
         'report/room_booking_reports.xml',
         'report/sale_order_reports.xml',
         'report/combined_bill_report.xml',

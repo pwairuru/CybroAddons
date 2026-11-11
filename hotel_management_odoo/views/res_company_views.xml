@@ -14,6 +14,10 @@
                     <field name="no_show_policy"/>
                     <field name="no_show_fee_product_id"/>
                 </group>
+                <group string="M-Pesa">
+                    <field name="mpesa_paybill_number" placeholder="e.g. 4141717"/>
+                    <field name="mpesa_paybill_account" placeholder="e.g. CAMP DAVID UNITED"/>
+                </group>
             </field>
         </field>
     </record>

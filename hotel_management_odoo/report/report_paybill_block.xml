@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Single shared M-Pesa paybill block for all guest documents.
+         Pass the company record as `company`. Hidden when empty so
+         customers without a paybill see no block. -->
+    <template id="paybill_block" name="Guest document M-Pesa paybill">
+        <t t-if="company and company.mpesa_paybill_number">
+            <div class="text-center mt-3 mb-2" style="border-top: 1px dashed black; border-bottom: 1px dashed black; padding: 6px 0;">
+                <div><strong>M-PESA PAYBILL: <t t-out="company.mpesa_paybill_number"/></strong></div>
+                <div t-if="company.mpesa_paybill_account"><strong>ACCOUNT: <t t-out="company.mpesa_paybill_account"/></strong></div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Single shared Served-by line. Pass the already-trimmed first
+         name as `server_name`; nothing renders when empty. -->
+    <template id="served_by_line" name="Guest document served-by">
+        <t t-if="server_name">
+            <div class="text-center text-muted mt-2">Served by: <t t-out="server_name"/></div>
+        </t>
+    </template>
+</odoo>
