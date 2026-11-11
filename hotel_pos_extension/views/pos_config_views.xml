@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Per-terminal M-Pesa paybill, printed on this register's receipts.
+         Free-form so each customer sets their own numbers; empty hides
+         the M-Pesa block on the ticket. -->
+    <record id="pos_config_view_form_inherit_receipt_paybill" model="ir.ui.view">
+        <field name="name">pos.config.view.form.inherit.receipt.paybill</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='configuration']//setting[field[@name='default_partner_id']]" position="after">
+                <setting string="M-Pesa Paybill" help="Paybill number and account name printed on this terminal's receipts. Leave empty to hide the M-Pesa block.">
+                    <div class="content-group">
+                        <div class="row mb-2">
+                            <div class="col-lg-2 o_light_label">
+                                <label string="Paybill" for="receipt_paybill_number"/>
+                            </div>
+                            <div class="col-lg-5">
+                                <field name="receipt_paybill_number" placeholder="e.g. 4141717"/>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-lg-2 o_light_label">
+                                <label string="Account Name" for="receipt_paybill_account"/>
+                            </div>
+                            <div class="col-lg-5">
+                                <field name="receipt_paybill_account" placeholder="e.g. CAMP DAVID UNITED"/>
+                            </div>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>
