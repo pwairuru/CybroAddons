@@ -73,3 +73,10 @@ class TestPosReceiptPaybill(TransactionCase):
             [('key', '=', 'hotel_pos_extension.pos_order_receipt_footer_extras')], limit=1)
         self.assertTrue(template)
         self.assertIn('mpesa_paybill_number', template.arch_db)
+
+    def test_receipt_footer_shows_served_by(self):
+        """Receipt footer carries Served by (cashier first name)."""
+        view = self._receipt_extras_view()
+        self.assertTrue(view, 'receipt extras template not installed')
+        self.assertIn('Served by', view.arch_db)
+        self.assertIn('cashier_name', view.arch_db)

@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel Management',
-    'version': '20.0.2.18.0',
+    'version': '20.0.2.19.0',
     'category': 'Industries',
     'summary': """A complete Hotel Management System that cover all areas of 
      Hotel services""" ,

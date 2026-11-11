@@ -20,6 +20,7 @@
                     <div t-if="paybill_account" class="text-normal text-bold">ACCOUNT: <t t-out="paybill_account"/></div>
                 </div>
             </t>
+            <div t-if="extra_data.get('cashier_name')" class="w-100 text-center text-small">Served by: <t t-out="extra_data['cashier_name']"/></div>
         </xpath>
         <!-- Small vendor credit appended at the very bottom of the ticket. -->
         <xpath expr="//div[hasclass('w-100','text-center','mt-3')]" position="inside">

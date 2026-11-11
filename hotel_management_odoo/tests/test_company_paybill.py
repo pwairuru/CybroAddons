@@ -75,6 +75,13 @@ class TestGuestReportsPaybill(TransactionCase):
         self.assertIn('paybill_block', arch)
         self.assertIn('served_by_line', arch)
 
+    def test_invoice_paybill_below_amount_in_words(self):
+        """Paybill + served-by sit below totals+words, above payment
+        terms: anchored before #payment_term, not after #total."""
+        arch = self._arch('report_invoice_document_hotel_meal')
+        self.assertIn('div[@id=\'payment_term\']', arch)
+        self.assertNotIn('div[@id=\'total\']', arch)
+
     def test_no_hardcoded_paybill_in_reports(self):
         for key in ('report_combined_bill', 'report_hotel_folio_statement',
                     'report_invoice_document_hotel_meal',
