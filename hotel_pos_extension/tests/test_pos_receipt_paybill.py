@@ -67,3 +67,9 @@ class TestPosReceiptPaybill(TransactionCase):
         self.assertTrue(view, 'receipt extras template not installed')
         self.assertNotIn('4141717', view.arch_db)
         self.assertNotIn('CAMP DAVID UNITED', view.arch_db)
+
+    def test_receipt_prefers_terminal_over_company(self):
+        template = self.env['ir.ui.view'].search(
+            [('key', '=', 'hotel_pos_extension.pos_order_receipt_footer_extras')], limit=1)
+        self.assertTrue(template)
+        self.assertIn('mpesa_paybill_number', template.arch_db)
