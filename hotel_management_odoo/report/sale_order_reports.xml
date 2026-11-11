@@ -49,6 +49,9 @@
                             </td>
                         </tr>
                     </table>
+                    <t t-call="hotel_management_odoo.paybill_block" company="o.company_id"/>
+                    <t t-set="server_first" t-value="(o.create_uid.display_name or '').split(' ')[0]"/>
+                    <t t-call="hotel_management_odoo.served_by_line" server_name="server_first"/>
                 </div>
             </t>
             </t>
