@@ -52,6 +52,8 @@ class ResCompany(models.Model):
         string='M-Pesa Account Name',
         help='Account name printed under the paybill on guest documents.')
 
+    public_auto_confirm = fields.Boolean(string='Auto-confirm public bookings', default=True)
+
     @api.model
     def _load_pos_data_fields(self, config):
         fields_list = super()._load_pos_data_fields(config)

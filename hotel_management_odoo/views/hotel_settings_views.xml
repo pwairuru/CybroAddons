@@ -12,6 +12,11 @@
                             <field name="hotel_capacity_policy"/>
                         </setting>
                     </block>
+                    <block title="Public Bookings" name="hotel_public_booking">
+                        <setting string="Auto-confirm public bookings" help="When enabled, public bookings confirm automatically.">
+                            <field name="public_auto_confirm"/>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>

@@ -15,3 +15,4 @@ class HotelSettings(models.TransientModel):
         'the room capacity (room persons or type max occupants; '
         'toddlers never count). Block saving refuses to save the '
         'line; Warn only allows it and flags the line.')
+    public_auto_confirm = fields.Boolean(related='company_id.public_auto_confirm', readonly=False)
