@@ -14,6 +14,23 @@ class HotelPublicBooking(models.AbstractModel):
     _IDEM_RE = re.compile(r'^[\w-]{1,64}$')
     _LAST3_RE = re.compile(r'^\d{3}$')
 
+    @staticmethod
+    def _like_escape(s):
+        # Escape LIKE wildcards so ilike auto-wrap still matches literally.
+        return s.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+    @staticmethod
+    def _normalize_phone(raw):
+        # Canonicalize KE mobile: 07XX... / 2547XX... -> +2547XX...
+        p = (raw or '').strip().replace(' ', '').replace('-', '')
+        m = re.fullmatch(r'0(\d{9})', p)
+        if m:
+            return '+254' + m.group(1)
+        m = re.fullmatch(r'254(\d{9})', p)
+        if m:
+            return '+' + p
+        return p[:20]
+
     @api.model
     def get_public_confirmation(self, ref, last3):
         """Read-only PII gate for /book/done. Returns a sanitized dict
@@ -94,8 +111,10 @@ class HotelPublicBooking(models.AbstractModel):
         co = fields.Date.from_string(vals.get('co'))
         if not ci or not co or co <= ci or (co - ci).days > 30:
             raise ValueError('bad dates')
+        if ci < fields.Date.context_today(self):
+            raise ValueError('bad dates')
         name = (vals.get('name') or '').strip()[:80]
-        phone = (vals.get('phone') or '').strip().replace(' ', '')[:20]
+        phone = self._normalize_phone(vals.get('phone'))
         if len(name) < 2 or len(phone) < 9:
             raise ValueError('bad guest')
         email = (vals.get('email') or '').strip()[:120]
@@ -109,6 +128,15 @@ class HotelPublicBooking(models.AbstractModel):
         except Exception:
             raise ValueError('bad pax')
         S = self.sudo()
+        # Capacity gate mirrors room.booking.line (room num_person, else
+        # type max_occupants). Public books are always blocked, never warned.
+        room = S.env['product.template'].browse(room_id)
+        if not room.exists() or not room.is_room:
+            raise ValueError('bad room')
+        pax = adults + children
+        rt_max = room.room_type_id.max_occupants if room.room_type_id else 0
+        if (room.num_person and pax > room.num_person) or (rt_max and pax > rt_max):
+            raise ValueError('over capacity')
         # idempotency: room.booking has no ref/client field (no new stored
         # fields allowed), so reuse the booking already posted with this
         # chatter marker.
@@ -116,7 +144,7 @@ class HotelPublicBooking(models.AbstractModel):
             marker = 'public-idem:%s' % idem
             msg = S.env['mail.message'].search(
                 [('model', '=', 'room.booking'),
-                 ('body', 'ilike', marker)],
+                 ('body', 'ilike', self._like_escape(marker))],
                 order='id desc', limit=1)
             if msg and msg.res_id:
                 dup = S.env['room.booking'].browse(msg.res_id)

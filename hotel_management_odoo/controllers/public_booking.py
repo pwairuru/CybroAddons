@@ -5,6 +5,19 @@ from odoo.http import request
 ALLOWED_POST = {'room_id', 'ci', 'co', 'adults', 'children', 'name',
                 'phone', 'email', 'notes', 'idem_key', 'honeypot'}
 
+# ?e= taxonomy (never leak exception names to guests):
+# spam = honeypot trip; unavailable = sold out / over capacity, retry dates;
+# invalid = everything else (bad dates, guest, pax, room).
+_UNAVAILABLE = ('room just sold', 'over capacity')
+
+
+def _err_code(exc):
+    msg = str(exc)
+    for needle in _UNAVAILABLE:
+        if needle in msg:
+            return 'unavailable'
+    return 'invalid'
+
 
 class PublicBooking(http.Controller):
     @http.route('/book', type='http', auth='public', website=False, methods=['GET'])
@@ -25,12 +38,13 @@ class PublicBooking(http.Controller):
         try:
             bk = request.env['hotel.public.booking'].sudo().create_booking(vals)
         except Exception as e:
-            return request.redirect('/book?e=%s' % type(e).__name__)
+            return request.redirect('/book?e=%s' % _err_code(e))
         return request.redirect('/book/done?ref=%s' % bk.name)
 
     @http.route('/book/done', type='http', auth='public', website=False, methods=['GET'])
     def done(self, ref=None, **kw):
         # Whitelist-only gate params; lookup is read-only + PII-gated in service.
+        ref = (ref or '').strip()[:64] or None
         last3 = kw.get('last3') if isinstance(kw.get('last3'), str) else None
         confirmation = None
         if ref and last3:
