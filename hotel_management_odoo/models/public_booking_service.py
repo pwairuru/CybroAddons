@@ -1,9 +1,17 @@
 # models/public_booking_service.py
+import html as _html
+import re
 from datetime import datetime, timezone
 from odoo import api, fields, models
+
+
 class HotelPublicBooking(models.AbstractModel):
     _name = 'hotel.public.booking'
     _description = 'Public booking service (isolated, no storage)'
+
+    ALLOWED = {'room_id', 'ci', 'co', 'adults', 'children', 'name',
+               'phone', 'email', 'notes', 'idem_key'}
+    _IDEM_RE = re.compile(r'^[\w-]{1,64}$')
     @api.model
     def search_free(self, ci_date, co_date, adults=2, children=0):
         ci = fields.Date.from_string(ci_date); co = fields.Date.from_string(co_date)
@@ -37,3 +45,88 @@ class HotelPublicBooking(models.AbstractModel):
     @api.model
     def booked_ranges(self, room_id, dfrom, dto):
         return []
+
+    @api.model
+    def create_booking(self, vals):
+        # Whitelist-only: model/res_id/method/__ etc all rejected here.
+        vals = dict(vals or {})
+        extra = set(vals) - self.ALLOWED
+        if extra:
+            raise ValueError('rejected fields: %s' % sorted(extra))
+        # normalize + validate (no eval, no browsing arbitrary models)
+        try:
+            room_id = int(vals.get('room_id') or 0)
+        except Exception:
+            raise ValueError('bad room')
+        ci = fields.Date.from_string(vals.get('ci'))
+        co = fields.Date.from_string(vals.get('co'))
+        if not ci or not co or co <= ci or (co - ci).days > 30:
+            raise ValueError('bad dates')
+        name = (vals.get('name') or '').strip()[:80]
+        phone = (vals.get('phone') or '').strip().replace(' ', '')[:20]
+        if len(name) < 2 or len(phone) < 9:
+            raise ValueError('bad guest')
+        email = (vals.get('email') or '').strip()[:120]
+        notes = (vals.get('notes') or '').strip()[:500]
+        idem = (vals.get('idem_key') or '').strip()[:64]
+        if idem and not self._IDEM_RE.match(idem):
+            raise ValueError('bad idem_key')
+        try:
+            adults = max(1, int(vals.get('adults') or 1))
+            children = max(0, int(vals.get('children') or 0))
+        except Exception:
+            raise ValueError('bad pax')
+        S = self.sudo()
+        # idempotency: room.booking has no ref/client field (no new stored
+        # fields allowed), so reuse the booking already posted with this
+        # chatter marker.
+        if idem:
+            marker = 'public-idem:%s' % idem
+            msg = S.env['mail.message'].search(
+                [('model', '=', 'room.booking'),
+                 ('body', 'ilike', marker)],
+                order='id desc', limit=1)
+            if msg and msg.res_id:
+                dup = S.env['room.booking'].browse(msg.res_id)
+                if dup.exists():
+                    return dup
+        free = {r['id'] for r in self.search_free(vals.get('ci'), vals.get('co'))}
+        if room_id not in free:
+            raise ValueError('room just sold')
+        company = S.env.company
+        partner = S.env['res.partner'].search([('phone', '=', phone)], limit=1)
+        if not partner:
+            partner = S.env['res.partner'].create({
+                'name': name, 'phone': phone, 'email': email or False,
+                'company_id': company.id,
+            })
+        # 14:00/11:00 mirrors channel sync; sits inside search_free window.
+        checkin_dt = fields.Datetime.to_string(
+            datetime(ci.year, ci.month, ci.day, 14, 0, 0))
+        checkout_dt = fields.Datetime.to_string(
+            datetime(co.year, co.month, co.day, 11, 0, 0))
+        bk = S.env['room.booking'].create({
+            'partner_id': partner.id,
+            'company_id': company.id,
+            'checkin_date': checkin_dt,
+            'checkout_date': checkout_dt,
+        })
+        S.env['room.booking.line'].create({
+            'booking_id': bk.id,
+            'company_id': company.id,
+            'room_id': room_id,
+            'checkin_date': checkin_dt,
+            'checkout_date': checkout_dt,
+            'adults': adults,
+            'children': children,
+        })
+        body = 'source: public /book' + (' public-idem:%s' % idem if idem else '')
+        if notes:
+            body += '<br/>notes: %s' % _html.escape(notes)
+        bk.message_post(body=body)
+        if S.env.company.public_auto_confirm:
+            try:
+                bk.action_reserve()
+            except Exception:
+                pass
+        return bk
