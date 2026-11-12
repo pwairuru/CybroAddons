@@ -12,8 +12,8 @@ class HotelPublicBooking(models.AbstractModel):
         rooms = self.env['product.template'].sudo().search([
             ('is_room','=',True),('website_published','=',True),('active','=',True)])
         if not rooms: return []
-        ooo = set(self.env['hotel.daily.inventory']._ooo_room_ids())
-        dirty = set(self.env['hotel.daily.inventory']._dirty_room_ids())
+        ooo = set(self.env['hotel.daily.inventory'].sudo()._ooo_room_ids())
+        dirty = set(self.env['hotel.daily.inventory'].sudo()._dirty_room_ids())
         wstart = datetime.combine(ci, datetime.min.time()).replace(tzinfo=timezone.utc).replace(tzinfo=None)
         wend = datetime.combine(co, datetime.max.time()).replace(tzinfo=timezone.utc).replace(tzinfo=None)
         busy = set(self.env['room.booking.line'].sudo().search([
