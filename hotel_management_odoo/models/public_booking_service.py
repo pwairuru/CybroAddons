@@ -89,7 +89,14 @@ class HotelPublicBooking(models.AbstractModel):
                 if line: nightly = line.price
             except Exception: pass
             out.append({'id': r.id, 'name': r.name, 'type': r.room_type_id.name or '',
-                        'nightly': float(nightly), 'total': float(nightly) * nights})
+                        'nightly': float(nightly), 'total': float(nightly) * nights,
+                        'nightly_str': 'KES {:,.0f}'.format(nightly),
+                        'total_str': 'KES {:,.0f}'.format(float(nightly) * nights),
+                        'image_url': '/book/room-image/%d' % r.id,
+                        'adult_capacity': r.room_type_id.adult_capacity or 0,
+                        'max_occupants': r.room_type_id.max_occupants or 0,
+                        'amenities': [a.name for a in r.room_type_id.amenity_ids if a.name],
+                        })
         return out
     @api.model
     def booked_ranges(self, room_id, dfrom, dto):

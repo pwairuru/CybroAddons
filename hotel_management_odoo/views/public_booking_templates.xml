@@ -33,9 +33,11 @@
 
 <template id="public_book_page" name="Public book page">
 <t t-call="hotel_management_odoo.public_book_layout">
-<div class="book-wrap">
-
+<div class="book-hero">
 <h1>Book your stay</h1>
+<p class="tagline">Savannah views, infinity pool, Enkai Spa — minutes from Nairobi National Park.</p>
+</div>
+<div class="book-wrap">
 
 <!-- Friendly error copy: never render raw ?e= codes to guests. -->
 <t t-if="kw.get('e') == 'spam'">
@@ -64,21 +66,38 @@ sold, or a detail needs checking. Please try again, or write to
 <button type="submit">Check availability</button>
 </form>
 
-<p class="avail-note" data-avail-note="1"></p>
-
 <t t-if="kw.get('ci') and kw.get('co')">
 <t t-if="not rooms">
 <p class="empty">No rooms free for those dates. Try different dates —
 or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
 </t>
+<div class="room-grid">
 <t t-foreach="rooms" t-as="r">
-<div class="room">
-<h2><t t-esc="r['name']"/></h2>
-<p class="room-type"><t t-esc="r['type']"/></p>
-<p class="price"><t t-esc="r['nightly']"/> / night · total <t t-esc="r['total']"/></p>
+<article class="room-card">
+<img class="room-photo" t-att-src="r.image_url" t-att-alt="r.name" loading="lazy" onerror="this.style.display='none'"/>
+<div class="room-body">
+<span class="room-type-badge"><t t-out="r.type"/></span>
+<h2><t t-out="r.name"/></h2>
+<t t-if="r.amenities">
+<p class="amenities"><t t-out="', '.join(r.amenities[:6])"/></p>
+</t>
+<p class="capacity">Sleeps <t t-out="r.max_occupants"/> · <t t-out="r.adult_capacity"/> adults</p>
+<p class="price"><strong><t t-out="r.nightly_str"/></strong> / night</p>
+<p class="price-total">Total <t t-out="r.total_str"/> · taxes included</p>
+<button type="button" class="select-room"
+t-att-data-room-id="r.id" t-att-data-room-name="r.name"
+t-att-data-room-type="r.type" t-att-data-total="r.total_str">Select this room</button>
+</div>
+</article>
+</t>
+</div>
+
+<dialog id="book-dialog" class="book-dialog">
 <form class="book-confirm" action="/book/confirm" method="post">
+<h2>Reserve <span data-dlg-room="1"></span></h2>
+<p class="dlg-summary" data-dlg-summary="1"></p>
 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-<input type="hidden" name="room_id" t-att-value="r['id']"/>
+<input type="hidden" name="room_id" data-dlg-room-id="1"/>
 <input type="hidden" name="ci" t-att-value="kw.get('ci', '')"/>
 <input type="hidden" name="co" t-att-value="kw.get('co', '')"/>
 <input type="hidden" name="adults" t-att-value="kw.get('adults', '2')"/>
@@ -88,7 +107,7 @@ or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
 <input type="text" name="name" required="required" maxlength="80" autocomplete="name"/>
 </label>
 <label>Phone
-<input type="tel" name="phone" required="required" maxlength="20" autocomplete="tel"/>
+<input type="tel" name="phone" required="required" maxlength="20" autocomplete="tel" placeholder="+2547..."/>
 </label>
 <label>Email (optional)
 <input type="email" name="email" maxlength="120" autocomplete="email"/>
@@ -96,10 +115,12 @@ or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
 <label>Notes (optional)
 <textarea name="notes" maxlength="500" rows="2"></textarea>
 </label>
-<button type="submit">Reserve this room</button>
-</form>
+<div class="dlg-actions">
+<button type="submit">Confirm reservation</button>
+<button type="button" data-dlg-close="1">Back</button>
 </div>
-</t>
+</form>
+</dialog>
 </t>
 
 </div>
@@ -114,11 +135,11 @@ or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
 <t t-if="confirmation">
 <p class="ok">Thank you — your reservation is with us.</p>
 <dl class="confirm">
-<dt>Reference</dt><dd><t t-esc="confirmation['ref']"/></dd>
-<dt>Check-in</dt><dd><t t-esc="confirmation['ci']"/></dd>
-<dt>Check-out</dt><dd><t t-esc="confirmation['co']"/></dd>
-<dt>Room</dt><dd><t t-esc="confirmation['room']"/></dd>
-<dt>Status</dt><dd><t t-esc="confirmation['state']"/></dd>
+<dt>Reference</dt><dd><t t-out="confirmation.ref"/></dd>
+<dt>Check-in</dt><dd><t t-out="confirmation.ci"/></dd>
+<dt>Check-out</dt><dd><t t-out="confirmation.co"/></dd>
+<dt>Room</dt><dd><t t-out="confirmation.room"/></dd>
+<dt>Status</dt><dd><t t-out="confirmation.state"/></dd>
 </dl>
 <p class="hint">Show this reference at reception. Questions?
 <a href="https://wa.me/254743187486">WhatsApp +254743187486</a>.</p>
