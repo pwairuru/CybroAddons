@@ -89,8 +89,13 @@
         'wizard/hotel_report_pack_views.xml',
         'wizard/hotel_rate_line_generator_views.xml',
         'views/hotel_rate_setup_views.xml',
+        'views/public_booking_templates.xml',
     ],
     'assets': {
+        'web.assets_frontend': [
+            'hotel_management_odoo/static/src/css/book.css',
+            'hotel_management_odoo/static/src/js/book.js',
+        ],
         'web.assets_backend': [
             'hotel_management_odoo/static/src/js/action_manager.js',
             'hotel_management_odoo/static/src/js/dashboard_action.js',

@@ -12,6 +12,38 @@ class HotelPublicBooking(models.AbstractModel):
     ALLOWED = {'room_id', 'ci', 'co', 'adults', 'children', 'name',
                'phone', 'email', 'notes', 'idem_key'}
     _IDEM_RE = re.compile(r'^[\w-]{1,64}$')
+    _LAST3_RE = re.compile(r'^\d{3}$')
+
+    @api.model
+    def get_public_confirmation(self, ref, last3):
+        """Read-only PII gate for /book/done. Returns a sanitized dict
+        (ref, ci, co, room, state) only when `ref` names a booking whose
+        partner phone ends with `last3`; else None. Never raises, never
+        writes, adds no stored fields."""
+        try:
+            ref = (ref or '').strip()[:64]
+            tail = re.sub(r'\D', '', str(last3 or ''))[-3:]
+            if not ref or not self._LAST3_RE.match(tail):
+                return None
+            S = self.sudo()
+            bk = S.env['room.booking'].search([('name', '=', ref)], limit=1)
+            if not bk:
+                return None
+            phone_digits = re.sub(r'\D', '', bk.partner_id.phone or '')
+            if not phone_digits or not phone_digits.endswith(tail):
+                return None
+            line = S.env['room.booking.line'].search(
+                [('booking_id', '=', bk.id)], limit=1)
+            room_name = line.room_id.display_name if line and line.room_id else ''
+            return {
+                'ref': bk.name,
+                'ci': fields.Date.to_string(bk.checkin_date.date()) if bk.checkin_date else '',
+                'co': fields.Date.to_string(bk.checkout_date.date()) if bk.checkout_date else '',
+                'room': room_name,
+                'state': dict(bk._fields['state'].selection).get(bk.state, bk.state),
+            }
+        except Exception:
+            return None
     @api.model
     def search_free(self, ci_date, co_date, adults=2, children=0):
         ci = fields.Date.from_string(ci_date); co = fields.Date.from_string(co_date)

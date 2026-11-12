@@ -1,0 +1,115 @@
+/* Esidai blend — earthy savannah greens/browns, serif display. Mobile-first. */
+:root {
+  --sav: #3f5a3c;
+  --sav-deep: #2e4430;
+  --sand: #efe7d7;
+  --clay: #8a6a4f;
+  --ink: #243024;
+  --card: #fffdf8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--sand);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+h1, h2, .brand {
+  font-family: Georgia, "Playfair Display", "Times New Roman", serif;
+  color: var(--sav-deep);
+}
+.esidai-nav {
+  background: #fff;
+  border-bottom: 3px solid var(--sav);
+  padding: .8rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .6rem 1rem;
+}
+.brand { font-size: 1.25rem; font-weight: 700; }
+.esidai-nav nav { display: flex; gap: 1rem; align-items: center; margin-left: auto; }
+.esidai-nav a { color: var(--sav-deep); text-decoration: none; }
+.cta {
+  background: var(--sav);
+  color: #fff !important;
+  padding: .6rem 1.2rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.esidai-main { padding: 1rem; }
+.book-wrap { max-width: 44rem; margin: 0 auto; }
+.search, .book-confirm, .gate {
+  display: grid;
+  gap: .7rem;
+  background: var(--card);
+  border: 1px solid var(--clay);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+label { display: grid; gap: .25rem; font-weight: 600; }
+input, textarea, button { font-size: 1rem; padding: .55rem .7rem; }
+input, textarea {
+  border: 1px solid var(--clay);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+}
+button {
+  background: var(--sav);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+button:hover { background: var(--sav-deep); }
+.room {
+  background: var(--card);
+  border: 1px solid var(--clay);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: .8rem 0;
+}
+.room-type { color: var(--clay); margin: 0 0 .4rem; }
+.price { font-weight: 700; }
+.alert {
+  background: #fbf3e4;
+  border-left: 4px solid var(--clay);
+  padding: .7rem 1rem;
+  border-radius: 0 8px 8px 0;
+}
+.ok {
+  background: #e7efe2;
+  border-left: 4px solid var(--sav);
+  padding: .7rem 1rem;
+  border-radius: 0 8px 8px 0;
+}
+.confirm dt { font-weight: 700; color: var(--sav-deep); }
+.confirm dd { margin: 0 0 .5rem; }
+.empty, .hint, .avail-note { color: var(--sav-deep); }
+/* Honeypot: humans never see it, bots fill it. */
+.hp-trap {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px; height: 1px;
+  opacity: 0;
+}
+/* Wider screens: two-column search, room cards side by side. */
+@media (min-width: 44rem) {
+  .search { grid-template-columns: 1fr 1fr; }
+  .search button { grid-column: 1 / -1; }
+}
+.esidai-foot {
+  border-top: 3px solid var(--sav);
+  background: #fff;
+  padding: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.2rem;
+  font-size: .9rem;
+}
+.esidai-foot a { color: var(--sav-deep); }

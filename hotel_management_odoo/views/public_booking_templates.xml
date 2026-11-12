@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo><data>
+
+<!-- Standalone layout: no website assets. Esidai blend. -->
+<template id="public_book_layout" name="Public book layout">
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Book — Esidai Spa &amp; Resort</title>
+<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css"/>
+</head>
+<body>
+<header class="esidai-nav">
+<span class="brand">Esidai Spa &amp; Resort</span>
+<nav>
+<a href="https://www.esidaisparesort.com/">Stay</a>
+<a href="https://www.esidaisparesort.com/dining/">Dining</a>
+<a href="/book" class="cta">BOOK NOW</a>
+</nav>
+</header>
+<main class="esidai-main"><t t-out="0"/></main>
+<footer class="esidai-foot">
+<span>Tuala, Kajiado County</span>
+<span><a href="mailto:reservations@esidaisparesort.com">reservations@esidaisparesort.com</a></span>
+<span><a href="tel:+254743187486">+254743187486</a></span>
+<span><a href="https://wa.me/254743187486">WhatsApp</a></span>
+</footer>
+<script src="/hotel_management_odoo/static/src/js/book.js"></script>
+</body>
+</html>
+</template>
+
+<template id="public_book_page" name="Public book page">
+<t t-call="hotel_management_odoo.public_book_layout">
+<div class="book-wrap">
+
+<h1>Book your stay</h1>
+
+<!-- Friendly error copy: never render raw ?e= codes to guests. -->
+<t t-if="kw.get('e') == 'spam'">
+<p class="alert">Thank you — please try once more, or reach us on WhatsApp
+<a href="https://wa.me/254743187486">+254743187486</a>.</p>
+</t>
+<t t-elif="kw.get('e')">
+<p class="alert">We couldn’t complete that booking — those dates may have just
+sold, or a detail needs checking. Please try again, or write to
+<a href="mailto:reservations@esidaisparesort.com">reservations@esidaisparesort.com</a>.</p>
+</t>
+
+<form class="search" action="/book" method="get">
+<label>Check-in
+<input type="date" name="ci" required="required" t-att-value="kw.get('ci', '')"/>
+</label>
+<label>Check-out
+<input type="date" name="co" required="required" t-att-value="kw.get('co', '')"/>
+</label>
+<label>Adults
+<input type="number" name="adults" min="1" value="2" t-att-value="kw.get('adults', '2')"/>
+</label>
+<label>Children
+<input type="number" name="children" min="0" value="0" t-att-value="kw.get('children', '0')"/>
+</label>
+<button type="submit">Check availability</button>
+</form>
+
+<p class="avail-note" data-avail-note="1"></p>
+
+<t t-if="kw.get('ci') and kw.get('co')">
+<t t-if="not rooms">
+<p class="empty">No rooms free for those dates. Try different dates —
+or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
+</t>
+<t t-foreach="rooms" t-as="r">
+<div class="room">
+<h2><t t-esc="r['name']"/></h2>
+<p class="room-type"><t t-esc="r['type']"/></p>
+<p class="price"><t t-esc="r['nightly']"/> / night · total <t t-esc="r['total']"/></p>
+<form class="book-confirm" action="/book/confirm" method="post">
+<input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+<input type="hidden" name="room_id" t-att-value="r['id']"/>
+<input type="hidden" name="ci" t-att-value="kw.get('ci', '')"/>
+<input type="hidden" name="co" t-att-value="kw.get('co', '')"/>
+<input type="hidden" name="adults" t-att-value="kw.get('adults', '2')"/>
+<input type="hidden" name="children" t-att-value="kw.get('children', '0')"/>
+<input type="text" name="honeypot" class="hp-trap" autocomplete="off" tabindex="-1"/>
+<label>Full name
+<input type="text" name="name" required="required" maxlength="80" autocomplete="name"/>
+</label>
+<label>Phone
+<input type="tel" name="phone" required="required" maxlength="20" autocomplete="tel"/>
+</label>
+<label>Email (optional)
+<input type="email" name="email" maxlength="120" autocomplete="email"/>
+</label>
+<label>Notes (optional)
+<textarea name="notes" maxlength="500" rows="2"></textarea>
+</label>
+<button type="submit">Reserve this room</button>
+</form>
+</div>
+</t>
+</t>
+
+</div>
+</t>
+</template>
+
+<!-- PII-free: renders ref + dates + room only after ref + phone-last-3 gate. -->
+<template id="public_book_done" name="Public book done">
+<t t-call="hotel_management_odoo.public_book_layout">
+<div class="book-wrap">
+<h1>Booking received</h1>
+<t t-if="confirmation">
+<p class="ok">Thank you — your reservation is with us.</p>
+<dl class="confirm">
+<dt>Reference</dt><dd><t t-esc="confirmation['ref']"/></dd>
+<dt>Check-in</dt><dd><t t-esc="confirmation['ci']"/></dd>
+<dt>Check-out</dt><dd><t t-esc="confirmation['co']"/></dd>
+<dt>Room</dt><dd><t t-esc="confirmation['room']"/></dd>
+<dt>Status</dt><dd><t t-esc="confirmation['state']"/></dd>
+</dl>
+<p class="hint">Show this reference at reception. Questions?
+<a href="https://wa.me/254743187486">WhatsApp +254743187486</a>.</p>
+</t>
+<t t-else="">
+<t t-if="ref and last3">
+<p class="alert">We couldn’t match that reference with those digits.
+Check both and try again.</p>
+</t>
+<p>Enter your booking reference plus the last 3 digits of the phone
+number used at booking to view it.</p>
+<form class="gate" action="/book/done" method="get">
+<label>Booking reference
+<input type="text" name="ref" required="required" t-att-value="ref or ''"/>
+</label>
+<label>Last 3 digits of phone
+<input type="text" name="last3" required="required" maxlength="3"
+pattern="[0-9]{3}" inputmode="numeric" t-att-value="last3 or ''"/>
+</label>
+<button type="submit">View booking</button>
+</form>
+</t>
+</div>
+</t>
+</template>
+
+</data></odoo>

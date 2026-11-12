@@ -29,5 +29,12 @@ class PublicBooking(http.Controller):
         return request.redirect('/book/done?ref=%s' % bk.name)
 
     @http.route('/book/done', type='http', auth='public', website=False, methods=['GET'])
-    def done(self, ref=None):
-        return request.render('hotel_management_odoo.public_book_done', {'ref': ref})
+    def done(self, ref=None, **kw):
+        # Whitelist-only gate params; lookup is read-only + PII-gated in service.
+        last3 = kw.get('last3') if isinstance(kw.get('last3'), str) else None
+        confirmation = None
+        if ref and last3:
+            confirmation = request.env['hotel.public.booking'].sudo().get_public_confirmation(ref, last3)
+        return request.render('hotel_management_odoo.public_book_done', {
+            'ref': ref, 'last3': last3, 'confirmation': confirmation,
+        })
