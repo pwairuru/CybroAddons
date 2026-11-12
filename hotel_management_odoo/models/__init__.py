@@ -59,3 +59,4 @@ from . import hotel_settings
 from . import hotel_rate_line
 from . import hotel_rate_supplement
 from . import service_booking_line
+from . import public_booking_service
