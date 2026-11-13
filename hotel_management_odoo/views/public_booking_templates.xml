@@ -52,10 +52,12 @@ sold, or a detail needs checking. Please try again, or write to
 
 <form class="search" action="/book" method="get">
 <label>Check-in
-<input type="date" name="ci" required="required" t-att-value="kw.get('ci', '')"/>
+<input type="text" readonly="readonly" data-cal-show="ci" placeholder="Add date" autocomplete="off"/>
+<input type="hidden" name="ci" t-att-value="kw.get('ci', '')"/>
 </label>
 <label>Check-out
-<input type="date" name="co" required="required" t-att-value="kw.get('co', '')"/>
+<input type="text" readonly="readonly" data-cal-show="co" placeholder="Add date" autocomplete="off"/>
+<input type="hidden" name="co" t-att-value="kw.get('co', '')"/>
 </label>
 <label>Adults
 <input type="number" name="adults" min="1" value="2" t-att-value="kw.get('adults', '2')"/>
@@ -67,7 +69,7 @@ sold, or a detail needs checking. Please try again, or write to
 </form>
 
 <t t-if="kw.get('ci') and kw.get('co')">
-<p class="stay-summary"><t t-out="len(rooms)"/> rooms · <t t-out="nights"/> nights · <t t-out="kw.get('adults', '2')"/> adults<t t-if="kw.get('children')"> · <t t-out="kw.get('children')"/> children</t></p>
+<p class="stay-summary"><t t-out="len(rooms)"/> rooms · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> adults<t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> children</t></p>
 <t t-if="not rooms">
 <p class="empty">No rooms free for those dates. Try different dates —
 or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>

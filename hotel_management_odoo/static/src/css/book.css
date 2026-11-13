@@ -181,6 +181,64 @@ button:hover { background: var(--sav-deep); }
 .confirm dt { font-weight: 700; color: var(--sav-deep); }
 .confirm dd { margin: 0 0 .5rem; }
 .empty, .hint { color: var(--sav-deep); }
+/* Esidai calendar popup */
+.search input[data-cal-show] { cursor: pointer; background: #fff; }
+.cal-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+  padding: 1.1rem 1.2rem 1rem;
+  z-index: 60;
+  width: min(22rem, calc(100vw - 2.5rem));
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .6rem;
+}
+.cal-title { font-family: Georgia, serif; font-weight: 700; color: var(--sav-deep); font-size: 1.1rem; }
+.cal-nav {
+  background: #e9e2cf;
+  color: var(--sav-deep);
+  border-radius: 50%;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.cal-nav:disabled { opacity: .35; cursor: default; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .15rem; }
+.cal-dow { text-align: center; font-size: .75rem; font-weight: 700; color: var(--muted); padding: .25rem 0; }
+.cal-day {
+  border-radius: 50%;
+  aspect-ratio: 1;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+}
+.cal-day:hover:not(:disabled) { background: #e9e2cf; }
+.cal-day:disabled { opacity: .28; cursor: default; }
+.cal-day.is-start, .cal-day.is-end { background: var(--sav); color: #fff; }
+.cal-day.is-range { background: #dfe7d8; border-radius: 8px; }
+.cal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .8rem;
+  font-size: .9rem;
+  color: var(--sav-deep);
+  font-weight: 600;
+}
+.cal-actions { display: flex; gap: .5rem; }
+.cal-actions button { padding: .45rem .9rem; font-size: .88rem; }
+.cal-actions [data-cal-clear] { background: #e9e2cf; color: var(--sav-deep); }
 /* Honeypot: humans never see it, bots fill it. */
 .hp-trap {
   position: absolute !important;
