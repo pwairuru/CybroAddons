@@ -7,9 +7,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return String(Date.now());
     }
   };
-  // Date sanity.
+  // Date sanity + open the native calendar when the field itself is clicked.
   const ci = document.querySelector('.search input[name="ci"]');
   const co = document.querySelector('.search input[name="co"]');
+  const openPicker = (el) => {
+    try { if (el && el.showPicker) el.showPicker(); } catch (e) { /* older browser: native icon still works */ }
+  };
+  [ci, co].forEach((el) => {
+    if (!el) return;
+    el.addEventListener('click', () => openPicker(el));
+    el.addEventListener('focus', () => openPicker(el));
+  });
   if (ci && co) {
     const today = new Date().toISOString().slice(0, 10);
     ci.min = today;

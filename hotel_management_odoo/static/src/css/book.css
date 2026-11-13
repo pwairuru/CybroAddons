@@ -63,7 +63,16 @@ h1, h2, .brand {
   border-radius: 14px;
   padding: 1.1rem;
   box-shadow: 0 6px 24px rgba(36, 53, 31, .14);
-  margin: 0 0 1.4rem;
+  margin: 0 0 1rem;
+  position: sticky;
+  top: 4.2rem;
+  z-index: 10;
+}
+.stay-summary {
+  color: var(--sav-deep);
+  font-weight: 700;
+  margin: 0 0 1rem;
+  font-size: .95rem;
 }
 label { display: grid; gap: .3rem; font-weight: 600; font-size: .92rem; }
 input, textarea, button { font-size: 1rem; padding: .6rem .75rem; }
@@ -117,6 +126,23 @@ button:hover { background: var(--sav-deep); }
   padding: .25rem .7rem;
   border-radius: 999px;
   justify-self: start;
+}
+.breakfast-chip {
+  display: inline-block;
+  background: #e7efe2;
+  color: var(--sav);
+  font-size: .78rem;
+  font-weight: 700;
+  padding: .25rem .7rem;
+  border-radius: 999px;
+  justify-self: start;
+  margin-left: .4rem;
+}
+.scarcity {
+  color: #9a5b1e;
+  font-size: .88rem;
+  font-weight: 600;
+  margin: 0;
 }
 .amenities { color: var(--muted); font-size: .9rem; margin: 0; }
 .capacity { color: var(--muted); font-size: .9rem; margin: 0; }

@@ -67,6 +67,7 @@ sold, or a detail needs checking. Please try again, or write to
 </form>
 
 <t t-if="kw.get('ci') and kw.get('co')">
+<p class="stay-summary"><t t-out="len(rooms)"/> rooms · <t t-out="nights"/> nights · <t t-out="kw.get('adults', '2')"/> adults<t t-if="kw.get('children')"> · <t t-out="kw.get('children')"/> children</t></p>
 <t t-if="not rooms">
 <p class="empty">No rooms free for those dates. Try different dates —
 or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
@@ -77,11 +78,15 @@ or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
 <img class="room-photo" t-att-src="r.image_url" t-att-alt="r.name" loading="lazy" onerror="this.style.display='none'"/>
 <div class="room-body">
 <span class="room-type-badge"><t t-out="r.type"/></span>
+<span class="breakfast-chip">Breakfast included</span>
 <h2><t t-out="r.name"/></h2>
 <t t-if="r.amenities">
-<p class="amenities"><t t-out="', '.join(r.amenities[:6])"/></p>
+<p class="amenities"><t t-out="', '.join(r.amenities[:6])"/><t t-if="len(r.amenities) > 6"> +<t t-out="len(r.amenities) - 6"/> more</t></p>
 </t>
 <p class="capacity">Sleeps <t t-out="r.max_occupants"/> · <t t-out="r.adult_capacity"/> adults</p>
+<t t-if="r.type_left > 0">
+<p class="scarcity"><t t-out="r.type_left"/> more <t t-out="r.type"/> room<t t-if="r.type_left > 1">s</t> also free these dates</p>
+</t>
 <p class="price"><strong><t t-out="r.nightly_str"/></strong> / night</p>
 <p class="price-total">Total <t t-out="r.total_str"/> · taxes included</p>
 <button type="button" class="select-room"

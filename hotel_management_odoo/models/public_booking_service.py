@@ -97,6 +97,12 @@ class HotelPublicBooking(models.AbstractModel):
                         'max_occupants': r.room_type_id.max_occupants or 0,
                         'amenities': [a.name for a in r.room_type_id.amenity_ids if a.name],
                         })
+        out.sort(key=lambda d: d['nightly'])
+        left = {}
+        for d in out:
+            left[d['type']] = left.get(d['type'], 0) + 1
+        for d in out:
+            d['type_left'] = left[d['type']] - 1
         return out
     @api.model
     def booked_ranges(self, room_id, dfrom, dto):

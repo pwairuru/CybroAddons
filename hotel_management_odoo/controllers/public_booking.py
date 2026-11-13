@@ -1,7 +1,7 @@
 # controllers/public_booking.py
 from types import SimpleNamespace
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 ALLOWED_POST = {'room_id', 'ci', 'co', 'adults', 'children', 'name',
@@ -24,11 +24,16 @@ def _err_code(exc):
 class PublicBooking(http.Controller):
     @http.route('/book', type='http', auth='public', website=False, methods=['GET'])
     def book(self, **kw):
-        dicts = request.env['hotel.public.booking'].sudo().search_free(
-            kw.get('ci', ''), kw.get('co', '')) if kw.get('ci') and kw.get('co') else []
+        ci, co = kw.get('ci', ''), kw.get('co', '')
+        dicts = request.env['hotel.public.booking'].sudo().search_free(ci, co) if ci and co else []
         # QWeb t-esc cannot subscript dicts — expose attribute access.
         rooms = [SimpleNamespace(**d) for d in dicts]
-        return request.render('hotel_management_odoo.public_book_page', {'rooms': rooms, 'kw': kw})
+        try:
+            nights = max(0, (fields.Date.from_string(co) - fields.Date.from_string(ci)).days)
+        except Exception:
+            nights = 0
+        return request.render('hotel_management_odoo.public_book_page',
+                             {'rooms': rooms, 'kw': kw, 'nights': nights})
 
     @http.route('/book/availability', type='json', auth='public', website=False, methods=['POST'], csrf=False)
     def avail(self, ci=None, co=None):
