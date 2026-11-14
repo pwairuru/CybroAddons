@@ -9,8 +9,8 @@ class HotelPublicBooking(models.AbstractModel):
     _name = 'hotel.public.booking'
     _description = 'Public booking service (isolated, no storage)'
 
-    ALLOWED = {'room_id', 'ci', 'co', 'adults', 'children', 'name',
-               'phone', 'email', 'notes', 'idem_key'}
+    ALLOWED = {'room_id', 'ci', 'co', 'adults', 'children', 'board', 'name',
+                'phone', 'email', 'notes', 'idem_key'}
     _IDEM_RE = re.compile(r'^[\w-]{1,64}$')
     _LAST3_RE = re.compile(r'^\d{3}$')
 
@@ -62,32 +62,69 @@ class HotelPublicBooking(models.AbstractModel):
         except Exception:
             return None
     @api.model
-    def search_free(self, ci_date, co_date, adults=2, children=0):
+    def search_free(self, ci_date, co_date, adults=2, children=0, board='BB'):
         ci = fields.Date.from_string(ci_date); co = fields.Date.from_string(co_date)
         if not ci or not co or co <= ci or (co - ci).days > 30:
             return []
-        rooms = self.env['product.template'].sudo().search([
+        try:
+            adults = max(1, int(adults or 1))
+            children = max(0, int(children or 0))
+        except Exception:
+            adults, children = 2, 0
+        board = (board or 'BB').strip().upper()[:8]
+        if board not in ('RO', 'BB', 'HB', 'FB'):
+            board = 'BB'
+        S = self.sudo()
+        company = S.env.company
+        # Same plan resolution the booking line uses (_plan_for_booking):
+        # board-code plan, else the company default. The page quotes the
+        # same board the booking is created with (room.booking default BB).
+        plan = S.env['hotel.rate.plan'].search(
+            [('company_id', '=', company.id), ('code', '=', board)],
+            order='id', limit=1)
+        if not plan:
+            plan = S.env['hotel.rate.plan']._default_plan(company)
+        engine = S.env['hotel.rate.engine']
+        rooms = S.env['product.template'].search([
             ('is_room','=',True),('website_published','=',True),('active','=',True)])
         if not rooms: return []
-        ooo = set(self.env['hotel.daily.inventory'].sudo()._ooo_room_ids())
-        dirty = set(self.env['hotel.daily.inventory'].sudo()._dirty_room_ids())
+        ooo = set(S.env['hotel.daily.inventory']._ooo_room_ids())
+        dirty = set(S.env['hotel.daily.inventory']._dirty_room_ids())
         wstart = datetime.combine(ci, datetime.min.time()).replace(tzinfo=timezone.utc).replace(tzinfo=None)
         wend = datetime.combine(co, datetime.max.time()).replace(tzinfo=timezone.utc).replace(tzinfo=None)
-        busy = set(self.env['room.booking.line'].sudo().search([
+        busy = set(S.env['room.booking.line'].search([
             ('booking_id.state','in',('reserved','check_in')),
             ('checkin_date','<',fields.Datetime.to_string(wend)),
             ('checkout_date','>',fields.Datetime.to_string(wstart)),
         ]).mapped('room_id.id'))
         out = []
         nights = (co - ci).days
+        pax = adults + children
         for r in rooms:
             if r.id in busy or r.id in ooo or r.id in dirty: continue
-            nightly = r.room_type_id.base_rate or 0.0
-            # rate-line override best-effort, never crashes pricing
+            # Capacity pre-check mirrors create_booking: an over-capacity
+            # room cannot be booked, so it is not listed either.
+            rt_max = r.room_type_id.max_occupants if r.room_type_id else 0
+            if (r.num_person and pax > r.num_person) or (rt_max and pax > rt_max):
+                continue
+            # Canonical nightly: the same engine call the booking line
+            # prices with (check-in anchor, board, pax). Fallback keeps
+            # the page up when the engine cannot price a room.
+            nightly = None
             try:
-                line = self.env['hotel.rate.line'].sudo().find_line(False, r.room_type_id.id, 'BB', self.env.company.id, False)
-                if line: nightly = line.price
-            except Exception: pass
+                q = engine.price_detailed(
+                    r.id, fields.Date.to_string(ci), plan.id,
+                    adults=adults, children=children, board=board)
+                if q:
+                    nightly = float(q.get('net', 0.0))
+            except Exception:
+                nightly = None
+            if not nightly:
+                nightly = r.room_type_id.base_rate or 0.0
+                try:
+                    line = S.env['hotel.rate.line'].find_line(False, r.room_type_id.id, 'BB', company.id, False)
+                    if line: nightly = line.price
+                except Exception: pass
             out.append({'id': r.id, 'name': r.name, 'type': r.room_type_id.name or '',
                         'nightly': float(nightly), 'total': float(nightly) * nights,
                         'nightly_str': 'KES {:,.0f}'.format(nightly),
@@ -140,6 +177,9 @@ class HotelPublicBooking(models.AbstractModel):
             children = max(0, int(vals.get('children') or 0))
         except Exception:
             raise ValueError('bad pax')
+        board = (vals.get('board') or 'BB').strip().upper()[:8]
+        if board not in ('RO', 'BB', 'HB', 'FB'):
+            raise ValueError('bad board')
         S = self.sudo()
         # Capacity gate mirrors room.booking.line (room num_person, else
         # type max_occupants). Public books are always blocked, never warned.
@@ -163,7 +203,9 @@ class HotelPublicBooking(models.AbstractModel):
                 dup = S.env['room.booking'].browse(msg.res_id)
                 if dup.exists():
                     return dup
-        free = {r['id'] for r in self.search_free(vals.get('ci'), vals.get('co'))}
+        free = {r['id'] for r in self.search_free(
+            vals.get('ci'), vals.get('co'), adults=adults, children=children,
+            board=board)}
         if room_id not in free:
             raise ValueError('room just sold')
         company = S.env.company
@@ -181,6 +223,7 @@ class HotelPublicBooking(models.AbstractModel):
         bk = S.env['room.booking'].create({
             'partner_id': partner.id,
             'company_id': company.id,
+            'meal_plan': board,
             'checkin_date': checkin_dt,
             'checkout_date': checkout_dt,
         })
@@ -197,6 +240,12 @@ class HotelPublicBooking(models.AbstractModel):
         if notes:
             body += '<br/>notes: %s' % _html.escape(notes)
         bk.message_post(body=body)
+        # HOOK (booking web deposit, future M-Pesa): once a payment
+        # provider is integrated, confirm the payment first, then call
+        # bk.action_take_deposit(amount) here so the public booking
+        # carries the same folio/deposit/collect path as reception.
+        # Until then the web stays payment-free: reception takes the
+        # deposit via the booking Take Deposit button.
         if S.env.company.public_auto_confirm:
             try:
                 bk.action_reserve()

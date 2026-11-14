@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from odoo import fields, http
 from odoo.http import request
 
-ALLOWED_POST = {'room_id', 'ci', 'co', 'adults', 'children', 'name',
+ALLOWED_POST = {'room_id', 'ci', 'co', 'adults', 'children', 'board', 'name',
                 'phone', 'email', 'notes', 'idem_key', 'honeypot'}
 
 # ?e= taxonomy (never leak exception names to guests):
@@ -25,7 +25,20 @@ class PublicBooking(http.Controller):
     @http.route('/book', type='http', auth='public', website=False, methods=['GET'])
     def book(self, **kw):
         ci, co = kw.get('ci', ''), kw.get('co', '')
-        dicts = request.env['hotel.public.booking'].sudo().search_free(ci, co) if ci and co else []
+        try:
+            adults = max(1, int(kw.get('adults', 2) or 2))
+        except Exception:
+            adults = 2
+        try:
+            children = max(0, int(kw.get('children', 0) or 0))
+        except Exception:
+            children = 0
+        board = (kw.get('board', 'BB') or 'BB').strip().upper()[:8]
+        if board not in ('RO', 'BB', 'HB', 'FB'):
+            board = 'BB'
+        dicts = request.env['hotel.public.booking'].sudo().search_free(
+            ci, co, adults=adults, children=children,
+            board=board) if ci and co else []
         # QWeb t-esc cannot subscript dicts — expose attribute access.
         rooms = [SimpleNamespace(**d) for d in dicts]
         try:
@@ -36,8 +49,9 @@ class PublicBooking(http.Controller):
                              {'rooms': rooms, 'kw': kw, 'nights': nights})
 
     @http.route('/book/availability', type='json', auth='public', website=False, methods=['POST'], csrf=False)
-    def avail(self, ci=None, co=None):
-        return {'rooms': request.env['hotel.public.booking'].sudo().search_free(ci, co)}
+    def avail(self, ci=None, co=None, adults=2, children=0, board='BB'):
+        return {'rooms': request.env['hotel.public.booking'].sudo().search_free(
+            ci, co, adults=adults, children=children, board=board)}
 
     @http.route('/book/confirm', type='http', auth='public', website=False, methods=['POST'], csrf=True)
     def confirm(self, **kw):
@@ -48,6 +62,10 @@ class PublicBooking(http.Controller):
             bk = request.env['hotel.public.booking'].sudo().create_booking(vals)
         except Exception as e:
             return request.redirect('/book?e=%s' % _err_code(e))
+        # HOOK (booking web deposit, future M-Pesa): redirect to a
+        # deposit/payment step here before /book/done, then call
+        # bk.action_take_deposit(amount) after provider confirmation.
+        # Nothing moves money yet — see public_booking_service hook.
         return request.redirect('/book/done?ref=%s' % bk.name)
 
     @http.route('/book/room-image/<int:room_id>', type='http', auth='public',

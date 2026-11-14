@@ -65,11 +65,19 @@ sold, or a detail needs checking. Please try again, or write to
 <label>Children
 <input type="number" name="children" min="0" value="0" t-att-value="kw.get('children', '0')"/>
 </label>
+<label>Meal plan
+<select name="board">
+<option value="BB" t-att-selected="'selected' if kw.get('board', 'BB') == 'BB' else None">Bed &amp; breakfast</option>
+<option value="HB" t-att-selected="'selected' if kw.get('board') == 'HB' else None">Half board</option>
+<option value="FB" t-att-selected="'selected' if kw.get('board') == 'FB' else None">Full board</option>
+<option value="RO" t-att-selected="'selected' if kw.get('board') == 'RO' else None">Room only</option>
+</select>
+</label>
 <button type="submit">Check availability</button>
 </form>
 
 <t t-if="kw.get('ci') and kw.get('co')">
-<p class="stay-summary"><t t-out="len(rooms)"/> rooms · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> adults<t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> children</t></p>
+<p class="stay-summary"><t t-out="len(rooms)"/> rooms · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> adults<t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> children</t> · <t t-out="kw.get('board', 'BB')"/></p>
 <t t-if="not rooms">
 <p class="empty">No rooms free for those dates. Try different dates —
 or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
@@ -80,7 +88,10 @@ or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
 <img class="room-photo" t-att-src="r.image_url" t-att-alt="r.name" loading="lazy" onerror="this.style.display='none'"/>
 <div class="room-body">
 <span class="room-type-badge"><t t-out="r.type"/></span>
-<span class="breakfast-chip">Breakfast included</span>
+<t t-if="kw.get('board', 'BB') == 'BB'"><span class="breakfast-chip">Breakfast included</span></t>
+<t t-elif="kw.get('board') == 'HB'"><span class="breakfast-chip">Half board</span></t>
+<t t-elif="kw.get('board') == 'FB'"><span class="breakfast-chip">Full board</span></t>
+<t t-else=""><span class="breakfast-chip">Room only</span></t>
 <h2><t t-out="r.name"/></h2>
 <t t-if="r.amenities">
 <p class="amenities"><t t-out="', '.join(r.amenities[:6])"/><t t-if="len(r.amenities) > 6"> +<t t-out="len(r.amenities) - 6"/> more</t></p>
@@ -109,6 +120,7 @@ t-att-data-room-type="r.type" t-att-data-total="r.total_str">Select this room</b
 <input type="hidden" name="co" t-att-value="kw.get('co', '')"/>
 <input type="hidden" name="adults" t-att-value="kw.get('adults', '2')"/>
 <input type="hidden" name="children" t-att-value="kw.get('children', '0')"/>
+<input type="hidden" name="board" t-att-value="kw.get('board', 'BB')"/>
 <input type="text" name="honeypot" class="hp-trap" autocomplete="off" tabindex="-1"/>
 <label>Full name
 <input type="text" name="name" required="required" maxlength="80" autocomplete="name"/>
