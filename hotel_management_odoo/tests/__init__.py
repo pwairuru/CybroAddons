@@ -54,3 +54,5 @@ from . import test_room_overrides
 from . import test_public_booking_service
 from . import test_public_booking_settings
 from . import test_public_booking_create
+from . import test_reservation_deposit_lifecycle
+from . import test_deposit_math

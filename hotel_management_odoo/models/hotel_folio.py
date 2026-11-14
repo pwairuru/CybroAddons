@@ -130,7 +130,8 @@ class HotelFolio(models.Model):
     @api.depends('line_ids.quantity', 'line_ids.price_unit',
                    'line_ids.tax_ids', 'line_ids.price_subtotal',
                    'line_ids.price_tax', 'line_ids.price_total',
-                   'deposit_ids.amount', 'deposit_ids.state', 'state',
+                   'deposit_ids.amount', 'deposit_ids.state',
+                   'deposit_ids.move_id', 'state',
                    'invoice_ids.amount_total', 'invoice_ids.amount_residual',
                    'invoice_ids.state')
     def _compute_totals(self):
@@ -142,9 +143,14 @@ class HotelFolio(models.Model):
             folio.amount_total = sum(
                 line.price_total for line in folio.line_ids)
             folio.total = folio.amount_total
+            # Only cash actually received nets here: uncollected
+            # promises are excluded, and any deposit with a reversal
+            # (move_id) already shrank the invoice residual via
+            # reconciliation, so it must not net a second time.
             folio.deposit_total = sum(
                 d.amount for d in folio.deposit_ids
-                if d.state in ('draft', 'applied'))
+                if d.payment_move_id and not d.move_id
+                and d.state in ('draft', 'applied'))
             folio.amount_paid = folio.deposit_total + sum(
                 m.amount_total - m.amount_residual
                 for m in folio.invoice_ids
@@ -418,7 +424,14 @@ class HotelFolio(models.Model):
         return move
 
     def action_post_invoice(self):
-        """Post the idempotent draft (generates one if missing)."""
+        """Post the idempotent draft (generates one if missing).
+
+        Collected deposits reverse against the posted invoices at
+        once, so the invoice balance (and the Register Payment
+        default) drops to net immediately instead of waiting for
+        settle — whichever comes last out of collect and post
+        triggers the reversal.
+        """
         self.ensure_one()
         if self.state == 'settled' and self.move_id:
             return self.move_id
@@ -428,6 +441,11 @@ class HotelFolio(models.Model):
             move.action_post()
             self.message_post(
                 body="Invoice %s posted." % (move.name or move.id))
+        if move.state == 'posted':
+            for deposit in self.deposit_ids.filtered(
+                    lambda d: d.payment_move_id and not d.move_id
+                    and d.state in ('draft', 'applied')):
+                deposit._reverse_against_posted_invoices()
         return move
 
     def _linked_payments(self):
@@ -499,23 +517,31 @@ class HotelFolio(models.Model):
         }
 
     def action_apply_deposit(self):
-        """Apply draft deposits via the liability account (no negatives).
+        """Apply collected deposits via the liability account.
 
-        Interim minimum: resolves the customer-deposit liability account,
-        stamps it on the deposits, flips drafts to applied. The actual
-        liability reversal posts at settle time so the invoice itself
-        never carries a negative revenue line. Prefer account.payment
-        reconcile when feasible without breaking scope.
+        Only cash actually received (collected) can be applied:
+        applying a mere promise would mark money as paid that never
+        arrived. When the folio already has a posted invoice, each
+        collected deposit reverses against it immediately so the
+        balance drops at once; the rest reverses at settle. The
+        invoice itself never carries a negative revenue line.
         """
         self.ensure_one()
         self._assert_open("Can only apply deposits to an open folio.")
         liability = self._ensure_liability_account()
         drafts = self.deposit_ids.filtered(lambda d: d.state == 'draft')
+        promises = drafts.filtered(lambda d: not d.payment_move_id)
+        if promises:
+            raise ValidationError(
+                "Deposit %s not collected yet; collect (or cancel) "
+                "it before applying."
+                % ', '.join('%.2f' % d.amount for d in promises))
         for deposit in drafts:
             vals = {'state': 'applied'}
             if not deposit.account_id:
                 vals['account_id'] = liability.id
             deposit.write(vals)
+            deposit._reverse_against_posted_invoices()
         if drafts:
             self.message_post(
                 body="Deposits applied via %s: %s."
@@ -523,8 +549,38 @@ class HotelFolio(models.Model):
                    ', '.join('%.2f' % d.amount for d in drafts)))
         return True
 
-    def _post_deposit_reversal(self, deposit_total):
-        """Dr liability / Cr receivable for applied deposits at settle."""
+    def _reconcile_reversal(self, reversal, invoices):
+        """Reconcile a deposit reversal's receivable credit against
+        the posted invoices' receivable debits (partial when
+        smaller, spread across invoices when split-billed).
+
+        No-op when either side has nothing open (e.g. invoices
+        already paid in full): the cash is still counted, just not
+        double-netted.
+        """
+        self.ensure_one()
+        receivable = self._receivable_account()
+        recv_lines = invoices.mapped('line_ids').filtered(
+            lambda l: l.account_id.id == receivable.id
+            and l.debit > 0 and not l.reconciled)
+        rev_lines = reversal.line_ids.filtered(
+            lambda l: l.account_id.id == receivable.id
+            and l.credit > 0 and not l.reconciled)
+        if recv_lines and rev_lines:
+            (recv_lines + rev_lines).reconcile()
+            return True
+        return False
+
+    def _post_deposit_reversal(self, deposit_total, invoice=None,
+                               deposits=None):
+        """Dr liability / Cr receivable for applied deposits.
+
+        The receivable credit is reconciled against the invoice so
+        amount_residual (and the Register Payment wizard default)
+        drops to the net balance instead of staying gross. Settles
+        the whole folio by default; collect/apply pass just the one
+        deposit when an invoice is already posted.
+        """
         self.ensure_one()
         if deposit_total <= 0:
             return False
@@ -561,9 +617,12 @@ class HotelFolio(models.Model):
             ],
         })
         move.action_post()
-        self.deposit_ids.filtered(
-            lambda d: d.state == 'applied' and not d.move_id
-        ).write({'move_id': move.id, 'account_id': liability.id})
+        targets = (deposits if deposits is not None
+                   else self.deposit_ids.filtered(
+                       lambda d: d.state == 'applied' and not d.move_id))
+        targets.write({'move_id': move.id, 'account_id': liability.id})
+        if invoice:
+            self._reconcile_reversal(move, invoice)
         return move
 
     def action_settle(self):
@@ -582,18 +641,32 @@ class HotelFolio(models.Model):
         if not self.line_ids:
             raise ValidationError("Cannot settle a folio with no charge lines.")
         gross = self.amount_total
-        deposits = self.deposit_ids.filtered(
-            lambda d: d.state in ('draft', 'applied'))
-        deposit_total = sum(deposits.mapped('amount'))
-        if deposit_total >= gross:
+        # Guard BEFORE anything reverses: apply/reverse consume the
+        # deposits, so a cover check afterwards would see nothing and
+        # silently absorb overpayments.
+        cover = sum(
+            d.amount for d in self.deposit_ids
+            if d.payment_move_id and d.state in ('draft', 'applied'))
+        if cover >= gross:
             raise ValidationError(
                 "Deposits cover the full balance; refund instead of settling.")
         move = self.action_generate_draft_invoice()
         if move.state == 'draft':
             move.action_post()
+        # Applies (raising on uncollected promises), then reverses
+        # only what has no reversal yet: collect/apply/post may
+        # already have reversed against the posted invoices.
         self.action_apply_deposit()
+        remaining = self.deposit_ids.filtered(
+            lambda d: d.state == 'applied' and not d.move_id)
+        deposit_total = sum(remaining.mapped('amount'))
         if deposit_total > 0:
-            self._post_deposit_reversal(deposit_total)
+            posted = self.invoice_ids.filtered(
+                lambda m: m.move_type == 'out_invoice'
+                and m.state == 'posted')
+            self._post_deposit_reversal(
+                deposit_total, invoice=posted or move,
+                deposits=remaining)
         expected = gross
         if abs(move.amount_total - expected) > 0.01:
             raise ValidationError(

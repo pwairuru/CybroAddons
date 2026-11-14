@@ -9,16 +9,22 @@ class TestDepositCollect(TransactionCase):
             {'partner_id': guest.id})
         dep = self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 5000.0})
-        move = dep.action_collect()
+        payment = dep.action_collect()
+        self.assertEqual(dep.payment_id, payment)
+        move = payment.move_id
         self.assertEqual(move.state, 'posted')
         self.assertEqual(dep.payment_move_id, move)
         self.assertEqual(move.amount_total, 5000.0)
-        # Real double-entry: Dr cash-journal default / Cr liability.
+        # Real double-entry: Dr outstanding/cash (the payment
+        # method's account, falling back to the journal default)
+        # / Cr liability.
         company = folio.company_id
         journal = self.env['account.journal'].search(
             [('type', 'in', ('bank', 'cash')),
              ('company_id', '=', company.id)], limit=1)
-        cash_account = journal.default_account_id
+        method = journal.inbound_payment_method_line_ids[:1]
+        cash_account = (method.payment_account_id
+                        or journal.default_account_id)
         liability = folio._ensure_liability_account()
         lines = move.line_ids
         self.assertEqual(len(lines), 2)

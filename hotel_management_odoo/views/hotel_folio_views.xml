@@ -56,9 +56,6 @@
                            type="object" name="action_register_payment"
                            invisible="state != 'open'">Pay</a>
                         <a role="menuitem" class="dropdown-item"
-                           type="object" name="action_apply_deposit"
-                           invisible="state != 'open'">Apply Deposit</a>
-                        <a role="menuitem" class="dropdown-item"
                            type="object" name="action_settle"
                            invisible="state != 'open'">Settle</a>
                         <a role="menuitem" class="dropdown-item"
@@ -146,9 +143,8 @@
                     <button name="action_register_payment" string="Pay"
                              type="object"
                              invisible="state != 'open' or amount_due == 0"/>
-                    <button name="action_apply_deposit"
-                            string="Apply Deposit"
-                            invisible="state != 'open'" type="object"/>
+                    <!-- No manual Apply: collect/post/settle reverse
+                         automatically; the method stays for API/tests. -->
                     <button name="hotel_management_odoo.hotel_folio_split_action"
                             string="Split Bill"
                             invisible="state != 'open'"
@@ -376,6 +372,7 @@
                         <field name="folio_id"/>
                         <field name="amount"/>
                         <field name="state"/>
+                        <field name="payment_id" readonly="1"/>
                         <field name="payment_move_id" readonly="1"/>
                         <field name="company_id"/>
                         <field name="account_id"/>

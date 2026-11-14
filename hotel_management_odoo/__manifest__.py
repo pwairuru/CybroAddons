@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel Management',
-    'version': '20.0.2.21.0',
+    'version': '20.0.2.24.0',
     'category': 'Industries',
     'summary': """A complete Hotel Management System that cover all areas of 
      Hotel services""" ,
@@ -88,6 +88,7 @@
         'views/reporting_views.xml',
         'wizard/hotel_report_pack_views.xml',
         'wizard/hotel_rate_line_generator_views.xml',
+        'wizard/hotel_deposit_wizard_views.xml',
         'views/hotel_rate_setup_views.xml',
         'views/public_booking_templates.xml',
     ],

@@ -32,6 +32,14 @@ class HotelDeposit(models.Model):
                               readonly=True, ondelete="set null",
                               help="Liability reversal entry posted at "
                               "settle time.")
+    payment_id = fields.Many2one('account.payment', string="Payment",
+                                     readonly=True, ondelete="set null",
+                                     copy=False,
+                                     tracking=True,
+                                     help="Inbound payment posted at collect "
+                                     "time (Dr cash / Cr liability). Empty "
+                                     "for receipts posted before the "
+                                     "payments refactor.")
     payment_move_id = fields.Many2one('account.move', string="Payment Entry",
                                        readonly=True, ondelete="set null",
                                        copy=False,
@@ -49,13 +57,15 @@ class HotelDeposit(models.Model):
             if rec.amount <= 0:
                 raise ValidationError("Deposit amount must be positive.")
 
-    def action_collect(self):
-        """Post the cash receipt for this deposit (Dr cash / Cr liability).
+    def action_collect(self, journal=None):
+        """Collect this deposit as a real inbound payment.
 
-        Requires draft state, no prior collection, and an open folio in
-        the current company. Resolves the cash account from the first
-        bank/cash journal default account and the liability account via
-        the folio (same lookup as settle). Returns the posted move.
+        Posts Dr cash / Cr customer-deposit liability via
+        account.payment (destination account = liability), so the
+        receipt shows in reservation Payments, carries the journal
+        and payment method, and reverses through the standard path.
+        Requires draft state, no prior collection, and an open folio
+        in the current company. Returns the posted payment.
         """
         self.ensure_one()
         if self.state != 'draft':
@@ -73,47 +83,70 @@ class HotelDeposit(models.Model):
             raise ValidationError(
                 "Can only collect deposits for an open folio.")
         company = folio.company_id
-        journal = self.env['account.journal'].search(
-            [('type', 'in', ('bank', 'cash')),
-             ('company_id', '=', company.id)], limit=1)
-        cash_account = journal.default_account_id if journal else False
-        if not cash_account:
+        if journal is None:
+            journal = self.env['account.journal'].search(
+                [('type', 'in', ('bank', 'cash')),
+                 ('company_id', '=', company.id)], limit=1)
+        elif isinstance(journal, int):
+            journal = self.env['account.journal'].browse(journal)
+        if not journal or not journal.exists():
             raise ValidationError(
-                "No cash/bank journal with a default account for "
-                "company %s; configure one to collect deposits."
-                % company.display_name)
+                "No cash/bank journal for company %s; configure "
+                "one to collect deposits." % company.display_name)
+        if not journal.default_account_id:
+            raise ValidationError(
+                "Journal %s has no default account; configure one "
+                "to collect deposits." % journal.display_name)
+        method = journal.inbound_payment_method_line_ids[:1]
+        if not method:
+            raise ValidationError(
+                "Journal %s has no inbound payment method."
+                % journal.display_name)
         liability = folio._ensure_liability_account()
         ref = 'Deposit folio %s' % folio.id
-        move = self.env['account.move'].create({
-            'move_type': 'entry',
-            'journal_id': journal.id,
-            'company_id': company.id,
-            'currency_id': company.currency_id.id,
+        payment = self.env['account.payment'].create({
+            'payment_type': 'inbound',
+            'partner_type': 'customer',
             'partner_id': folio.partner_id.id,
-            'ref': ref,
-            'line_ids': [
-                (0, 0, {
-                    'name': ref,
-                    'account_id': cash_account.id,
-                    'partner_id': folio.partner_id.id,
-                    'debit': self.amount,
-                    'credit': 0.0,
-                }),
-                (0, 0, {
-                    'name': ref,
-                    'account_id': liability.id,
-                    'partner_id': folio.partner_id.id,
-                    'debit': 0.0,
-                    'credit': self.amount,
-                }),
-            ],
+            'amount': self.amount,
+            'currency_id': company.currency_id.id,
+            'journal_id': journal.id,
+            'payment_method_line_id': method.id,
+            'destination_account_id': liability.id,
+            'memo': ref,
+            'hotel_folio_id': folio.id,
+            'hotel_booking_id': folio.booking_id.id or False,
         })
-        move.action_post()
-        self.write({'payment_move_id': move.id})
+        payment.action_post()
+        self.write({'payment_id': payment.id,
+                    'payment_move_id': payment.move_id.id})
         folio.message_post(
-            body="Deposit collected: %.2f (move %s)."
-            % (self.amount, move.name or move.id))
-        return move
+            body="Deposit collected: %.2f (%s via %s)."
+            % (self.amount, payment.name or payment.id,
+               journal.display_name))
+        self._reverse_against_posted_invoices()
+        return payment
+
+    def _reverse_against_posted_invoices(self):
+        """Reverse this deposit against posted folio invoices at once.
+
+        Whichever comes last out of collect and invoice-posting
+        triggers the reversal, so the invoice balance drops
+        immediately instead of waiting for settle. Settle handles
+        any remainder.
+        """
+        self.ensure_one()
+        if not self.payment_move_id or self.move_id:
+            return False
+        folio = self.folio_id
+        if folio.state != 'open':
+            return False
+        invoices = folio.invoice_ids.filtered(
+            lambda m: m.move_type == 'out_invoice' and m.state == 'posted')
+        if not invoices:
+            return False
+        return folio._post_deposit_reversal(
+            self.amount, invoice=invoices, deposits=self)
 
     def action_cancel_draft(self):
         self.ensure_one()
@@ -137,9 +170,34 @@ class HotelDeposit(models.Model):
             raise ValidationError("Nothing collected; cancel instead.")
         if self.state == 'refunded':
             return self.reversal_move_id or self.payment_move_id
-        rev = self.payment_move_id._reverse_moves(
-            default_values_list=[{'ref': 'Deposit refund folio %s' % self.folio_id.id}])
-        rev.action_post()
+        if self.move_id:
+            # Settled deposit: the reversal already reconciled against
+            # the invoice. Unreconcile and reverse it so the invoice
+            # gets its balance back instead of staying net.
+            rev_lines = self.move_id.line_ids
+            partials = (rev_lines.matched_debit_ids
+                        + rev_lines.matched_credit_ids)
+            if partials:
+                partials.unlink()
+            undo = self.move_id._reverse_moves(
+                default_values_list=[{
+                    'ref': 'Deposit re-application reversed folio %s'
+                    % self.folio_id.id}])
+            undo.action_post()
+        if self.payment_id:
+            # Payment-backed receipt (payments refactor): cancel the
+            # payment, voiding its entry (or posting the reversal).
+            # Either way the books must net to zero afterwards.
+            self.payment_id.action_cancel()
+            rev = self.env['account.move'].search(
+                [('reversed_entry_id', '=', self.payment_move_id.id)],
+                limit=1) or self.payment_move_id
+        else:
+            # Legacy misc-entry receipt: reverse the entry directly.
+            rev = self.payment_move_id._reverse_moves(
+                default_values_list=[{
+                    'ref': 'Deposit refund folio %s' % self.folio_id.id}])
+            rev.action_post()
         self.write({'state': 'refunded', 'reversal_move_id': rev.id})
         msg = ("Deposit %.2f refunded (%s)."
                % (self.amount, rev.name or rev.id))
@@ -149,7 +207,12 @@ class HotelDeposit(models.Model):
         return rev
 
     def apply(self):
-        """Mark this deposit applied against its folio."""
+        """Mark this deposit applied against its folio.
+
+        Only collected cash can be applied; applying a promise would
+        report money as paid that never arrived. Reverses against
+        posted invoices immediately when there are any.
+        """
         self.ensure_one()
         if self.state != 'draft':
             raise ValidationError("Only draft deposits can be applied.")
@@ -160,7 +223,12 @@ class HotelDeposit(models.Model):
                 % folio_company.display_name)
         if self.folio_id.state != 'open':
             raise ValidationError("Can only apply deposits to an open folio.")
+        if not self.payment_move_id:
+            raise ValidationError(
+                "Deposit %.2f not collected yet; collect (or cancel) "
+                "it before applying." % self.amount)
         self.write({'state': 'applied'})
+        self._reverse_against_posted_invoices()
         return self
 
     def action_forfeit(self, reason=None):

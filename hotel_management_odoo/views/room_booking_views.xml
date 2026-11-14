@@ -28,6 +28,10 @@
                             invisible="state != 'check_in'"/>
                     <button name="action_register_payment" string="Pay" type="object"
                              class="btn-primary" invisible="state != 'check_out' or amount_due == 0"/>
+                    <button name="action_take_deposit" string="Take Deposit" type="object"
+                             invisible="state not in ['reserved', 'check_in', 'check_out']"/>
+                    <!-- No manual Apply: collect/post/settle reverse
+                         automatically; the method stays for API/tests. -->
                     <button name="action_done" string="Done"
                             class="btn-primary"
                             invisible="state != 'check_out'" type="object"/>
@@ -52,9 +56,14 @@
                                    widget="statinfo"/>
                         </button>
                         <button class="oe_stat_button" type="object"
-                                name="action_view_payments"
-                                icon="fa-money">
+                                 name="action_view_payments"
+                                 icon="fa-money">
                             <field string="Payments" name="amount_paid" widget="statinfo"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                 name="action_view_deposits"
+                                 icon="fa-ticket">
+                            <field string="Deposits" name="deposit_total" widget="statinfo"/>
                         </button>
                         <button class="oe_stat_button" type="object"
                                 name="action_view_folio"
@@ -161,7 +170,7 @@
                             <div class="oe_clear"/>
                         </page>
                         <page name="service" string="Service"
-                              invisible="need_service == False">
+                              invisible="not need_service and not service_line_ids">
                             <field name="service_line_ids" colspan="4" string="Service Lines"/>
                             <group colspan="2"
                                    class="oe_subtotal_footer oe_right">
@@ -210,31 +219,45 @@
                     <!-- Booking summary at end of form: same right-side
                          footer position/styling as before, out of the
                          way of the line tabs. -->
-                    <!-- Booking summary: one tax-inclusive line per group
-                         so group totals tally to Total by eye. The
-                         Untaxed/Taxes lines stay as the audit trail. -->
+                    <!-- Booking summary: one section per tab (Rooms /
+                         Services / POS Orders), each with Untaxed + Tax +
+                         Total (bold), then grand Totals (bold) and
+                         Payments (unchanged). -->
                     <group name="booking_summary" colspan="2"
                            class="oe_subtotal_footer oe_right">
-                        <field name="amount_total_room" string="Rooms"
-                               sum="Rooms total" widget="monetary"/>
-                        <field name="amount_total_food" string="Food"
-                               sum="Food total" widget="monetary" invisible="1"/>
-                        <field name="amount_total_service" string="Services"
+                        <div colspan="2" class="text-end fw-bold mt-1" name="rooms_header">Rooms<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                        <field name="amount_untaxed_room" string="Rooms Untaxed"
+                               sum="Rooms untaxed" widget="monetary"/>
+                        <field name="amount_taxed_room" string="Rooms Tax"
+                               widget="monetary"/>
+                        <label for="amount_total_room" string="Rooms Total" class="fw-bold"/>
+                        <field name="amount_total_room" nolabel="1"
+                               sum="Rooms total" widget="monetary"
+                               class="fw-bold"/>
+                        <div colspan="2" class="text-end fw-bold mt-1" name="services_header" invisible="not need_service and not service_line_ids">Services<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                        <field name="amount_untaxed_service" string="Services Untaxed"
+                               sum="Services untaxed" widget="monetary"
+                               invisible="not need_service and not service_line_ids"/>
+                        <field name="amount_taxed_service" string="Services Tax"
+                               widget="monetary"
+                               invisible="not need_service and not service_line_ids"/>
+                        <label for="amount_total_service" string="Services Total" class="fw-bold"
+                               invisible="not need_service and not service_line_ids"/>
+                        <field name="amount_total_service" nolabel="1"
                                sum="Services total" widget="monetary"
-                               invisible="need_service == False"/>
-                        <field name="amount_total_fleet" string="Fleet"
-                               sum="Fleet total" widget="monetary" invisible="1"/>
-                        <field name="amount_total_event" string="Events"
-                               sum="Events total" widget="monetary" invisible="1"/>
-                        <div colspan="2" class="text-end fw-bold mt-1">Totals<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                               class="fw-bold"
+                               invisible="not need_service and not service_line_ids"/>
+                        <div colspan="2" class="text-end fw-bold mt-1" name="totals_header">Totals<hr class="ms-auto my-1" style="width: 40%;"/></div>
                         <field name="amount_untaxed"
                                sum="Untaxed amount" widget="monetary"/>
                         <field name="amount_tax" widget="monetary"/>
-                        <label for="amount_total"/>
+                        <label for="amount_total" class="fw-bold"/>
                         <field name="amount_total" nolabel="1"
                                sum="Total amount" widget="monetary"
+                               class="fw-bold"
                                help="Quote before folio posting"/>
-                        <div colspan="2" class="text-end fw-bold mt-1">Payments<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                        <div colspan="2" class="text-end fw-bold mt-1" name="payments_header">Payments<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                        <field name="deposit_total" widget="monetary"/>
                         <field name="amount_paid" widget="monetary"
                                class="text-success"/>
                         <field name="amount_due" widget="monetary"

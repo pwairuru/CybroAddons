@@ -239,6 +239,14 @@ class RoomBooking(models.Model):
                                    string="Payment Count",
                                    help="Payments linked to this booking "
                                         "or its folios.")
+    deposit_total = fields.Monetary(compute='_compute_invoice_count',
+                                   string="Deposits",
+                                   help="Deposits (draft/applied) on this "
+                                        "booking's folios.")
+    deposit_count = fields.Integer(compute='_compute_invoice_count',
+                                   string="Deposit Count",
+                                   help="Deposit records on this booking's "
+                                        "folios.")
     amount_due = fields.Monetary(compute='_compute_invoice_count',
                                  string="Amount Due",
                                  help="Residual of posted invoices linked "
@@ -434,11 +442,21 @@ class RoomBooking(models.Model):
         return self._move_domain()
 
     def _compute_invoice_count(self):
-        """Compute invoice/payment counts, amount due and invoice status
-        via booking + folio links."""
+        """Compute invoice/payment/deposit counts, amounts and status
+        via booking + folio links.
+
+        Deposits are cash already collected (Dr cash / Cr liability),
+        so they count as paid and net the displayed due. The folio
+        statement is the source of truth for the same netting; this
+        mirrors it at booking level. Only cash actually received
+        nets here: collect/apply reverse against a posted invoice at
+        once and settle reverses the rest, so reversed deposits
+        already shrink the residual. Uncollected promises never net.
+        """
         for record in self:
             domain = record._move_domain()
-            folio_ids = record._get_folios().ids
+            folios = record._get_folios()
+            folio_ids = folios.ids
             # Count only (no content): the booking form renders for
             # reception, who has no direct journal access.
             Move = self.env['account.move'].sudo()
@@ -448,9 +466,16 @@ class RoomBooking(models.Model):
                                            ('state', '=', 'posted')])
             record.payment_count = self.env['account.payment'].sudo() \
                 .search_count(domain)
-            record.amount_due = sum(posted.mapped('amount_residual'))
-            record.amount_paid = sum(
+            deposits = folios.mapped('deposit_ids').filtered(
+                lambda d: d.payment_move_id and not d.move_id
+                and d.state in ('draft', 'applied'))
+            record.deposit_count = len(deposits)
+            record.deposit_total = sum(deposits.mapped('amount'))
+            invoice_paid = sum(
                 m.amount_total - m.amount_residual for m in posted)
+            invoice_due = sum(posted.mapped('amount_residual'))
+            record.amount_paid = invoice_paid + record.deposit_total
+            record.amount_due = max(0.0, invoice_due - record.deposit_total)
             record.amount_invoiced = sum(posted.mapped('amount_total'))
             if posted:
                 if all(m.payment_state == 'paid' for m in posted):
@@ -1313,6 +1338,83 @@ class RoomBooking(models.Model):
                 'active_ids': moves.ids,
                 'default_hotel_booking_id': self.id,
             },
+        }
+
+    def action_take_deposit(self, amount=None):
+        """Take a deposit at reservation point onwards.
+
+        Allowed from reserved / check_in / check_out so the guest can
+        pay immediately after reservation or later in the stay. The
+        folio is auto-created when missing (reserve normally creates
+        it; direct folio flows may not have one yet).
+
+        amount given (tests, server actions, future web hook): create
+        the hotel.deposit and collect it at once as an inbound
+        payment (Dr cash / Cr liability), returning the deposit
+        record.
+        amount omitted (header button): open the one-click Take
+        Deposit dialog (amount + journal) so reception finishes in
+        a single Confirm.
+
+        HOOK (booking web / payments): public /book and the future
+        M-Pesa integration must call this method (or replicate it)
+        once the provider confirms payment — e.g. in
+        public_booking_service.create_booking after bk creation, and
+        in payment_mpesa confirm handlers. Keep the web thin: validate
+        provider-side, then delegate here for folio/deposit/write.
+        """
+        self.ensure_one()
+        if self.state not in ('reserved', 'check_in', 'check_out'):
+            raise ValidationError(
+                "Take a deposit from a reserved, checked-in or "
+                "checked-out booking (state %s)." % self.state)
+        folio = self._ensure_folio()
+        if amount is None or amount is False:
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Take Deposit',
+                'res_model': 'hotel.deposit.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {
+                    'default_folio_id': folio.id,
+                    'default_amount': folio.amount_due or 0.0,
+                },
+            }
+        if amount <= 0:
+            raise ValidationError("Deposit amount must be positive.")
+        deposit = self.env['hotel.deposit'].create({
+            'folio_id': folio.id,
+            'amount': amount,
+        })
+        deposit.action_collect()
+        self.message_post(
+            body="Deposit taken: %.2f (folio %s)."
+            % (amount, folio.name or folio.id))
+        return deposit
+
+    def action_apply_deposit(self):
+        """Delegate to folio(s): stamp liability, flip drafts applied."""
+        self.ensure_one()
+        folios = self._get_folios().filtered(lambda f: f.state == 'open')
+        if not folios:
+            raise ValidationError("No open folio for booking %s."
+                                  % self.name)
+        for folio in folios:
+            folio.action_apply_deposit()
+        return True
+
+    def action_view_deposits(self):
+        """Open deposits linked to this booking's folios."""
+        self.ensure_one()
+        deposits = self._get_folios().mapped('deposit_ids')
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Deposits',
+            'res_model': 'hotel.deposit',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', deposits.ids)],
+            'context': {'create': False},
         }
 
     def action_checkin(self):

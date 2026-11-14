@@ -236,6 +236,24 @@
                             <span t-out="booking.get_bill_summary_total()" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/>
                         </td>
                     </tr>
+                    <tr class="o_subtotal">
+                        <td><strong>Deposits</strong></td>
+                        <td class="text-end o_price_total">
+                            <span t-field="booking.deposit_total" t-options='{"widget": "monetary", "display_currency": booking.currency_id}'/>
+                        </td>
+                    </tr>
+                    <tr class="o_subtotal">
+                        <td><strong class="text-success">Paid (incl. deposits)</strong></td>
+                        <td class="text-end o_price_total">
+                            <span t-field="booking.amount_paid" t-options='{"widget": "monetary", "display_currency": booking.currency_id}' class="text-success"/>
+                        </td>
+                    </tr>
+                    <tr class="o_total">
+                        <td><strong class="text-danger">Balance Due (net of deposits)</strong></td>
+                        <td class="text-end o_price_total">
+                            <span t-field="booking.amount_due" t-options='{"widget": "monetary", "display_currency": booking.currency_id}' class="text-danger"/>
+                        </td>
+                    </tr>
                 </table>
             </div>
         </div>

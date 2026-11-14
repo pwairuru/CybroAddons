@@ -8,10 +8,28 @@ from odoo.tests.common import TransactionCase
 class TestFolioLifecycle(TransactionCase):
     def _make_booking(self, policy='manual'):
         partner = self.env.company.partner_id
+        co = self.env.company
+        rtype = self.env['hotel.room.type'].create({
+            'name': 'FolioRT', 'base_rate': 10000.0,
+            'adult_capacity': 2, 'child_capacity': 0,
+            'max_occupants': 2, 'charge_mode': 'per_room'})
+        meal = self.env['hotel.meal.plan'].search(
+            [('code', '=', 'BB')], limit=1)
+        period = self.env['hotel.rate.period'].create({
+            'name': 'FolioH', 'start_md': '01-01', 'end_md': '12-31',
+            'sequence': 10, 'priority': 10, 'company_id': co.id})
+        plan = self.env['hotel.rate.plan'].create({
+            'name': 'FolioBB', 'code': 'BB', 'company_id': co.id})
+        self.env['hotel.rate.line'].create({
+            'company_id': co.id, 'period_id': period.id,
+            'room_type_id': rtype.id, 'meal_plan_id': meal.id,
+            'price': 10000.0, 'included_adults': 2,
+            'included_children': 0})
         room = self.env['product.template'].create({
             'name': 'Folio Lifecycle Room',
             'is_room': True,
             'list_price': 10000.0,
+            'room_type_id': rtype.id,
         })
         now = fields.Datetime.now()
         booking = self.env['room.booking'].create({
@@ -56,8 +74,9 @@ class TestFolioLifecycle(TransactionCase):
 
     def test_deposit_not_negative_revenue(self):
         folio = self._charged_folio()
-        self.env['hotel.deposit'].create(
+        deposit = self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 3000.0})
+        deposit.action_collect()
         move = folio.action_settle()
         neg_lines = move.invoice_line_ids.filtered(
             lambda l: l.price_unit < 0)
@@ -65,8 +84,9 @@ class TestFolioLifecycle(TransactionCase):
 
     def test_split_flow_post_apply_settle(self):
         folio = self._charged_folio()
-        self.env['hotel.deposit'].create(
+        deposit = self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 1000.0})
+        deposit.action_collect()
         draft = folio.action_generate_draft_invoice()
         self.assertEqual(draft.state, 'draft')
         posted = folio.action_post_invoice()

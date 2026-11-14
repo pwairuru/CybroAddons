@@ -26,17 +26,22 @@ class TestCashier(TransactionCase):
             {'partner_id': self.guest.id})
         self.env['hotel.charge.service'].post_charge(
             folio.id, self.product.id, 2, 5000.0, 'to_guest')
-        self.env['hotel.deposit'].create(
+        deposit = self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 3000.0})
+        deposit.action_collect()
         move = folio.action_settle()
         # Folio unification: invoice posts gross (no negative revenue
-        # line); deposits reverse via liability and reduce balance due.
+        # line); deposits reverse via liability and reconcile, so the
+        # residual itself drops to the net balance.
         assert move.amount_total == folio.total
         neg = move.invoice_line_ids.filtered(
             lambda l: l.price_unit < 0)
         assert not neg, "deposits must not post as negative revenue"
         assert folio.amount_due == 0.0, "settled folio owes nothing"
-        assert folio.deposit_total == 3000.0, "consumed deposits stay applied"
+        self.assertAlmostEqual(move.amount_residual, 7000.0, places=2)
+        assert folio.deposit_total == 0.0, \
+            "reversed deposits net via the residual, not twice"
+        self.assertAlmostEqual(folio.amount_paid, 3000.0, places=2)
 
     def test_deposit_negative_rejected(self):
         folio = self.env['hotel.folio'].create(
@@ -49,9 +54,18 @@ class TestCashier(TransactionCase):
         folio = self._charged_folio()
         deposit = self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 1000.0})
+        deposit.action_collect()
         deposit.apply()
         with self.assertRaises(ValidationError):
             deposit.apply()
+
+    def test_apply_uncollected_rejected(self):
+        folio = self._charged_folio()
+        deposit = self.env['hotel.deposit'].create(
+            {'folio_id': folio.id, 'amount': 1000.0})
+        with self.assertRaises(ValidationError):
+            deposit.apply()
+        self.assertEqual(deposit.state, 'draft')
 
     def test_city_ledger_transfer_and_aging(self):
         folio = self._charged_folio()
@@ -83,6 +97,7 @@ class TestCashier(TransactionCase):
         folio = self._charged_folio()
         deposit = self.env['hotel.deposit'].create(
             {'folio_id': folio.id, 'amount': 1000.0})
+        deposit.action_collect()
         deposit.apply()
         with self.assertRaises(ValidationError):
             self.env['hotel.city.ledger'].transfer(folio.id)
