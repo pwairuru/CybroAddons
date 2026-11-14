@@ -8,7 +8,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Book — Esidai Spa &amp; Resort</title>
-<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css"/>
+<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261114c"/>
 </head>
 <body>
 <header class="esidai-nav">
@@ -26,7 +26,7 @@
 <span><a href="tel:+254743187486">+254743187486</a></span>
 <span><a href="https://wa.me/254743187486">WhatsApp</a></span>
 </footer>
-<script src="/hotel_management_odoo/static/src/js/book.js"></script>
+<script src="/hotel_management_odoo/static/src/js/book.js?v=20261114c"></script>
 </body>
 </html>
 </template>
@@ -51,12 +51,9 @@ sold, or a detail needs checking. Please try again, or write to
 </t>
 
 <form class="search" action="/book" method="get">
-<label>Check-in
-<input type="text" readonly="readonly" data-cal-show="ci" placeholder="Add date" autocomplete="off"/>
+<label class="dates-field">Dates
+<input type="text" readonly="readonly" data-cal-show="range" placeholder="Check-in → check-out" autocomplete="off"/>
 <input type="hidden" name="ci" t-att-value="kw.get('ci', '')"/>
-</label>
-<label>Check-out
-<input type="text" readonly="readonly" data-cal-show="co" placeholder="Add date" autocomplete="off"/>
 <input type="hidden" name="co" t-att-value="kw.get('co', '')"/>
 </label>
 <label>Adults

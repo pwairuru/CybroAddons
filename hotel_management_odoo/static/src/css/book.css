@@ -75,14 +75,29 @@ h1, h2, .brand {
   font-size: .95rem;
 }
 label { display: grid; gap: .3rem; font-weight: 600; font-size: .92rem; }
-input, textarea, button { font-size: 1rem; padding: .6rem .75rem; }
-input, textarea {
+input, textarea, button, select { font-size: 1rem; padding: .6rem .75rem; }
+input, textarea, select {
   border: 1px solid #cfc4ae;
   border-radius: 9px;
   background: #fff;
   color: var(--ink);
   width: 100%;
 }
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--sav);
+  box-shadow: 0 0 0 3px rgba(63, 90, 60, .18);
+}
+/* Meal plan selector: themed like the other fields, custom chevron. */
+.search select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  font-weight: 600;
+  padding-right: 2.2rem;
+  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'><path d='M1 1l6 6 6-6' fill='none' stroke='%233f5a3c' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right .85rem center;
+}
+.search select:hover { border-color: var(--sav); }
 button {
   background: var(--sav);
   color: #fff;

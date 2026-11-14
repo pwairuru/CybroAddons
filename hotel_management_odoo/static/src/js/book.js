@@ -20,8 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return isNaN(d) ? null : d;
   };
   // ---- Esidai calendar popup (the native picker cannot be styled) ----
-  const ciShow = document.querySelector('.search input[data-cal-show="ci"]');
-  const coShow = document.querySelector('.search input[data-cal-show="co"]');
+  const rangeShow = document.querySelector('.search input[data-cal-show="range"]');
   const ciHid = document.querySelector('.search input[name="ci"]');
   const coHid = document.querySelector('.search input[name="co"]');
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -40,8 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const setSel = (ciD, coD) => {
     if (ciHid) ciHid.value = ciD ? iso(ciD) : '';
     if (coHid) coHid.value = coD ? iso(coD) : '';
-    if (ciShow) ciShow.value = ciD ? pretty(iso(ciD)) : '';
-    if (coShow) coShow.value = coD ? pretty(iso(coD)) : '';
+    if (rangeShow) {
+      rangeShow.value = (ciD && coD) ? pretty(iso(ciD)) + ' → ' + pretty(iso(coD))
+        : ciD ? pretty(iso(ciD)) + ' → …' : '';
+    }
   };
   const render = () => {
     const { ci, co } = getSel();
@@ -90,16 +91,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (anchor === 'ci' || (ci && co) || (ci && dt <= ci)) {
       setSel(dt, null);
       anchor = 'co';
-      if (coShow) coShow.focus();
     } else {
       setSel(ci, dt);
       anchor = 'ci';
     }
     render();
   };
-  const openCal = (which) => {
-    anchor = which || 'ci';
-    const { ci } = getSel();
+  const openCal = () => {
+    const { ci, co } = getSel();
+    anchor = (!ci || (ci && co)) ? 'ci' : 'co';
     const base = anchor === 'co' && ci ? ci : (ci || today);
     view = new Date(base.getFullYear(), base.getMonth(), 1);
     render();
@@ -116,11 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', (e) => {
     if (!panel.hidden && !panel.contains(e.target) && !e.target.closest('.search')) closeCal();
   });
-  [[ciShow, 'ci'], [coShow, 'co']].forEach(([el, which]) => {
-    if (!el) return;
-    el.addEventListener('click', () => openCal(which));
-    el.addEventListener('focus', () => openCal(which));
-  });
+  if (rangeShow) {
+    rangeShow.addEventListener('click', () => openCal());
+    rangeShow.addEventListener('focus', () => openCal());
+  }
   // Seed pretty labels from server-rendered ISO values.
   setSel(parseISO(ciHid ? ciHid.value : ''), parseISO(coHid ? coHid.value : ''));
   // Don't search dateless: open the calendar instead.
@@ -128,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchForm) searchForm.addEventListener('submit', (e) => {
     if (!getSel().ci || !getSel().co) {
       e.preventDefault();
-      openCal(!getSel().ci ? 'ci' : 'co');
+      openCal();
     }
   });
   // Single booking dialog: Select buttons fill hidden room_id + summary.
