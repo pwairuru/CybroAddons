@@ -1,0 +1,264 @@
+/* Esidai Spa & Resort — public booking. Earthy luxury, mobile-first. */
+:root {
+  --sav: #3f5a3c;
+  --sav-deep: #24351f;
+  --gold: #c9a45c;
+  --sand: #f3ecdd;
+  --clay: #8a6a4f;
+  --ink: #2b2b26;
+  --card: #fffdf8;
+  --muted: #6f6a5e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--sand);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+h1, h2, .brand {
+  font-family: Georgia, "Playfair Display", "Times New Roman", serif;
+  color: var(--sav-deep);
+}
+/* Header */
+.esidai-nav {
+  background: rgba(255, 255, 255, .96);
+  border-bottom: 3px solid var(--sav);
+  padding: .8rem 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .6rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.brand { font-size: 1.3rem; font-weight: 700; letter-spacing: .02em; }
+.esidai-nav nav { display: flex; gap: 1.1rem; align-items: center; margin-left: auto; }
+.esidai-nav a { color: var(--sav-deep); text-decoration: none; font-weight: 600; }
+.cta {
+  background: var(--sav);
+  color: #fff !important;
+  padding: .6rem 1.3rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+/* Hero */
+.book-hero {
+  background: linear-gradient(135deg, var(--sav-deep) 0%, var(--sav) 70%, #57744f 100%);
+  color: #fff;
+  text-align: center;
+  padding: 3rem 1.2rem 2.4rem;
+}
+.book-hero h1 { color: #fff; font-size: 2.2rem; margin: 0 0 .4rem; }
+.book-hero .tagline { color: #efe3cb; margin: 0; font-size: 1.05rem; }
+.esidai-main { padding: 0 1rem 2rem; }
+.book-wrap { max-width: 62rem; margin: -1.2rem auto 0; position: relative; }
+/* Search card */
+.search {
+  display: grid;
+  gap: .7rem;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 1.1rem;
+  box-shadow: 0 6px 24px rgba(36, 53, 31, .14);
+  margin: 0 0 1rem;
+  position: sticky;
+  top: 4.2rem;
+  z-index: 10;
+}
+.stay-summary {
+  color: var(--sav-deep);
+  font-weight: 700;
+  margin: 0 0 1rem;
+  font-size: .95rem;
+}
+label { display: grid; gap: .3rem; font-weight: 600; font-size: .92rem; }
+input, textarea, button { font-size: 1rem; padding: .6rem .75rem; }
+input, textarea {
+  border: 1px solid #cfc4ae;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+}
+button {
+  background: var(--sav);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+button:hover { background: var(--sav-deep); }
+/* Room cards */
+.room-grid {
+  display: grid;
+  gap: 1.2rem;
+  grid-template-columns: 1fr;
+}
+.room-card {
+  background: var(--card);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(36, 53, 31, .12);
+  display: flex;
+  flex-direction: column;
+}
+.room-photo {
+  width: 100%;
+  height: 13rem;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--sav), var(--clay));
+  display: block;
+}
+.room-body { padding: 1.1rem 1.2rem 1.3rem; display: grid; gap: .45rem; }
+.room-body h2 { margin: 0; font-size: 1.35rem; }
+.room-type-badge {
+  display: inline-block;
+  background: #e9e2cf;
+  color: var(--sav-deep);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .25rem .7rem;
+  border-radius: 999px;
+  justify-self: start;
+}
+.breakfast-chip {
+  display: inline-block;
+  background: #e7efe2;
+  color: var(--sav);
+  font-size: .78rem;
+  font-weight: 700;
+  padding: .25rem .7rem;
+  border-radius: 999px;
+  justify-self: start;
+  margin-left: .4rem;
+}
+.scarcity {
+  color: #9a5b1e;
+  font-size: .88rem;
+  font-weight: 600;
+  margin: 0;
+}
+.amenities { color: var(--muted); font-size: .9rem; margin: 0; }
+.capacity { color: var(--muted); font-size: .9rem; margin: 0; }
+.price { margin: .3rem 0 0; font-size: 1.05rem; }
+.price strong { font-size: 1.5rem; color: var(--sav-deep); }
+.price-total { color: var(--muted); font-size: .92rem; margin: 0; }
+.select-room { margin-top: .5rem; padding: .75rem; font-size: 1.02rem; }
+/* Modal dialog */
+.book-dialog {
+  border: 0;
+  border-radius: 18px;
+  padding: 0;
+  max-width: 28rem;
+  width: calc(100vw - 2.5rem);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+}
+.book-dialog::backdrop { background: rgba(36, 53, 31, .55); }
+.book-confirm { display: grid; gap: .7rem; padding: 1.4rem; }
+.book-confirm h2 { margin: 0; }
+.dlg-summary { color: var(--muted); margin: 0; }
+.dlg-actions { display: grid; gap: .6rem; grid-template-columns: 1fr 1fr; }
+.dlg-actions button[type="button"] { background: #e9e2cf; color: var(--sav-deep); }
+/* Alerts / confirm */
+.alert {
+  background: #fbf3e4;
+  border-left: 4px solid var(--clay);
+  padding: .7rem 1rem;
+  border-radius: 0 8px 8px 0;
+}
+.ok {
+  background: #e7efe2;
+  border-left: 4px solid var(--sav);
+  padding: .7rem 1rem;
+  border-radius: 0 8px 8px 0;
+}
+.confirm dt { font-weight: 700; color: var(--sav-deep); }
+.confirm dd { margin: 0 0 .5rem; }
+.empty, .hint { color: var(--sav-deep); }
+/* Esidai calendar popup */
+.search input[data-cal-show] { cursor: pointer; background: #fff; }
+.cal-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+  padding: 1.1rem 1.2rem 1rem;
+  z-index: 60;
+  width: min(22rem, calc(100vw - 2.5rem));
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .6rem;
+}
+.cal-title { font-family: Georgia, serif; font-weight: 700; color: var(--sav-deep); font-size: 1.1rem; }
+.cal-nav {
+  background: #e9e2cf;
+  color: var(--sav-deep);
+  border-radius: 50%;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.cal-nav:disabled { opacity: .35; cursor: default; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .15rem; }
+.cal-dow { text-align: center; font-size: .75rem; font-weight: 700; color: var(--muted); padding: .25rem 0; }
+.cal-day {
+  border-radius: 50%;
+  aspect-ratio: 1;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+}
+.cal-day:hover:not(:disabled) { background: #e9e2cf; }
+.cal-day:disabled { opacity: .28; cursor: default; }
+.cal-day.is-start, .cal-day.is-end { background: var(--sav); color: #fff; }
+.cal-day.is-range { background: #dfe7d8; border-radius: 8px; }
+.cal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .8rem;
+  font-size: .9rem;
+  color: var(--sav-deep);
+  font-weight: 600;
+}
+.cal-actions { display: flex; gap: .5rem; }
+.cal-actions button { padding: .45rem .9rem; font-size: .88rem; }
+.cal-actions [data-cal-clear] { background: #e9e2cf; color: var(--sav-deep); }
+/* Honeypot: humans never see it, bots fill it. */
+.hp-trap {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px; height: 1px;
+  opacity: 0;
+}
+@media (min-width: 44rem) {
+  .search { grid-template-columns: repeat(4, 1fr); }
+  .search button { grid-column: 1 / -1; }
+  .room-grid { grid-template-columns: 1fr 1fr; }
+  .book-hero h1 { font-size: 2.8rem; }
+}
+.esidai-foot {
+  border-top: 3px solid var(--sav);
+  background: #fff;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.2rem;
+  font-size: .9rem;
+}
+.esidai-foot a { color: var(--sav-deep); }

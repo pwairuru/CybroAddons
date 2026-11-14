@@ -49,3 +49,8 @@ from . import test_rate_coverage
 from . import test_reservation_payments
 from . import test_manual_pricing
 from . import test_meal_column
+from . import test_company_paybill
+from . import test_room_overrides
+from . import test_public_booking_service
+from . import test_public_booking_settings
+from . import test_public_booking_create

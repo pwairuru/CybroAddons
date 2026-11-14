@@ -10,5 +10,16 @@
                 <span t-field="line.hotel_meal_plan"/>
             </td>
         </xpath>
+        <xpath expr="//div[@id='payment_term']" position="before">
+            <t t-if="o.hotel_folio_id or o.hotel_booking_id">
+                <!-- clear: the totals above float right; without this the
+                     block wraps up beside the totals table. -->
+                <div style="clear: both;">
+                    <t t-call="hotel_management_odoo.paybill_block" company="o.company_id"/>
+                    <t t-set="server_first" t-value="((o.invoice_user_id or o.create_uid).display_name or '').split(' ')[0]"/>
+                    <t t-call="hotel_management_odoo.served_by_line" server_name="server_first"/>
+                </div>
+            </t>
+        </xpath>
     </template>
 </odoo>

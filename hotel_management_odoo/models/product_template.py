@@ -47,9 +47,13 @@ class ProductTemplate(models.Model):
     floor_id = fields.Many2one('hotel.floor', string='Floor',
                                help="Automatically selects the Floor",
                                tracking=True)
+    manager_override_id = fields.Many2one(
+        'res.users', string="Manager Override", tracking=True,
+        help="Room manager override. Empty = follows the Floor manager.")
     user_id = fields.Many2one('res.users', string="User",
-                              related='floor_id.user_id',
-                              help="Automatically selects the manager",
+                              compute='_compute_manager', store=True,
+                              help="Room manager: override, else Floor "
+                                   "manager.",
                               tracking=True)
     room_type = fields.Selection([('single', 'Single'),
                                    ('double', 'Double'),
@@ -62,18 +66,63 @@ class ProductTemplate(models.Model):
                                    index=True, tracking=True)
     website_published = fields.Boolean(
         string="Website Published",
-        related='room_type_id.website_published',
+        compute='_compute_website_published',
         store=True, readonly=True,
-        help="Published on the website (from the room type). "
-             "Availability is separate: Status / Available.")
+        help="Room Type published AND not hidden per-room. "
+             "Non-rooms are never published.")
+    website_excluded = fields.Boolean(
+        string="Hide from Website",
+        default=False, tracking=True,
+        help="Hide this room from the website even when its "
+             "Room Type is published.")
     num_person = fields.Integer(string='Number Of Persons',
                                 required=True, default=1,
                                 help="Automatically chooses the No. of Persons",
                                 tracking=True)
     avatar_128 = fields.Image(string='Avatar 128',
-                              compute='_compute_avatar_128_hotel',
-                              help="Uploaded room image, else a colored "
-                              "first-letter tile for kanban.")
+                               compute='_compute_avatar_128_hotel',
+                               help="Uploaded room image, else a colored "
+                               "first-letter tile for kanban.")
+    next_checkin_date = fields.Datetime(
+        string="Next Check-In", compute='_compute_next_stay',
+        help="Earliest upcoming check-in holding this room "
+             "(reserved / check-in bookings).")
+    next_guest_name = fields.Char(
+        string="Next Guest", compute='_compute_next_stay',
+        help="Customer on the earliest upcoming stay holding this room.")
+
+    @api.depends()
+    def _compute_next_stay(self):
+        """Next stay per room in one query (non-stored, no migration).
+        Only active holds count: reserved / check_in bookings whose
+        checkout is still ahead."""
+        now = fields.Datetime.now()
+        lines = self.env['room.booking.line'].search([
+            ('room_id', 'in', self.ids),
+            ('booking_id.state', 'in', ('reserved', 'check_in')),
+            ('checkout_date', '>', now),
+        ], order='checkin_date')
+        by_room = {}
+        for line in lines:
+            by_room.setdefault(line.room_id.id, line)
+        for room in self:
+            line = by_room.get(room.id)
+            room.next_checkin_date = line.checkin_date if line else False
+            room.next_guest_name = (
+                line.booking_id.partner_id.name if line else False)
+
+    @api.depends('room_type_id.website_published', 'website_excluded')
+    def _compute_website_published(self):
+        for room in self:
+            room.website_published = bool(
+                room.room_type_id.website_published
+            ) and not room.website_excluded
+
+    @api.depends('floor_id.user_id', 'manager_override_id')
+    def _compute_manager(self):
+        for room in self:
+            room.user_id = (
+                room.manager_override_id or room.floor_id.user_id)
 
     @api.depends('name', 'image_128')
     def _compute_avatar_128_hotel(self):

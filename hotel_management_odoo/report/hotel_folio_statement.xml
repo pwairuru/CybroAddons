@@ -131,6 +131,9 @@
                                 </table>
                             </div>
                         </div>
+                        <t t-call="hotel_management_odoo.paybill_block" company="doc.company_id"/>
+                        <t t-set="server_first" t-value="(doc.create_uid.display_name or '').split(' ')[0]"/>
+                        <t t-call="hotel_management_odoo.served_by_line" server_name="server_first"/>
                         <p t-if="doc.notes"><t t-out="doc.notes"/></p>
                     </div>
                 </t>

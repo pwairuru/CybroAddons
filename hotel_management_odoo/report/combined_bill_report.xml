@@ -121,6 +121,9 @@
                                     </table>
                                 </div>
                             </div>
+                            <t t-call="hotel_management_odoo.paybill_block" company="o.booking_id.company_id"/>
+                            <t t-set="server_first" t-value="(o.booking_id.create_uid.display_name or '').split(' ')[0]"/>
+                            <t t-call="hotel_management_odoo.served_by_line" server_name="server_first"/>
 
                             <!-- POS Orders Page (if any) -->
                             <t t-if="o.pos_order_ids">
@@ -160,6 +163,9 @@
                                         </table>
                                     </div>
                                 </div>
+                                <t t-call="hotel_management_odoo.paybill_block" company="o.booking_id.company_id"/>
+                                <t t-set="server_first" t-value="(o.booking_id.create_uid.display_name or '').split(' ')[0]"/>
+                                <t t-call="hotel_management_odoo.served_by_line" server_name="server_first"/>
                             </t>
                         </t>
                     </div>
@@ -233,6 +239,9 @@
                 </table>
             </div>
         </div>
+        <t t-call="hotel_management_odoo.paybill_block" company="booking.company_id"/>
+        <t t-set="server_first" t-value="(booking.create_uid.display_name or '').split(' ')[0]"/>
+        <t t-call="hotel_management_odoo.served_by_line" server_name="server_first"/>
     </template>
     <!-- Booking Print-menu entry: full folio as it stands, pre-invoice
          review for the guest. Same rendering as the combined bill. -->

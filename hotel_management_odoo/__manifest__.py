@@ -21,7 +21,7 @@
 #############################################################################
 {
     'name': 'Hotel Management',
-    'version': '20.0.2.17.0',
+    'version': '20.0.2.21.0',
     'category': 'Industries',
     'summary': """A complete Hotel Management System that cover all areas of 
      Hotel services""" ,
@@ -39,6 +39,7 @@
         'security/ir.access.csv',
         'data/ir_data_sequence.xml',
         'data/account_payment_fix.xml',
+        'report/report_paybill_block.xml',
         'report/room_booking_reports.xml',
         'report/sale_order_reports.xml',
         'report/combined_bill_report.xml',
@@ -88,8 +89,13 @@
         'wizard/hotel_report_pack_views.xml',
         'wizard/hotel_rate_line_generator_views.xml',
         'views/hotel_rate_setup_views.xml',
+        'views/public_booking_templates.xml',
     ],
     'assets': {
+        'web.assets_frontend': [
+            'hotel_management_odoo/static/src/css/book.css',
+            'hotel_management_odoo/static/src/js/book.js',
+        ],
         'web.assets_backend': [
             'hotel_management_odoo/static/src/js/action_manager.js',
             'hotel_management_odoo/static/src/js/dashboard_action.js',

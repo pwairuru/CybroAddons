@@ -21,3 +21,4 @@
 #############################################################################
 from . import test_hotel_pos_extension
 from . import test_hotel_pos_folio
+from . import test_pos_receipt_paybill

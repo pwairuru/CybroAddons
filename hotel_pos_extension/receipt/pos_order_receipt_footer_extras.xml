@@ -1,18 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!-- Receipt content extras: M-Pesa till notice + vendor credit.
+    <!-- Receipt content extras: per-terminal M-Pesa paybill + vendor credit.
          Applies to both Bill (pro forma, draft orders) and final Receipt:
          both render point_of_sale.pos_order_receipt, whose footer this
          extends. Core classes only (text-normal/text-small/text-bold),
          so the 72mm scaling override keeps applying automatically. -->
     <template id="pos_order_receipt_footer_extras" inherit_id="point_of_sale.pos_order_receipt_footer" name="POS receipt M-Pesa + powered-by">
-        <!-- M-Pesa paybill block, right after company info (KRA PIN etc.),
-             always visible regardless of receipt_header/footer config. -->
+        <!-- M-Pesa paybill block, right after company info (KRA PIN
+             etc.), always visible regardless of receipt_header/footer
+             config. Terminal's pos.config values win; falls back to the
+             company paybill; hidden when both empty. Free-form fields so
+             each customer sets their own numbers per register. -->
         <xpath expr="//t[@t-call='point_of_sale.company_info_receipt']" position="after">
-            <div class="w-100 text-center mt-2 mb-2" style="border-top: 1px dashed black; border-bottom: 1px dashed black; padding: 6px 0;">
-                <div class="text-normal text-bold">M-PESA PAYBILL: 4141717</div>
-                <div class="text-normal text-bold">ACCOUNT: CAMP DAVID UNITED</div>
-            </div>
+            <t t-set="paybill_number" t-value="config.get('receipt_paybill_number') or (company and company.get('mpesa_paybill_number'))"/>
+            <t t-set="paybill_account" t-value="config.get('receipt_paybill_account') or (company and company.get('mpesa_paybill_account'))"/>
+            <t t-if="paybill_number">
+                <div class="w-100 text-center mt-2 mb-2" style="border-top: 1px dashed black; border-bottom: 1px dashed black; padding: 6px 0;">
+                    <div class="text-normal text-bold">M-PESA PAYBILL: <t t-out="paybill_number"/></div>
+                    <div t-if="paybill_account" class="text-normal text-bold">ACCOUNT: <t t-out="paybill_account"/></div>
+                </div>
+            </t>
+            <div t-if="extra_data.get('cashier_name')" class="w-100 text-center text-small">Served by: <t t-out="extra_data['cashier_name']"/></div>
         </xpath>
         <!-- Small vendor credit appended at the very bottom of the ticket. -->
         <xpath expr="//div[hasclass('w-100','text-center','mt-3')]" position="inside">

@@ -43,6 +43,25 @@ class ResCompany(models.Model):
         help='Optional product for the first-night no-show charge. '
         'Falls back to the room product when empty.')
 
+    mpesa_paybill_number = fields.Char(
+        string='M-Pesa Paybill',
+        help='Paybill number printed on guest documents (bills, '
+             'folio statements, invoices, POS receipts). Empty hides '
+             'the paybill block.')
+    mpesa_paybill_account = fields.Char(
+        string='M-Pesa Account Name',
+        help='Account name printed under the paybill on guest documents.')
+
+    public_auto_confirm = fields.Boolean(string='Auto-confirm public bookings', default=True)
+
+    @api.model
+    def _load_pos_data_fields(self, config):
+        fields_list = super()._load_pos_data_fields(config)
+        for name in ('mpesa_paybill_number', 'mpesa_paybill_account'):
+            if name not in fields_list:
+                fields_list.append(name)
+        return fields_list
+
     @api.constrains('default_rate_plan_id')
     def _check_default_rate_plan_company(self):
         for company in self:
