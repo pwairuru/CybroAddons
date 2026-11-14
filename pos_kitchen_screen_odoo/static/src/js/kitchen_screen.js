@@ -492,7 +492,7 @@ class KitchenScreenDashboard extends Component {
         }
     }
 
-    async startCountdown(orderId, timeString,config_id) {
+    async startCountdown(orderId, timeString, config_id) {
         if (this.countdownIntervals[orderId]) {
             clearInterval(this.countdownIntervals[orderId]);
         }
@@ -502,6 +502,10 @@ class KitchenScreenDashboard extends Component {
 
         this.updateCountdownState(orderId, totalSeconds, false);
 
+        // Opt-in auto-advance: expiry only auto-completes when the
+        // kitchen record has is_preparation_complete checked
+        // (toggled from the kitchen screen kanban/form, OFF by default).
+        // Otherwise it only flags OVERDUE and chefs move stages manually.
         this.countdownIntervals[orderId] = setInterval(async () => {
             totalSeconds--;
             if (totalSeconds > 0) {
@@ -512,7 +516,7 @@ class KitchenScreenDashboard extends Component {
             delete this.countdownIntervals[orderId];
             let autoDone = false;
             try {
-                let orderData = await this.orm.call(
+                const orderData = await this.orm.call(
                     'kitchen.screen',
                     'search_read',
                     [
@@ -526,7 +530,6 @@ class KitchenScreenDashboard extends Component {
                 }
             } catch (error) {
                 console.error("Error fetching order data:", error);
-                // Handle error appropriately
             }
             if (!autoDone) {
                 this.updateCountdownState(orderId, 0, false, true);

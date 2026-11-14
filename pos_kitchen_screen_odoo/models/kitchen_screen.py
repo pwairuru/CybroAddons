@@ -161,6 +161,15 @@ class KitchenScreen(models.Model):
             'url': f'/pos_kitchen_screen_odoo/static/src/sounds/{sound}.mp3',
         }
 
+    def action_toggle_preparation_complete(self):
+        """Flip the per-kitchen auto-advance opt-in (kanban toggle).
+
+        Code only: no new fields, no schema/migration change. The JS
+        countdown only auto-completes when this flag is True."""
+        self.ensure_one()
+        self.is_preparation_complete = not self.is_preparation_complete
+        return True
+
     @api.model_create_multi
     def create(self, vals_list):
         """Used to create sequence"""

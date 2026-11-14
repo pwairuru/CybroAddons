@@ -154,6 +154,7 @@
                 <field name="cooking_count"/>
                 <field name="ready_count"/>
                 <field name="completed_count"/>
+                <field name="is_preparation_complete"/>
                 <templates>
                     <t t-name="card">
                         <div class="o_kanban_record d-flex flex-row gap-3 p-3">
@@ -186,6 +187,23 @@
                                 </div>
                                 <div class="mt-1">
                                     <field name="pos_categ_ids" widget="many2many_tags"/>
+                                </div>
+                                <div class="mt-1 d-flex align-items-center gap-2">
+                                    <span class="small text-muted">Auto-advance:</span>
+                                    <field name="is_preparation_complete" widget="boolean" readonly="1"/>
+                                    <button name="action_toggle_preparation_complete"
+                                            type="object"
+                                            string="Enable"
+                                            class="btn btn-sm btn-outline-warning"
+                                            invisible="is_preparation_complete"
+                                            confirm="Enabling auto-advance will move kitchen orders from Ready to Completed automatically when the preparation timer expires, without chef action. Are you sure?"
+                                            help="Opt this kitchen in to timer auto-advance"/>
+                                    <button name="action_toggle_preparation_complete"
+                                            type="object"
+                                            string="Disable"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            invisible="not is_preparation_complete"
+                                            help="Back to chef-only stage moves"/>
                                 </div>
                                 <div class="mt-auto pt-2">
                                     <button name="%(kitchen_custom_dashboard_action)d"
