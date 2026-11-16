@@ -74,17 +74,10 @@ patch(PaymentScreen.prototype, {
         });
 
         if (hotel_payments.length > 0 && !order.getBookingId()) {
-            const confirmed = await new Promise((resolve) => {
-                this.dialog.add(ConfirmationDialog, {
-                    title: _t("Please select the Room"),
-                    body: _t("You need to select a hotel room booking before using Pay at Checkout."),
-                    confirm: () => resolve(true),
-                    cancel: () => resolve(false),
-                });
+            this.dialog.add(AlertDialog, {
+                title: _t("Please select the Room"),
+                body: _t("Pay at Checkout needs a room booking: tap Add Room first, then retry."),
             });
-            if (!confirmed) {
-                return;
-            }
             return;
         }
 

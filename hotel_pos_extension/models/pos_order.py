@@ -163,7 +163,7 @@ class PosOrder(models.Model):
         if not self._is_fully_hotel_charge():
             if self.booking_id and pays and any(
                     p.payment_method_id.is_hotel_charge for p in pays):
-                self.booking_id.message_post(
+                self.booking_id.sudo().message_post(
                     body="POS %s has split tender (part room-charge); "
                          "nothing auto-posted — split the ticket or "
                          "charge the room part manually."
@@ -172,6 +172,8 @@ class PosOrder(models.Model):
         folio = self.booking_id._ensure_folio()
         posted = FolioLine.browse()
         for line in self.lines:
+            if (line.qty or 0.0) <= 0:
+                continue
             existing = FolioLine.search([
                 ('folio_id', '=', folio.id),
                 ('pos_order_id', '=', self.id),
@@ -188,7 +190,7 @@ class PosOrder(models.Model):
                     {'tax_ids': [(6, 0, line.tax_ids.ids)]})
             posted |= newline
         if posted:
-            folio.message_post(
+            folio.sudo().message_post(
                 body="POS %s posted: %d line(s)."
                 % (self.pos_reference or self.name, len(posted)))
         return posted
@@ -220,7 +222,19 @@ class PosOrder(models.Model):
 
         One bad order never blocks the others: per-order poster
         failures are logged and swallowed (no new exceptions).
+        Hotel-charge without a booking is blocked here server-side
+        (POS JS alone is bypassable via cached assets / draft sync).
         """
+        for order in self:
+            pays = order.payment_ids.filtered(lambda p: not p.is_change)
+            if pays and any(
+                    p.payment_method_id.is_hotel_charge for p in pays):
+                if not order.booking_id:
+                    from odoo.exceptions import ValidationError
+                    raise ValidationError(
+                        "Pay at Checkout needs a room booking: "
+                        "select Add Room before taking hotel-charge payment "
+                        "(%s)." % (order.pos_reference or order.name))
         res = super().action_pos_order_paid()
         for order in self:
             try:
