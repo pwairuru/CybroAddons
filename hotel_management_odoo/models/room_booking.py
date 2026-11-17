@@ -1134,7 +1134,11 @@ class RoomBooking(models.Model):
                     fields.Date.to_string(date_to),
                     plan.id, adults=rline.adults or 0,
                     children=rline.children or 0,
-                    board=rline.meal_plan or self.meal_plan or 'RO')
+                    board=rline.meal_plan or self.meal_plan or 'RO',
+                    # Negotiated locked rent (receptionist quote) wins
+                    # over the engine rate; unset lines fall back to
+                    # engine pricing as before.
+                    locked_unit_price=rline.price_unit or None)
             except ValidationError as e:
                 raise ValidationError(
                     _("Checkout blocked for %s: %s has no rate "

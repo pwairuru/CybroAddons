@@ -260,7 +260,12 @@ class HotelNightAudit(models.Model):
                 ])
                 if dup:
                     continue
-                if plan:
+                locked = line.price_unit or 0.0
+                if locked > 0.0:
+                    # Negotiated locked rent (receptionist quote): bill
+                    # what was agreed, not the engine rate.
+                    price = locked
+                elif plan:
                     # First-night anchor: every night posts the
                     # check-in date price so folio matches the quote.
                     # Restrictions/min-stay above still use the
@@ -273,7 +278,7 @@ class HotelNightAudit(models.Model):
                         board=line.meal_plan or booking.meal_plan or 'RO',
                         booking=booking)['net']
                 else:
-                    price = line.price_unit or 0.0
+                    price = 0.0
                 charge.post_charge(folio.id, product.id, 1,
                                    price, 'to_guest',
                                    hotel_date=day,

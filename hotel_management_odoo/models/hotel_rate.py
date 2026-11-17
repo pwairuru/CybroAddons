@@ -1045,7 +1045,8 @@ class HotelRateEngine(models.AbstractModel):
     @api.model
     def post_stay_nights(self, folio_id, room_template_id,
                          date_from, date_to, plan_id, pax=1,
-                         adults=None, children=0, board=False):
+                         adults=None, children=0, board=False,
+                         locked_unit_price=None):
         """Post one folio line per night + one rate snapshot per night.
 
         Pre-validates ALL nights are open and resolves + validates every
@@ -1057,6 +1058,11 @@ class HotelRateEngine(models.AbstractModel):
         the same folio + room + date + line is kept, never rewritten,
         except a folded pre-upgrade base line (price holds the old net
         incl occupancy) which is repriced to resolved with a folio note.
+        Locked negotiated quotes: when locked_unit_price > 0 (the
+        booking line's receptionist-negotiated nightly rent), the folio
+        posts that price instead of the engine rate so the guest is
+        billed what was quoted. The negotiation delta is folded into
+        the snapshot adjustment for audit.
         """
         nights = self.check_stay(room_template_id, date_from, date_to,
                                  plan_id, pax=pax, adults=adults,
@@ -1142,6 +1148,16 @@ class HotelRateEngine(models.AbstractModel):
             orphan = float(orphan_by_day.get(day, 0.0))
             itemized = sum(float(bline.get('total') or 0.0) for bline, _prod in bands_by_day[day])
             base_price = float(detailed['net']) - itemized
+            negotiated = 0.0
+            if locked_unit_price is not None \
+                    and float(locked_unit_price) > 0.0:
+                # Receptionist-negotiated nightly rent wins over the
+                # engine rate. Bands still post separately, so the base
+                # line carries locked minus itemized (avoids double
+                # counting occupancy extras already in the quote).
+                negotiated = float(locked_unit_price) \
+                    - float(detailed['net'])
+                base_price = float(locked_unit_price) - itemized
             dup = self.env['hotel.folio.line'].find_stay_line(
                 folio.id, product.id, day, room.id)
             if dup:
@@ -1159,7 +1175,8 @@ class HotelRateEngine(models.AbstractModel):
                         if bsnap:
                             bsnap.write({
                                 'base': detailed['base'],
-                                'adjustment': detailed['adjustment'],
+                                'adjustment': float(
+                                    detailed['adjustment']) + negotiated,
                                 'occupancy': orphan,
                                 'board': detailed.get('board', 0.0),
                                 'net': base_price,
@@ -1202,7 +1219,8 @@ class HotelRateEngine(models.AbstractModel):
                     'folio_id': folio.id,
                     'folio_line_id': line.id,
                     'base': detailed['base'],
-                    'adjustment': detailed['adjustment'],
+                    'adjustment': float(
+                        detailed['adjustment']) + negotiated,
                     'occupancy': orphan,
                     'board': detailed.get('board', 0.0),
                     'net': base_price,
