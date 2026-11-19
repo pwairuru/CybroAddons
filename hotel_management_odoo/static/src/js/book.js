@@ -62,6 +62,43 @@ document.addEventListener('DOMContentLoaded', () => {
         : ciD ? pretty(iso(ciD)) + ' → …' : 'Add dates';
     }
   };
+  // Fully-booked feed (/book/blocked): blocked night ISOs, cached per month key.
+  // Server stays authoritative (re-checks at confirm); the calendar only greys.
+  const blockedDays = new Set();
+  const blockedMonths = new Set();
+  const monthKey = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const rangeHasBlocked = (ciD, coD) => {
+    if (!ciD || !coD || coD <= ciD) return false;
+    for (let t = new Date(ciD); t < coD; t = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1)) {
+      if (blockedDays.has(iso(t))) return true;
+    }
+    return false;
+  };
+  const fetchBlocked = (fromD, toD) => {
+    const keys = [];
+    for (let m = new Date(fromD.getFullYear(), fromD.getMonth(), 1); m < toD; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+      if (!blockedMonths.has(monthKey(m))) keys.push(monthKey(m));
+    }
+    if (!keys.length) return;
+    keys.forEach((k) => blockedMonths.add(k));
+    fetch('/book/blocked', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { from: iso(fromD), to: iso(toD) } }),
+    }).then((r) => r.json()).then((data) => {
+      const list = (data && data.result && data.result.blocked) || (data && data.blocked) || [];
+      if (Array.isArray(list)) list.forEach((s) => { if (typeof s === 'string' && s) blockedDays.add(s); });
+      render();
+    }).catch(() => { keys.forEach((k) => blockedMonths.delete(k)); });
+  };
+  const ensureBlocked = () => {
+    fetchBlocked(new Date(view.getFullYear(), view.getMonth(), 1),
+      new Date(view.getFullYear(), view.getMonth() + 2, 1));
+  };
+  const hideBlockedNotice = () => {
+    const ntc = searchForm ? searchForm.querySelector('[data-blocked-notice]') : null;
+    if (ntc) ntc.hidden = true;
+  };
   const renderMonth = (host, monthDate) => {
     const { ci, co } = getSel();
     const wrap = document.createElement('section');
@@ -88,8 +125,14 @@ document.addEventListener('DOMContentLoaded', () => {
       b.className = 'cal-day';
       b.textContent = String(d);
       b.setAttribute('aria-label', pretty(iso(dt)));
-      const dis = dt < today || dt > maxDate;
+      // Current selection endpoints keep their marking (server re-checks at
+      // confirm); blocked nights and capped checkouts are unpickable.
+      const isSelEnd = (ci && dt.getTime() === ci.getTime()) || (co && dt.getTime() === co.getTime());
+      const isBlockedDay = !isSelEnd && blockedDays.has(iso(dt));
+      const cappedDay = !isSelEnd && ci && dt > ci && rangeHasBlocked(ci, dt);
+      const dis = dt < today || dt > maxDate || isBlockedDay || cappedDay;
       if (dis) b.disabled = true;
+      if (isBlockedDay) b.classList.add('is-blocked');
       if (!dis) {
         if (ci && dt.getTime() === ci.getTime()) b.classList.add('is-start');
         if (co && dt.getTime() === co.getTime()) b.classList.add('is-end');
@@ -120,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
       new Date(view.getFullYear(), view.getMonth() + 1, 1) >= firstOfMonth(maxDate);
   };
   const pick = (dt) => {
+    hideBlockedNotice();
     const { ci, co } = getSel();
     if (anchor === 'ci' || (ci && co) || (ci && dt <= ci)) {
       setSel(dt, null);
@@ -142,6 +186,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const base = anchor === 'co' && ci ? ci : (ci || today);
     view = new Date(base.getFullYear(), base.getMonth(), 1);
     render();
+    ensureBlocked();
+    hideBlockedNotice();
     panel.hidden = false;
     positionPanel(panel, pillDates);
     if (pillDates) pillDates.setAttribute('aria-expanded', 'true');
@@ -153,8 +199,9 @@ document.addEventListener('DOMContentLoaded', () => {
   panel.querySelectorAll('[data-cal-nav]').forEach((b) => b.addEventListener('click', () => {
     view = new Date(view.getFullYear(), view.getMonth() + Number(b.dataset.calNav), 1);
     render();
+    ensureBlocked();
   }));
-  panel.querySelector('[data-cal-clear]').addEventListener('click', () => { setSel(null, null); anchor = 'ci'; render(); });
+  panel.querySelector('[data-cal-clear]').addEventListener('click', () => { setSel(null, null); anchor = 'ci'; hideBlockedNotice(); render(); });
   panel.querySelector('[data-cal-done]').addEventListener('click', () => { closeCal(); if (pillDates) pillDates.focus(); });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !panel.hidden) { closeCal(); if (pillDates) pillDates.focus(); }
@@ -175,10 +222,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Seed pretty labels from server-rendered ISO values.
   setSel(parseISO(ciHid ? ciHid.value : ''), parseISO(coHid ? coHid.value : ''));
   // Don't search dateless: open the calendar instead.
+  // Backstop: a blocked night in range shows the notice instead of navigating
+  // (server re-checks at confirm; this only stops obviously stale ranges).
   if (searchForm) searchForm.addEventListener('submit', (e) => {
-    if (!getSel().ci || !getSel().co) {
+    const sel = getSel();
+    if (!sel.ci || !sel.co) {
       e.preventDefault();
       openCal();
+      return;
+    }
+    if (rangeHasBlocked(sel.ci, sel.co)) {
+      e.preventDefault();
+      const ntc = searchForm.querySelector('[data-blocked-notice]');
+      if (ntc) ntc.hidden = false;
     }
   });
   // ---- Esidai guest stepper dropdown, anchored under the pill bar ----

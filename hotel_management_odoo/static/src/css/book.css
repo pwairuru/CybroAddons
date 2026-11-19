@@ -352,6 +352,7 @@ button:hover { background: var(--sav-deep); }
 .cal-day:disabled { opacity: .28; cursor: default; }
 .cal-day.is-start, .cal-day.is-end { background: var(--sav); color: #fff; }
 .cal-day.is-range { background: #dfe7d8; border-radius: 8px; }
+.cal-day.is-blocked { text-decoration: line-through; }
 .cal-foot {
   display: flex;
   align-items: center;
