@@ -125,18 +125,18 @@ document.addEventListener('DOMContentLoaded', () => {
       b.className = 'cal-day';
       b.textContent = String(d);
       b.setAttribute('aria-label', pretty(iso(dt)));
-      // Current selection endpoints keep their marking (server re-checks at
-      // confirm); blocked nights and capped checkouts are unpickable.
-      const isSelEnd = (ci && dt.getTime() === ci.getTime()) || (co && dt.getTime() === co.getTime());
-      const isBlockedDay = !isSelEnd && blockedDays.has(iso(dt));
-      const cappedDay = !isSelEnd && ci && dt > ci && rangeHasBlocked(ci, dt);
+      // Absolute blocking: feed-listed nights and capped checkouts disable,
+      // including current selection endpoints (stale links/ late feed).
+      // Selection marking stays class-only; clicks attach to enabled days.
+      const isBlockedDay = blockedDays.has(iso(dt));
+      const cappedDay = ci && dt > ci && rangeHasBlocked(ci, dt);
       const dis = dt < today || dt > maxDate || isBlockedDay || cappedDay;
       if (dis) b.disabled = true;
       if (isBlockedDay) b.classList.add('is-blocked');
+      if (ci && dt.getTime() === ci.getTime()) b.classList.add('is-start');
+      if (co && dt.getTime() === co.getTime()) b.classList.add('is-end');
+      if (ci && co && dt > ci && dt < co) b.classList.add('is-range');
       if (!dis) {
-        if (ci && dt.getTime() === ci.getTime()) b.classList.add('is-start');
-        if (co && dt.getTime() === co.getTime()) b.classList.add('is-end');
-        if (ci && co && dt > ci && dt < co) b.classList.add('is-range');
         b.addEventListener('click', (ev) => { ev.stopPropagation(); pick(dt); });
       }
       grid.appendChild(b);
