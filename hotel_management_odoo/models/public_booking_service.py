@@ -130,6 +130,7 @@ class HotelPublicBooking(models.AbstractModel):
                     if line: nightly = line.price
                 except Exception: pass
             out.append({'id': r.id, 'name': r.name, 'type': r.room_type_id.name or '',
+                        'type_id': r.room_type_id.id or False,
                         'nightly': float(nightly), 'total': float(nightly) * nights,
                         'nightly_str': 'KES {:,.0f}'.format(nightly),
                         'total_str': 'KES {:,.0f}'.format(float(nightly) * nights),
