@@ -55,6 +55,7 @@ from . import test_public_booking_service
 from . import test_public_booking_settings
 from . import test_public_booking_create
 from . import test_public_booking_overlap
+from . import test_public_booking_blocked
 from . import test_public_booking_grouping
 from . import test_public_booking_pax_cap
 from . import test_reservation_deposit_lifecycle

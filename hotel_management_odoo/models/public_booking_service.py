@@ -1,7 +1,7 @@
 # models/public_booking_service.py
 import html as _html
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from odoo import api, fields, models
 
 
@@ -220,6 +220,61 @@ class HotelPublicBooking(models.AbstractModel):
     @api.model
     def booked_ranges(self, room_id, dfrom, dto):
         return []
+
+    @api.model
+    def blocked_days(self, dfrom, dto):
+        """Fully-booked nights in [dfrom, dto). Read-only.
+
+        Night D = [D 14:00, D+1 11:00); a line blocks it iff
+        checkin < night-end and checkout > night-start. A night is
+        listed only when EVERY published room is busy (booking line
+        in draft/reserved/check_in, OOO, or dirty) — absolute
+        blocking, no pax filter. Garbage input (unparsable, empty
+        window, span > 93 days) returns []."""
+        try:
+            d1 = fields.Date.from_string(dfrom)
+            d2 = fields.Date.from_string(dto)
+        except Exception:
+            return []
+        if not d1 or not d2 or d2 <= d1 or (d2 - d1).days > 93:
+            return []
+        S = self.sudo()
+        rooms = S.env['product.template'].search([
+            ('is_room', '=', True), ('website_published', '=', True),
+            ('active', '=', True)])
+        if not rooms:
+            return []
+        room_ids = set(rooms.ids)
+        # OOO/dirty are date-independent: an open request blocks the
+        # room for every night in the window (same set-union line).
+        busy_all = (set(S.env['hotel.daily.inventory']._ooo_room_ids())
+                    | set(S.env['hotel.daily.inventory']._dirty_room_ids())
+                    ) & room_ids
+        wstart = fields.Datetime.to_string(datetime(
+            d1.year, d1.month, d1.day, 14, 0, 0))
+        wend = fields.Datetime.to_string(datetime(
+            d2.year, d2.month, d2.day, 11, 0, 0))
+        lines = S.env['room.booking.line'].search([
+            ('booking_id.state', 'in', ('draft', 'reserved', 'check_in')),
+            ('room_id', 'in', list(room_ids)),
+            ('checkin_date', '<', wend),
+            ('checkout_date', '>', wstart),
+        ])
+        out = []
+        day = d1
+        while day < d2:
+            start = datetime(day.year, day.month, day.day, 14, 0, 0)
+            end = datetime(day.year, day.month, day.day, 11, 0, 0) + timedelta(days=1)
+            busy = set(busy_all)
+            for line in lines:
+                if (line.checkin_date and line.checkout_date
+                        and line.checkin_date < end
+                        and line.checkout_date > start):
+                    busy.add(line.room_id.id)
+            if len(busy & room_ids) >= len(room_ids):
+                out.append(fields.Date.to_string(day))
+            day += timedelta(days=1)
+        return out
 
     @api.model
     def create_booking(self, vals):
