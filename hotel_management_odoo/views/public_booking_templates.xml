@@ -38,17 +38,17 @@
 <t t-call="hotel_management_odoo.public_book_layout">
 <div class="book-hero">
 <h1>Book your stay</h1>
-<p class="tagline">Savannah views, infinity pool, Enkai Spa — minutes from Nairobi National Park.</p>
+<p class="tagline">Savannah views, infinity pool, Enkai Spa, minutes from Nairobi National Park.</p>
 </div>
 <div class="book-wrap">
 
 <!-- Friendly error copy: never render raw ?e= codes to guests. -->
 <t t-if="kw.get('e') == 'spam'">
-<p class="alert">Thank you — please try once more, or reach us on WhatsApp
+<p class="alert">Thank you. Please try once more, or reach us on WhatsApp
 <a href="https://wa.me/254743187486">+254743187486</a>.</p>
 </t>
 <t t-elif="kw.get('e')">
-<p class="alert">We couldn’t complete that booking — those dates may have just
+<p class="alert">We couldn't complete that booking. Those dates may have just
 sold, or a detail needs checking. Please try again, or write to
 <a href="mailto:reservations@esidaisparesort.com">reservations@esidaisparesort.com</a>.</p>
 </t>
@@ -80,14 +80,14 @@ sold, or a detail needs checking. Please try again, or write to
 </button>
 <button type="submit" class="search-fab" data-pill-search="1" aria-label="Search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><span class="fab-text">Search</span></button>
 </div>
-<p class="alert" data-blocked-notice="1" hidden="hidden">Those dates include a fully-booked night — try ending sooner or starting later.</p>
+<p class="alert" data-blocked-notice="1" hidden="hidden">Those dates include a fully-booked night. Try ending sooner or starting later.</p>
 </form>
 
 <t t-if="kw.get('ci') and kw.get('co')">
 <p class="stay-summary"><t t-out="len(rooms)"/> room types · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> <t t-out="'adult' if kw.get('adults', '2') == '1' else 'adults'"/><t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> <t t-out="'child' if kw.get('children') == '1' else 'children'"/></t> · <t t-out="board_name"/></p>
 <t t-if="not rooms">
-<p class="empty">No rooms free for those dates. Try different dates —
-or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
+<p class="empty">No rooms free for those dates. Try different dates,
+or <a href="https://wa.me/254743187486">WhatsApp us</a> and we'll help.</p>
 </t>
 <div class="room-grid">
 <t t-foreach="rooms" t-as="r">
@@ -160,7 +160,7 @@ t-att-data-room-type="r.type" t-att-data-count="r.count" t-att-data-total="r.tot
 <div class="book-wrap">
 <h1>Booking received</h1>
 <t t-if="confirmation">
-<p class="ok">Thank you — your reservation is with us.</p>
+<p class="ok">Thank you. Your reservation is with us.</p>
 <dl class="confirm">
 <dt>Reference</dt><dd><t t-out="confirmation.ref"/></dd>
 <dt>Check-in</dt><dd><t t-out="confirmation.ci"/></dd>
@@ -173,7 +173,7 @@ t-att-data-room-type="r.type" t-att-data-count="r.count" t-att-data-total="r.tot
 </t>
 <t t-else="">
 <t t-if="ref and last3">
-<p class="alert">We couldn’t match that reference with those digits.
+<p class="alert">We couldn't match that reference with those digits.
 Check both and try again.</p>
 </t>
 <p>Enter your booking reference plus the last 3 digits of the phone
