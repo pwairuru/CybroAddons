@@ -283,17 +283,38 @@ button:hover { background: var(--sav-deep); }
 .empty, .hint { color: var(--sav-deep); }
 /* Esidai calendar popup */
 .search input[data-cal-show] { cursor: pointer; background: #fff; }
-.cal-panel {
-  position: fixed;
+/* Esidai dual-month calendar dropdown, anchored under the pill bar. */
+.pill-panel[data-panel-dates] {
+  position: absolute;
+  top: calc(100% + .5rem);
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
+  width: min(44rem, calc(100vw - 2rem));
   background: var(--card);
+  border: 1px solid #ddd5c2;
   border-radius: 18px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
   padding: 1.1rem 1.2rem 1rem;
   z-index: 60;
-  width: min(22rem, calc(100vw - 2.5rem));
+}
+.pill-panel[data-panel-dates][hidden] { display: none; }
+.cal-months { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; }
+.cal-month { min-width: 0; }
+.cal-month .cal-title { display: block; text-align: center; margin: 0 0 .6rem; }
+@media (max-width: 43.99rem) {
+  .cal-months { grid-template-columns: 1fr; }
+  .pill-panel[data-panel-dates] {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: auto;
+    border-radius: 18px 18px 0 0;
+    max-height: 85vh;
+    overflow: auto;
+  }
 }
 .cal-head {
   display: flex;
@@ -302,6 +323,7 @@ button:hover { background: var(--sav-deep); }
   margin-bottom: .6rem;
 }
 .cal-title { font-family: Georgia, serif; font-weight: 700; color: var(--sav-deep); font-size: 1.1rem; }
+.cal-hint { font-size: .85rem; font-weight: 600; color: var(--muted); }
 .cal-nav {
   background: #e9e2cf;
   color: var(--sav-deep);

@@ -19,47 +19,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const d = new Date(+m[1], +m[2] - 1, +m[3]);
     return isNaN(d) ? null : d;
   };
-  // ---- Esidai calendar popup (the native picker cannot be styled) ----
-  const rangeShow = document.querySelector('.search input[data-cal-show="range"]');
+  // ---- Esidai dual-month calendar dropdown, anchored under the pill bar ----
+  const pillDates = document.querySelector('[data-pill-dates]');
+  const pillDatesLabel = document.querySelector('[data-pill-dates-label]');
+  const searchForm = document.querySelector('form.search');
   const ciHid = document.querySelector('.search input[name="ci"]');
   const coHid = document.querySelector('.search input[name="co"]');
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const maxDate = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const firstOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
   const panel = document.createElement('div');
-  panel.className = 'cal-panel';
+  panel.className = 'pill-panel';
+  panel.setAttribute('data-panel-dates', '1');
   panel.hidden = true;
-  panel.innerHTML = '<div class="cal-head"><button type="button" class="cal-nav" data-cal-nav="-1" aria-label="Previous month">‹</button><span class="cal-title" data-cal-title="1"></span><button type="button" class="cal-nav" data-cal-nav="1" aria-label="Next month">›</button></div>' +
-    '<div class="cal-grid" data-cal-grid="1"></div>' +
+  panel.innerHTML = '<div class="cal-head"><button type="button" class="cal-nav" data-cal-nav="-1" aria-label="Previous month">‹</button><span class="cal-hint">Select dates</span><button type="button" class="cal-nav" data-cal-nav="1" aria-label="Next month">›</button></div>' +
+    '<div class="cal-months" data-cal-months="1"></div>' +
     '<div class="cal-foot"><span data-cal-nights="1"></span><span class="cal-actions"><button type="button" data-cal-clear="1">Clear</button><button type="button" data-cal-done="1">Done</button></span></div>';
-  document.body.appendChild(panel);
+  (searchForm || document.body).appendChild(panel);
   let view = new Date(today.getFullYear(), today.getMonth(), 1);
   let anchor = 'ci';
   const getSel = () => ({ ci: parseISO(ciHid ? ciHid.value : ''), co: parseISO(coHid ? coHid.value : '') });
   const setSel = (ciD, coD) => {
     if (ciHid) ciHid.value = ciD ? iso(ciD) : '';
     if (coHid) coHid.value = coD ? iso(coD) : '';
-    if (rangeShow) {
-      rangeShow.value = (ciD && coD) ? pretty(iso(ciD)) + ' → ' + pretty(iso(coD))
-        : ciD ? pretty(iso(ciD)) + ' → …' : '';
+    if (pillDatesLabel) {
+      pillDatesLabel.textContent = (ciD && coD) ? pretty(iso(ciD)) + ' → ' + pretty(iso(coD))
+        : ciD ? pretty(iso(ciD)) + ' → …' : 'Add dates';
     }
   };
-  const render = () => {
+  const renderMonth = (host, monthDate) => {
     const { ci, co } = getSel();
-    panel.querySelector('[data-cal-title]').textContent = MONTHS[view.getMonth()] + ' ' + view.getFullYear();
-    const grid = panel.querySelector('[data-cal-grid]');
-    grid.innerHTML = '';
+    const wrap = document.createElement('section');
+    wrap.className = 'cal-month';
+    const title = document.createElement('h3');
+    title.className = 'cal-title';
+    title.textContent = MONTHS[monthDate.getMonth()] + ' ' + monthDate.getFullYear();
+    wrap.appendChild(title);
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
     ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].forEach((d) => {
       const s = document.createElement('span');
       s.className = 'cal-dow';
       s.textContent = d;
       grid.appendChild(s);
     });
-    const first = (new Date(view.getFullYear(), view.getMonth(), 1).getDay() + 6) % 7;
+    const first = (new Date(monthDate.getFullYear(), monthDate.getMonth(), 1).getDay() + 6) % 7;
     for (let i = 0; i < first; i++) grid.appendChild(document.createElement('span'));
-    const days = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+    const days = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
     for (let d = 1; d <= days; d++) {
-      const dt = new Date(view.getFullYear(), view.getMonth(), d);
+      const dt = new Date(monthDate.getFullYear(), monthDate.getMonth(), d);
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'cal-day';
@@ -71,10 +80,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ci && dt.getTime() === ci.getTime()) b.classList.add('is-start');
         if (co && dt.getTime() === co.getTime()) b.classList.add('is-end');
         if (ci && co && dt > ci && dt < co) b.classList.add('is-range');
-        b.addEventListener('click', () => pick(dt));
+        b.addEventListener('click', (ev) => { ev.stopPropagation(); pick(dt); });
       }
       grid.appendChild(b);
     }
+    wrap.appendChild(grid);
+    host.appendChild(wrap);
+  };
+  const render = () => {
+    const { ci, co } = getSel();
+    const host = panel.querySelector('[data-cal-months]');
+    host.innerHTML = '';
+    renderMonth(host, view);
+    renderMonth(host, new Date(view.getFullYear(), view.getMonth() + 1, 1));
     const n = panel.querySelector('[data-cal-nights]');
     if (n) {
       if (ci && co && co > ci) {
@@ -83,8 +101,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (ci) n.textContent = 'Now pick check-out';
       else n.textContent = 'Pick check-in, then check-out';
     }
-    panel.querySelector('[data-cal-nav="-1"]').disabled = view <= new Date(today.getFullYear(), today.getMonth(), 1);
-    panel.querySelector('[data-cal-nav="1"]').disabled = view >= new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    panel.querySelector('[data-cal-nav="-1"]').disabled = view <= firstOfMonth(today);
+    panel.querySelector('[data-cal-nav="1"]').disabled =
+      new Date(view.getFullYear(), view.getMonth() + 1, 1) >= firstOfMonth(maxDate);
   };
   const pick = (dt) => {
     const { ci, co } = getSel();
@@ -114,16 +133,21 @@ document.addEventListener('DOMContentLoaded', () => {
   panel.querySelector('[data-cal-done]').addEventListener('click', closeCal);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCal(); });
   document.addEventListener('click', (e) => {
-    if (!panel.hidden && !panel.contains(e.target) && !e.target.closest('.search')) closeCal();
+    if (panel.hidden) return;
+    const t = e.target;
+    // Note: picking a day re-renders the grid, detaching the clicked button
+    // before this bubble-phase handler runs — so also ignore .cal-day itself.
+    if (panel.contains(t)) return;
+    if (t.closest && t.closest('[data-pill-dates], .cal-day')) return;
+    closeCal();
   });
-  if (rangeShow) {
-    rangeShow.addEventListener('click', () => openCal());
-    rangeShow.addEventListener('focus', () => openCal());
-  }
+  if (pillDates) pillDates.addEventListener('click', () => {
+    if (panel.hidden) openCal();
+    else closeCal();
+  });
   // Seed pretty labels from server-rendered ISO values.
   setSel(parseISO(ciHid ? ciHid.value : ''), parseISO(coHid ? coHid.value : ''));
   // Don't search dateless: open the calendar instead.
-  const searchForm = document.querySelector('form.search');
   if (searchForm) searchForm.addEventListener('submit', (e) => {
     if (!getSel().ci || !getSel().co) {
       e.preventDefault();
