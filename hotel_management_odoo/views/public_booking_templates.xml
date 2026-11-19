@@ -8,7 +8,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Book — Esidai Spa &amp; Resort</title>
-<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261119e"/>
+<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261119f"/>
 </head>
 <body>
 <header class="esidai-nav">
@@ -26,7 +26,7 @@
 <span><a href="tel:+254743187486">+254743187486</a></span>
 <span><a href="https://wa.me/254743187486">WhatsApp</a></span>
 </footer>
-<script src="/hotel_management_odoo/static/src/js/book.js?v=20261119d"></script>
+<script src="/hotel_management_odoo/static/src/js/book.js?v=20261119e"></script>
 </body>
 </html>
 </template>
@@ -56,13 +56,13 @@ sold, or a detail needs checking. Please try again, or write to
 <input type="hidden" name="adults" t-att-value="kw.get('adults', '2')"/>
 <input type="hidden" name="children" t-att-value="kw.get('children', '0')"/>
 <div class="pill-bar">
-<button type="button" class="pill-seg" data-pill-dates="1">
+<button type="button" class="pill-seg" data-pill-dates="1" aria-expanded="false">
 <span class="pill-label">Dates</span>
 <span data-pill-dates-label="1"><t t-if="kw.get('ci') and kw.get('co')"><t t-out="kw.get('ci')"/> → <t t-out="kw.get('co')"/></t><t t-else="">Add dates</t></span>
 </button>
-<button type="button" class="pill-seg" data-pill-guests="1">
+<button type="button" class="pill-seg" data-pill-guests="1" aria-expanded="false">
 <span class="pill-label">Who</span>
-<span data-pill-guests-label="1"><t t-out="kw.get('adults', '2')"/> adults<t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> children</t></span>
+<span data-pill-guests-label="1"><t t-out="kw.get('adults', '2')"/> <t t-out="'adult' if kw.get('adults', '2') == '1' else 'adults'"/><t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> <t t-out="'child' if kw.get('children') == '1' else 'children'"/></t></span>
 </button>
 <label class="pill-seg"><span class="pill-label">Meal plan</span>
 <select name="board">
@@ -77,7 +77,7 @@ sold, or a detail needs checking. Please try again, or write to
 </form>
 
 <t t-if="kw.get('ci') and kw.get('co')">
-<p class="stay-summary"><t t-out="len(rooms)"/> room types · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> adults<t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> children</t> · <t t-out="kw.get('board', 'BB')"/></p>
+<p class="stay-summary"><t t-out="len(rooms)"/> room types · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> <t t-out="'adult' if kw.get('adults', '2') == '1' else 'adults'"/><t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> <t t-out="'child' if kw.get('children') == '1' else 'children'"/></t> · <t t-out="kw.get('board', 'BB')"/></p>
 <t t-if="not rooms">
 <p class="empty">No rooms free for those dates. Try different dates —
 or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>

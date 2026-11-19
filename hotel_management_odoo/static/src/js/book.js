@@ -125,15 +125,21 @@ document.addEventListener('DOMContentLoaded', () => {
     view = new Date(base.getFullYear(), base.getMonth(), 1);
     render();
     panel.hidden = false;
+    if (pillDates) pillDates.setAttribute('aria-expanded', 'true');
   };
-  const closeCal = () => { panel.hidden = true; };
+  const closeCal = () => {
+    panel.hidden = true;
+    if (pillDates) pillDates.setAttribute('aria-expanded', 'false');
+  };
   panel.querySelectorAll('[data-cal-nav]').forEach((b) => b.addEventListener('click', () => {
     view = new Date(view.getFullYear(), view.getMonth() + Number(b.dataset.calNav), 1);
     render();
   }));
   panel.querySelector('[data-cal-clear]').addEventListener('click', () => { setSel(null, null); anchor = 'ci'; render(); });
-  panel.querySelector('[data-cal-done]').addEventListener('click', closeCal);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCal(); });
+  panel.querySelector('[data-cal-done]').addEventListener('click', () => { closeCal(); if (pillDates) pillDates.focus(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !panel.hidden) { closeCal(); if (pillDates) pillDates.focus(); }
+  });
   document.addEventListener('click', (e) => {
     if (panel.hidden) return;
     const t = e.target;
@@ -209,8 +215,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ci2) ci2.disabled = c >= CH_MAX;
     if (pillGuestsLabel) pillGuestsLabel.textContent = guestsText(a, c);
   };
-  const openGuests = () => { closeCal(); setGuests(getGuests().a, getGuests().c); gPanel.hidden = false; };
-  const closeGuests = () => { gPanel.hidden = true; };
+  const openGuests = () => {
+    closeCal();
+    setGuests(getGuests().a, getGuests().c);
+    gPanel.hidden = false;
+    if (pillGuests) pillGuests.setAttribute('aria-expanded', 'true');
+  };
+  const closeGuests = () => {
+    gPanel.hidden = true;
+    if (pillGuests) pillGuests.setAttribute('aria-expanded', 'false');
+  };
   gPanel.querySelectorAll('[data-step-dec],[data-step-inc]').forEach((b) => b.addEventListener('click', (ev) => {
     ev.stopPropagation();
     const g = getGuests();
@@ -223,8 +237,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }));
   gPanel.querySelector('[data-step-clear]').addEventListener('click', () => setGuests(2, 0));
-  gPanel.querySelector('[data-step-done]').addEventListener('click', closeGuests);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGuests(); });
+  gPanel.querySelector('[data-step-done]').addEventListener('click', () => { closeGuests(); if (pillGuests) pillGuests.focus(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !gPanel.hidden) { closeGuests(); if (pillGuests) pillGuests.focus(); }
+  });
   document.addEventListener('click', (e) => {
     if (gPanel.hidden) return;
     const t = e.target;

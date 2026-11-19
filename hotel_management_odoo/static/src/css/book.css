@@ -71,7 +71,7 @@ h1, h2, .brand {
   display: flex;
   align-items: stretch;
   position: relative;
-  background: #fff;
+  background: var(--card);
   border: 1px solid #ddd5c2;
   border-radius: 999px;
   box-shadow: 0 6px 24px rgba(36, 53, 31, .14);
@@ -282,8 +282,6 @@ button:hover { background: var(--sav-deep); }
 .confirm dt { font-weight: 700; color: var(--sav-deep); }
 .confirm dd { margin: 0 0 .5rem; }
 .empty, .hint { color: var(--sav-deep); }
-/* Esidai calendar popup */
-.search input[data-cal-show] { cursor: pointer; background: #fff; }
 /* Esidai dual-month calendar dropdown, anchored under the pill bar. */
 .pill-panel[data-panel-dates] {
   position: absolute;
