@@ -117,6 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   };
   const openCal = () => {
+    const gp = document.querySelector('[data-panel-guests]');
+    if (gp) gp.hidden = true;
     const { ci, co } = getSel();
     anchor = (!ci || (ci && co)) ? 'ci' : 'co';
     const base = anchor === 'co' && ci ? ci : (ci || today);
