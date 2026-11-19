@@ -21,6 +21,39 @@ def _err_code(exc):
     return 'invalid'
 
 
+def _group_rooms_by_type(rows):
+    """Group free per-room search rows by room type. Pure (no env).
+
+    Key: ('id', type_id) when truthy else ('name', type label).
+    Representative: cheapest free row — min by (nightly, id).
+    Output sorted by (nightly, type label)."""
+    groups = {}
+    for r in rows or []:
+        tid = r.get('type_id')
+        key = ('id', tid) if tid else ('name', r.get('type') or '')
+        groups.setdefault(key, []).append(r)
+    out = []
+    for members in groups.values():
+        rep = min(members, key=lambda r: (r.get('nightly') or 0.0, r.get('id') or 0))
+        out.append({
+            'type_id': rep.get('type_id'),
+            'type': rep.get('type') or '',
+            'count': len(members),
+            'rep_id': rep.get('id'),
+            'rep_name': rep.get('name'),
+            'nightly': rep.get('nightly'),
+            'total': rep.get('total'),
+            'nightly_str': rep.get('nightly_str'),
+            'total_str': rep.get('total_str'),
+            'image_url': rep.get('image_url'),
+            'adult_capacity': rep.get('adult_capacity'),
+            'max_occupants': rep.get('max_occupants'),
+            'amenities': rep.get('amenities'),
+        })
+    out.sort(key=lambda g: (g['nightly'] or 0.0, g['type'] or ''))
+    return out
+
+
 class PublicBooking(http.Controller):
     @http.route('/book', type='http', auth='public', website=False, methods=['GET'])
     def book(self, **kw):
@@ -40,7 +73,7 @@ class PublicBooking(http.Controller):
             ci, co, adults=adults, children=children,
             board=board) if ci and co else []
         # QWeb t-esc cannot subscript dicts — expose attribute access.
-        rooms = [SimpleNamespace(**d) for d in dicts]
+        rooms = [SimpleNamespace(**d) for d in _group_rooms_by_type(dicts)]
         try:
             nights = max(0, (fields.Date.from_string(co) - fields.Date.from_string(ci)).days)
         except Exception:
