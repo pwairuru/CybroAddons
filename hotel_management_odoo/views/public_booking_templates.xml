@@ -8,7 +8,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Book — Esidai Spa &amp; Resort</title>
-<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261119c"/>
+<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261119d"/>
 </head>
 <body>
 <header class="esidai-nav">
@@ -26,7 +26,7 @@
 <span><a href="tel:+254743187486">+254743187486</a></span>
 <span><a href="https://wa.me/254743187486">WhatsApp</a></span>
 </footer>
-<script src="/hotel_management_odoo/static/src/js/book.js?v=20261119a"></script>
+<script src="/hotel_management_odoo/static/src/js/book.js?v=20261119b"></script>
 </body>
 </html>
 </template>

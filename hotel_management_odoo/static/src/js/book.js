@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   panel.innerHTML = '<div class="cal-head"><button type="button" class="cal-nav" data-cal-nav="-1" aria-label="Previous month">‹</button><span class="cal-hint">Select dates</span><button type="button" class="cal-nav" data-cal-nav="1" aria-label="Next month">›</button></div>' +
     '<div class="cal-months" data-cal-months="1"></div>' +
     '<div class="cal-foot"><span data-cal-nights="1"></span><span class="cal-actions"><button type="button" data-cal-clear="1">Clear</button><button type="button" data-cal-done="1">Done</button></span></div>';
-  (searchForm || document.body).appendChild(panel);
+  (document.querySelector('.pill-bar') || searchForm || document.body).appendChild(panel);
   let view = new Date(today.getFullYear(), today.getMonth(), 1);
   let anchor = 'ci';
   const getSel = () => ({ ci: parseISO(ciHid ? ciHid.value : ''), co: parseISO(coHid ? coHid.value : '') });

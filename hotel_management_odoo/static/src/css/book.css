@@ -70,6 +70,7 @@ h1, h2, .brand {
 .pill-bar {
   display: flex;
   align-items: stretch;
+  position: relative;
   background: #fff;
   border: 1px solid #ddd5c2;
   border-radius: 999px;
