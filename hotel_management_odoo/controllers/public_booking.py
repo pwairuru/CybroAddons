@@ -96,6 +96,15 @@ class PublicBooking(http.Controller):
         return {'rooms': request.env['hotel.public.booking'].sudo().search_free(
             ci, co, adults=adults, children=children, board=board)}
 
+    @http.route('/book/blocked', type='json', auth='public', website=False, methods=['POST'], csrf=False)
+    def blocked(self, **kw):
+        try:
+            days = request.env['hotel.public.booking'].sudo().blocked_days(
+                kw.get('from'), kw.get('to'))
+        except Exception:
+            days = []
+        return {'blocked': days}
+
     @http.route('/book/confirm', type='http', auth='public', website=False, methods=['POST'], csrf=True)
     def confirm(self, **kw):
         if kw.get('honeypot'):
