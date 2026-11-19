@@ -66,10 +66,15 @@ class PublicBooking(http.Controller):
             children = max(0, int(kw.get('children', 0) or 0))
         except Exception:
             children = 0
+        svc = request.env['hotel.public.booking'].sudo()
+        boards = svc.allowed_boards()
+        codes = [b['code'] for b in boards]
         board = (kw.get('board', 'BB') or 'BB').strip().upper()[:8]
-        if board not in ('RO', 'BB', 'HB', 'FB'):
-            board = 'BB'
-        dicts = request.env['hotel.public.booking'].sudo().search_free(
+        if board not in codes:
+            board = 'BB' if 'BB' in codes else (codes[0] if codes else 'BB')
+        board_name = next((b['name'] for b in boards if b['code'] == board), board)
+        kw['board'] = board
+        dicts = svc.search_free(
             ci, co, adults=adults, children=children,
             board=board) if ci and co else []
         # QWeb t-esc cannot subscript dicts — expose attribute access.
@@ -79,7 +84,8 @@ class PublicBooking(http.Controller):
         except Exception:
             nights = 0
         return request.render('hotel_management_odoo.public_book_page',
-                             {'rooms': rooms, 'kw': kw, 'nights': nights})
+                             {'rooms': rooms, 'kw': kw, 'nights': nights,
+                              'boards': boards, 'board_name': board_name})
 
     @http.route('/book/availability', type='json', auth='public', website=False, methods=['POST'], csrf=False)
     def avail(self, ci=None, co=None, adults=2, children=0, board='BB'):

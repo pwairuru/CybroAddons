@@ -14,6 +14,33 @@ class HotelPublicBooking(models.AbstractModel):
     _IDEM_RE = re.compile(r'^[\w-]{1,64}$')
     _LAST3_RE = re.compile(r'^\d{3}$')
 
+    # Day-use plans (no overnight stay) are never offered on the public
+    # overnight booking page, even when active in the catalogue.
+    BOARD_DAY_USE = ('DP',)
+
+    @api.model
+    def allowed_boards(self):
+        """Overnight meal plans for the public page, from the DB catalogue.
+
+        Returns [{'code','name','description'}] for active, non-day-use
+        plans ordered by sequence. The widget renders these; validation
+        uses the same list, so a new overnight plan appears with no code
+        change."""
+        S = self.sudo()
+        plans = S.env['hotel.meal.plan'].search(
+            [('active', '=', True), ('code', 'not in', list(self.BOARD_DAY_USE))],
+            order='sequence, code')
+        return [{'code': p.code, 'name': p.name,
+                 'description': p.description or ''} for p in plans]
+
+    @api.model
+    def _default_board(self, boards=None):
+        codes = [b['code'] for b in (boards if boards is not None
+                                     else self.allowed_boards())]
+        if 'BB' in codes:
+            return 'BB'
+        return codes[0] if codes else 'BB'
+
     @staticmethod
     def _like_escape(s):
         # Escape LIKE wildcards so ilike auto-wrap still matches literally.
@@ -72,8 +99,8 @@ class HotelPublicBooking(models.AbstractModel):
         except Exception:
             adults, children = 2, 0
         board = (board or 'BB').strip().upper()[:8]
-        if board not in ('RO', 'BB', 'HB', 'FB'):
-            board = 'BB'
+        if board not in [b['code'] for b in self.allowed_boards()]:
+            board = self._default_board()
         S = self.sudo()
         company = S.env.company
         # Same plan resolution the booking line uses (_plan_for_booking):
@@ -183,7 +210,7 @@ class HotelPublicBooking(models.AbstractModel):
         except Exception:
             raise ValueError('bad pax')
         board = (vals.get('board') or 'BB').strip().upper()[:8]
-        if board not in ('RO', 'BB', 'HB', 'FB'):
+        if board not in [b['code'] for b in self.allowed_boards()]:
             raise ValueError('bad board')
         S = self.sudo()
         # Capacity gate mirrors room.booking.line (room num_person, else

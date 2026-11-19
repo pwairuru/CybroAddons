@@ -8,7 +8,10 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Book — Esidai Spa &amp; Resort</title>
-<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261119f"/>
+<link rel="icon" href="https://www.esidaisparesort.com/wp-content/uploads/2025/05/cropped-Esidai-by-Camp-David-Spa-Logo-32x32.jpg" sizes="32x32"/>
+<link rel="icon" href="https://www.esidaisparesort.com/wp-content/uploads/2025/05/cropped-Esidai-by-Camp-David-Spa-Logo-192x192.jpg" sizes="192x192"/>
+<link rel="apple-touch-icon" href="https://www.esidaisparesort.com/wp-content/uploads/2025/05/cropped-Esidai-by-Camp-David-Spa-Logo-180x180.jpg"/>
+<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261120a"/>
 </head>
 <body>
 <header class="esidai-nav">
@@ -26,7 +29,7 @@
 <span><a href="tel:+254743187486">+254743187486</a></span>
 <span><a href="https://wa.me/254743187486">WhatsApp</a></span>
 </footer>
-<script src="/hotel_management_odoo/static/src/js/book.js?v=20261119e"></script>
+<script src="/hotel_management_odoo/static/src/js/book.js?v=20261120a"></script>
 </body>
 </html>
 </template>
@@ -55,6 +58,10 @@ sold, or a detail needs checking. Please try again, or write to
 <input type="hidden" name="co" t-att-value="kw.get('co', '')"/>
 <input type="hidden" name="adults" t-att-value="kw.get('adults', '2')"/>
 <input type="hidden" name="children" t-att-value="kw.get('children', '0')"/>
+<input type="hidden" name="board" t-att-value="kw.get('board', 'BB')"/>
+<div id="board-data" hidden="hidden">
+<t t-foreach="boards" t-as="b"><span t-att-data-code="b['code']" t-att-data-name="b['name']" t-att-data-desc="b['description']"></span></t>
+</div>
 <div class="pill-bar">
 <button type="button" class="pill-seg" data-pill-dates="1" aria-expanded="false">
 <span class="pill-label">Dates</span>
@@ -64,20 +71,16 @@ sold, or a detail needs checking. Please try again, or write to
 <span class="pill-label">Who</span>
 <span data-pill-guests-label="1"><t t-out="kw.get('adults', '2')"/> <t t-out="'adult' if kw.get('adults', '2') == '1' else 'adults'"/><t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> <t t-out="'child' if kw.get('children') == '1' else 'children'"/></t></span>
 </button>
-<label class="pill-seg"><span class="pill-label">Meal plan</span>
-<select name="board">
-<option value="BB" t-att-selected="'selected' if kw.get('board', 'BB') == 'BB' else None">Bed &amp; breakfast</option>
-<option value="HB" t-att-selected="'selected' if kw.get('board') == 'HB' else None">Half board</option>
-<option value="FB" t-att-selected="'selected' if kw.get('board') == 'FB' else None">Full board</option>
-<option value="RO" t-att-selected="'selected' if kw.get('board') == 'RO' else None">Room only</option>
-</select>
-</label>
+<button type="button" class="pill-seg" data-pill-board="1" aria-expanded="false">
+<span class="pill-label">Meal plan</span>
+<span data-pill-board-label="1"><t t-out="board_name"/></span>
+</button>
 <button type="submit" class="search-fab" data-pill-search="1" aria-label="Search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><span class="fab-text">Search</span></button>
 </div>
 </form>
 
 <t t-if="kw.get('ci') and kw.get('co')">
-<p class="stay-summary"><t t-out="len(rooms)"/> room types · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> <t t-out="'adult' if kw.get('adults', '2') == '1' else 'adults'"/><t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> <t t-out="'child' if kw.get('children') == '1' else 'children'"/></t> · <t t-out="kw.get('board', 'BB')"/></p>
+<p class="stay-summary"><t t-out="len(rooms)"/> room types · <t t-out="nights"/> night<t t-if="nights != 1">s</t> · <t t-out="kw.get('adults', '2')"/> <t t-out="'adult' if kw.get('adults', '2') == '1' else 'adults'"/><t t-if="kw.get('children') and kw.get('children') != '0'"> · <t t-out="kw.get('children')"/> <t t-out="'child' if kw.get('children') == '1' else 'children'"/></t> · <t t-out="board_name"/></p>
 <t t-if="not rooms">
 <p class="empty">No rooms free for those dates. Try different dates —
 or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
@@ -89,9 +92,7 @@ or <a href="https://wa.me/254743187486">WhatsApp us</a> and we’ll help.</p>
 <div class="room-body">
 <span class="room-type-badge"><t t-out="r.type"/></span>
 <t t-if="kw.get('board', 'BB') == 'BB'"><span class="breakfast-chip">Breakfast included</span></t>
-<t t-elif="kw.get('board') == 'HB'"><span class="breakfast-chip">Half board</span></t>
-<t t-elif="kw.get('board') == 'FB'"><span class="breakfast-chip">Full board</span></t>
-<t t-else=""><span class="breakfast-chip">Room only</span></t>
+<t t-else=""><span class="breakfast-chip"><t t-out="board_name"/></span></t>
 <h2><t t-out="r.rep_name"/></h2>
 <t t-if="r.amenities">
 <p class="amenities"><t t-out="', '.join(r.amenities[:6])"/><t t-if="len(r.amenities) > 6"> +<t t-out="len(r.amenities) - 6"/> more</t></p>

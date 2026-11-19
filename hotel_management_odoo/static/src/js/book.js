@@ -19,6 +19,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const d = new Date(+m[1], +m[2] - 1, +m[3]);
     return isNaN(d) ? null : d;
   };
+  // Panels drop down from their own pill segment (not bar-centered).
+  // On narrow screens they are fixed bottom sheets (see CSS), so skip JS.
+  const isNarrow = () => window.matchMedia('(max-width: 43.99rem)').matches;
+  const positionPanel = (p, trigger) => {
+    if (!p || !trigger) return;
+    if (isNarrow()) { p.style.left = ''; p.style.right = ''; p.style.transform = ''; return; }
+    const bar = document.querySelector('.pill-bar');
+    if (!bar) return;
+    p.style.left = trigger.offsetLeft + 'px';
+    p.style.right = 'auto';
+    p.style.transform = 'none';
+    const maxLeft = Math.max(0, bar.clientWidth - p.offsetWidth - 8);
+    if (trigger.offsetLeft > maxLeft) p.style.left = maxLeft + 'px';
+  };
   // ---- Esidai dual-month calendar dropdown, anchored under the pill bar ----
   const pillDates = document.querySelector('[data-pill-dates]');
   const pillDatesLabel = document.querySelector('[data-pill-dates-label]');
@@ -119,12 +133,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const openCal = () => {
     const gp = document.querySelector('[data-panel-guests]');
     if (gp) gp.hidden = true;
+    const bp = document.querySelector('[data-panel-board]');
+    if (bp) bp.hidden = true;
+    const pb = document.querySelector('[data-pill-board]');
+    if (pb) pb.setAttribute('aria-expanded', 'false');
     const { ci, co } = getSel();
     anchor = (!ci || (ci && co)) ? 'ci' : 'co';
     const base = anchor === 'co' && ci ? ci : (ci || today);
     view = new Date(base.getFullYear(), base.getMonth(), 1);
     render();
     panel.hidden = false;
+    positionPanel(panel, pillDates);
     if (pillDates) pillDates.setAttribute('aria-expanded', 'true');
   };
   const closeCal = () => {
@@ -217,8 +236,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const openGuests = () => {
     closeCal();
+    const bp = document.querySelector('[data-panel-board]');
+    if (bp) bp.hidden = true;
+    const pb = document.querySelector('[data-pill-board]');
+    if (pb) pb.setAttribute('aria-expanded', 'false');
     setGuests(getGuests().a, getGuests().c);
     gPanel.hidden = false;
+    positionPanel(gPanel, pillGuests);
     if (pillGuests) pillGuests.setAttribute('aria-expanded', 'true');
   };
   const closeGuests = () => {
@@ -259,6 +283,91 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchForm) searchForm.addEventListener('submit', () => {
     const g = getGuests();
     setGuests(g.a, g.c);
+  });
+  // ---- Esidai meal-plan dropdown, options from DB (#board-data) ----
+  const pillBoard = document.querySelector('[data-pill-board]');
+  const pillBoardLabel = document.querySelector('[data-pill-board-label]');
+  const boardHid = document.querySelector('.search input[name="board"]');
+  const boardOpts = Array.from(document.querySelectorAll('#board-data span')).map((s) => ({
+    code: s.dataset.code, name: s.dataset.name, desc: s.dataset.desc,
+  }));
+  const bPanel = document.createElement('div');
+  bPanel.className = 'pill-panel';
+  bPanel.setAttribute('data-panel-board', '1');
+  bPanel.hidden = true;
+  boardOpts.forEach((o) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'board-row';
+    b.dataset.boardCode = o.code;
+    b.setAttribute('aria-checked', 'false');
+    b.setAttribute('role', 'radio');
+    const strong = document.createElement('strong');
+    strong.textContent = o.name;
+    b.appendChild(strong);
+    if (o.desc) {
+      const small = document.createElement('small');
+      small.textContent = o.desc;
+      b.appendChild(small);
+    }
+    const tick = document.createElement('span');
+    tick.className = 'board-tick';
+    tick.textContent = '✓';
+    tick.setAttribute('aria-hidden', 'true');
+    b.appendChild(tick);
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      setBoard(o.code);
+      closeBoard();
+      if (pillBoard) pillBoard.focus();
+    });
+    bPanel.appendChild(b);
+  });
+  (document.querySelector('.pill-bar') || searchForm || document.body).appendChild(bPanel);
+  const setBoard = (code) => {
+    if (!boardOpts.some((o) => o.code === code)) code = boardOpts.length ? boardOpts[0].code : '';
+    if (boardHid) boardHid.value = code;
+    bPanel.querySelectorAll('[data-board-code]').forEach((b) => {
+      b.setAttribute('aria-checked', String(b.dataset.boardCode === code));
+    });
+    const cur = boardOpts.find((o) => o.code === code);
+    if (pillBoardLabel) pillBoardLabel.textContent = cur ? cur.name : '';
+  };
+  const openBoard = () => {
+    closeCal();
+    closeGuests();
+    setBoard(boardHid ? boardHid.value : '');
+    bPanel.hidden = false;
+    positionPanel(bPanel, pillBoard);
+    if (pillBoard) pillBoard.setAttribute('aria-expanded', 'true');
+  };
+  const closeBoard = () => {
+    bPanel.hidden = true;
+    if (pillBoard) pillBoard.setAttribute('aria-expanded', 'false');
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !bPanel.hidden) { closeBoard(); if (pillBoard) pillBoard.focus(); }
+  });
+  document.addEventListener('click', (e) => {
+    if (bPanel.hidden) return;
+    const t = e.target;
+    if (bPanel.contains(t)) return;
+    if (t.closest && t.closest('[data-pill-board]')) return;
+    closeBoard();
+  });
+  if (pillDates) pillDates.addEventListener('click', () => { if (!bPanel.hidden) closeBoard(); });
+  if (pillGuests) pillGuests.addEventListener('click', () => { if (!bPanel.hidden) closeBoard(); });
+  if (pillBoard) pillBoard.addEventListener('click', () => {
+    if (bPanel.hidden) openBoard();
+    else closeBoard();
+  });
+  // Seed meal label from server-rendered hidden value (?board=).
+  setBoard(boardHid ? boardHid.value : '');
+  // Narrow-viewport panels are fixed sheets; drop stale desktop offsets.
+  window.addEventListener('resize', () => {
+    panel.hidden = true;
+    gPanel.hidden = true;
+    bPanel.hidden = true;
   });
   // Single booking dialog: Select buttons fill hidden room_id + summary.
   const dlg = document.getElementById('book-dialog');

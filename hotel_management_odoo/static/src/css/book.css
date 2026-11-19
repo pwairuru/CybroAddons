@@ -10,8 +10,12 @@
   --muted: #6f6a5e;
 }
 * { box-sizing: border-box; }
+html { height: 100%; }
 body {
   margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--sand);
   color: var(--ink);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -53,7 +57,7 @@ h1, h2, .brand {
 }
 .book-hero h1 { color: #fff; font-size: 2.2rem; margin: 0 0 .4rem; }
 .book-hero .tagline { color: #efe3cb; margin: 0; font-size: 1.05rem; }
-.esidai-main { padding: 0 1rem 2rem; }
+.esidai-main { padding: 0 1rem 2rem; flex: 1 0 auto; }
 .book-wrap { max-width: 62rem; margin: -1.2rem auto 0; position: relative; }
 /* Search card */
 .search {
@@ -431,6 +435,52 @@ button:hover { background: var(--sav-deep); }
     right: 0;
     width: auto;
     border-radius: 18px 18px 0 0;
+  }
+}
+/* Esidai meal-plan dropdown, anchored under the pill bar. */
+.pill-panel[data-panel-board] {
+  position: absolute;
+  top: calc(100% + .5rem);
+  width: min(22rem, calc(100vw - 2rem));
+  background: var(--card);
+  border: 1px solid #ddd5c2;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+  padding: .6rem;
+  z-index: 60;
+}
+.pill-panel[data-panel-board][hidden] { display: none; }
+.board-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .1rem .8rem;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-radius: 12px;
+  padding: .65rem .8rem;
+  cursor: pointer;
+}
+.board-row:hover { background: var(--sand); }
+.board-row[aria-checked="true"] { background: #e7efe2; }
+.board-row strong { color: var(--sav-deep); font-size: 1rem; }
+.board-row small { color: var(--muted); font-size: .82rem; grid-column: 1; }
+.board-tick { color: var(--sav); font-weight: 800; grid-row: 1 / span 2; grid-column: 2; visibility: hidden; }
+.board-row[aria-checked="true"] .board-tick { visibility: visible; }
+@media (max-width: 43.99rem) {
+  .pill-panel[data-panel-board] {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    border-radius: 18px 18px 0 0;
+    max-height: 85vh;
+    overflow: auto;
   }
 }
 /* Honeypot: humans never see it, bots fill it. */
