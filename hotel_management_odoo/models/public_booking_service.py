@@ -18,6 +18,49 @@ class HotelPublicBooking(models.AbstractModel):
     # overnight booking page, even when active in the catalogue.
     BOARD_DAY_USE = ('DP',)
 
+    # Fallback global guest cap when no publishable room exists. The page
+    # still renders; the server filter stays source of truth.
+    PAX_FALLBACK = 2
+
+    @api.model
+    def max_pax(self):
+        """Global guest cap: max effective room occupancy.
+
+        Effective per-room cap = min(num_person or type_max,
+        type_max or num_person) over published active rooms.
+        Falls back to PAX_FALLBACK when no room yields a cap."""
+        S = self.sudo()
+        rooms = S.env['product.template'].search([
+            ('is_room', '=', True), ('website_published', '=', True),
+            ('active', '=', True)])
+        caps = []
+        for r in rooms:
+            np = r.num_person or 0
+            rt_max = r.room_type_id.max_occupants if r.room_type_id else 0
+            eff = min(np or rt_max, rt_max or np)
+            if eff > 0:
+                caps.append(eff)
+        return max(caps) if caps else self.PAX_FALLBACK
+
+    @api.model
+    def _clamp_pax(self, adults, children):
+        """Clamp guests to the global cap. Adults 1..GMAX, children
+        0..GMAX, total adults+children <= GMAX (trim children first)."""
+        gmax = max(1, int(self.max_pax() or self.PAX_FALLBACK))
+        try:
+            adults = max(1, int(adults or 1))
+        except Exception:
+            adults = 2
+        try:
+            children = max(0, int(children or 0))
+        except Exception:
+            children = 0
+        adults = min(adults, gmax)
+        children = min(children, gmax)
+        if adults + children > gmax:
+            children = max(0, gmax - adults)
+        return adults, children, gmax
+
     @api.model
     def allowed_boards(self):
         """Overnight meal plans for the public page, from the DB catalogue.
@@ -98,6 +141,7 @@ class HotelPublicBooking(models.AbstractModel):
             children = max(0, int(children or 0))
         except Exception:
             adults, children = 2, 0
+        adults, children, _gmax = self._clamp_pax(adults, children)
         board = (board or 'BB').strip().upper()[:8]
         if board not in [b['code'] for b in self.allowed_boards()]:
             board = self._default_board()
@@ -209,6 +253,7 @@ class HotelPublicBooking(models.AbstractModel):
             children = max(0, int(vals.get('children') or 0))
         except Exception:
             raise ValueError('bad pax')
+        adults, children, _gmax = self._clamp_pax(adults, children)
         board = (vals.get('board') or 'BB').strip().upper()[:8]
         if board not in [b['code'] for b in self.allowed_boards()]:
             raise ValueError('bad board')

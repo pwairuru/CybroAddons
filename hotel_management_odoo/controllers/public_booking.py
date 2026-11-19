@@ -67,6 +67,9 @@ class PublicBooking(http.Controller):
         except Exception:
             children = 0
         svc = request.env['hotel.public.booking'].sudo()
+        adults, children, max_pax = svc._clamp_pax(adults, children)
+        kw['adults'] = str(adults)
+        kw['children'] = str(children)
         boards = svc.allowed_boards()
         codes = [b['code'] for b in boards]
         board = (kw.get('board', 'BB') or 'BB').strip().upper()[:8]
@@ -85,7 +88,8 @@ class PublicBooking(http.Controller):
             nights = 0
         return request.render('hotel_management_odoo.public_book_page',
                              {'rooms': rooms, 'kw': kw, 'nights': nights,
-                              'boards': boards, 'board_name': board_name})
+                              'boards': boards, 'board_name': board_name,
+                              'max_pax': max_pax})
 
     @http.route('/book/availability', type='json', auth='public', website=False, methods=['POST'], csrf=False)
     def avail(self, ci=None, co=None, adults=2, children=0, board='BB'):

@@ -53,12 +53,15 @@ sold, or a detail needs checking. Please try again, or write to
 <a href="mailto:reservations@esidaisparesort.com">reservations@esidaisparesort.com</a>.</p>
 </t>
 
-<form class="search" action="/book" method="get">
+<form class="search" action="/book" method="get" t-att-data-max-pax="max_pax or 2">
 <input type="hidden" name="ci" t-att-value="kw.get('ci', '')"/>
 <input type="hidden" name="co" t-att-value="kw.get('co', '')"/>
 <input type="hidden" name="adults" t-att-value="kw.get('adults', '2')"/>
 <input type="hidden" name="children" t-att-value="kw.get('children', '0')"/>
 <input type="hidden" name="board" t-att-value="kw.get('board', 'BB')"/>
+<div id="pax-data" hidden="hidden">
+<span t-att-data-max="max_pax or 2"></span>
+</div>
 <div id="board-data" hidden="hidden">
 <t t-foreach="boards" t-as="b"><span t-att-data-code="b['code']" t-att-data-name="b['name']" t-att-data-desc="b['description']"></span></t>
 </div>
