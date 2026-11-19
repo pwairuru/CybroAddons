@@ -93,7 +93,11 @@ class HotelPublicBooking(models.AbstractModel):
         wstart = datetime.combine(ci, datetime.min.time()).replace(tzinfo=timezone.utc).replace(tzinfo=None)
         wend = datetime.combine(co, datetime.max.time()).replace(tzinfo=timezone.utc).replace(tzinfo=None)
         busy = set(S.env['room.booking.line'].search([
-            ('booking_id.state','in',('reserved','check_in')),
+            # Draft blocks too: public bookings stay draft when
+            # auto-confirm is off (or reserve fails), and draft-vs-draft
+            # overlap is allowed by the line constraint — without this
+            # the /book list keeps showing a just-booked room.
+            ('booking_id.state','in',('draft','reserved','check_in')),
             ('checkin_date','<',fields.Datetime.to_string(wend)),
             ('checkout_date','>',fields.Datetime.to_string(wstart)),
         ]).mapped('room_id.id'))
@@ -249,6 +253,13 @@ class HotelPublicBooking(models.AbstractModel):
         if S.env.company.public_auto_confirm:
             try:
                 bk.action_reserve()
-            except Exception:
-                pass
+            except Exception as e:
+                # Never leave a silent draft behind when auto-confirm was
+                # requested: it would block the room (draft now counts as
+                # busy) while the guest thinks they are reserved.
+                # Overlap -> sold; anything else surfaces as invalid.
+                bk.unlink()
+                if 'already booked' in str(e):
+                    raise ValueError('room just sold')
+                raise
         return bk
