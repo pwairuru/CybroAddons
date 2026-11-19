@@ -504,3 +504,19 @@ button:hover { background: var(--sav-deep); }
   font-size: .9rem;
 }
 .esidai-foot a { color: var(--sav-deep); }
+/* Task 3 mobile polish: unstick search, shrink hero, full-width fab,
+   stacked dialog actions, 44px steppers, safe-area sheets, shorter photos. */
+@media (max-width: 43.99rem) {
+  .search { position: static; }
+  .book-hero { padding: 2rem 1rem 1.8rem; }
+  .book-hero h1 { font-size: 1.7rem; }
+  .book-hero .tagline { font-size: .95rem; }
+  .search-fab { width: 100%; margin: .6rem 0; border-radius: 999px; height: 3rem; }
+  .dlg-actions { grid-template-columns: 1fr; }
+  .stepper button { width: 2.75rem; height: 2.75rem; }
+  .room-photo { height: 10rem; }
+  .pill-panel[data-panel-dates],
+  .pill-panel[data-panel-guests],
+  .pill-panel[data-panel-board] { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+  .book-confirm { padding-bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px)); }
+}
