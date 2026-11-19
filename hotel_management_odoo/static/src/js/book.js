@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!dlg || !form) return;
       form.querySelector('[data-dlg-room-id]').value = btn.dataset.roomId || '';
       const roomEl = dlg.querySelector('[data-dlg-room]');
-      if (roomEl) roomEl.textContent = (btn.dataset.roomName || '') + ' · ' + (btn.dataset.roomType || '');
+      if (roomEl) roomEl.textContent = (btn.dataset.roomType || '') + ' · ' + (btn.dataset.count || '') + ' free';
       const sumEl = dlg.querySelector('[data-dlg-summary]');
       if (sumEl) sumEl.textContent = 'Total ' + (btn.dataset.total || '') + ' · taxes included. Pay nothing now — we confirm by phone.';
       if (typeof dlg.showModal === 'function') dlg.showModal();
