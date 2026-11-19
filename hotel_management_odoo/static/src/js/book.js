@@ -186,7 +186,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const pillGuestsLabel = document.querySelector('[data-pill-guests-label]');
   const adultsHid = document.querySelector('.search input[name="adults"]');
   const childrenHid = document.querySelector('.search input[name="children"]');
-  const AD_MIN = 1, AD_MAX = 8, CH_MIN = 0, CH_MAX = 6;
+  const AD_MIN = 1, CH_MIN = 0;
+  // Total cap from DB (Task 1: data-max-pax on form.search, #pax-data fallback).
+  const GMAX = (() => {
+    const fromForm = parseInt(searchForm && searchForm.dataset ? searchForm.dataset.maxPax : '', 10);
+    if (!isNaN(fromForm) && fromForm >= 1) return fromForm;
+    const paxEl = document.querySelector('#pax-data span[data-max]');
+    const fromPax = parseInt(paxEl ? paxEl.dataset.max : '', 10);
+    if (!isNaN(fromPax) && fromPax >= 1) return fromPax;
+    return 4;
+  })();
   const clampInt = (v, lo, hi, fb) => {
     let n = parseInt(v, 10);
     if (isNaN(n)) n = fb;
@@ -207,31 +216,43 @@ document.addEventListener('DOMContentLoaded', () => {
     '<div class="stepper"><button type="button" data-step-dec="children" aria-label="Fewer children">−</button>' +
     '<span data-step-val="children">0</span>' +
     '<button type="button" data-step-inc="children" aria-label="More children">+</button></div></div>' +
-    '<div class="step-foot"><span class="step-max">Max 8 adults · 6 children</span>' +
+    '<div class="step-foot"><span class="step-max">Max ' + GMAX + ' guests total</span>' +
     '<span class="step-actions"><button type="button" data-step-clear="1">Clear</button>' +
     '<button type="button" data-step-done="1">Done</button></span></div>';
   (document.querySelector('.pill-bar') || searchForm || document.body).appendChild(gPanel);
   const getGuests = () => ({
-    a: clampInt(adultsHid ? adultsHid.value : '2', AD_MIN, AD_MAX, 2),
-    c: clampInt(childrenHid ? childrenHid.value : '0', CH_MIN, CH_MAX, 0),
+    a: clampInt(adultsHid ? adultsHid.value : '2', AD_MIN, GMAX, 2),
+    c: clampInt(childrenHid ? childrenHid.value : '0', CH_MIN, GMAX, 0),
   });
-  const setGuests = (a, c) => {
-    a = clampInt(a, AD_MIN, AD_MAX, 2);
-    c = clampInt(c, CH_MIN, CH_MAX, 0);
+  // last = field just incremented; it gets trimmed first when total exceeds GMAX.
+  const setGuests = (a, c, last) => {
+    a = clampInt(a, AD_MIN, GMAX, 2);
+    c = clampInt(c, CH_MIN, GMAX, 0);
+    if (a + c > GMAX) {
+      if (last === 'children') {
+        c = Math.max(CH_MIN, GMAX - a);
+        a = Math.max(AD_MIN, GMAX - c);
+      } else {
+        a = Math.max(AD_MIN, GMAX - c);
+        c = Math.max(CH_MIN, GMAX - a);
+      }
+    }
     if (adultsHid) adultsHid.value = String(a);
     if (childrenHid) childrenHid.value = String(c);
     const av = gPanel.querySelector('[data-step-val="adults"]');
     const cv = gPanel.querySelector('[data-step-val="children"]');
     if (av) av.textContent = String(a);
     if (cv) cv.textContent = String(c);
+    const sm = gPanel.querySelector('.step-max');
+    if (sm) sm.textContent = 'Max ' + GMAX + ' guests total';
     const ad = gPanel.querySelector('[data-step-dec="adults"]');
     const ai = gPanel.querySelector('[data-step-inc="adults"]');
     const cd = gPanel.querySelector('[data-step-dec="children"]');
     const ci2 = gPanel.querySelector('[data-step-inc="children"]');
     if (ad) ad.disabled = a <= AD_MIN;
-    if (ai) ai.disabled = a >= AD_MAX;
+    if (ai) ai.disabled = a >= GMAX || a + c >= GMAX;
     if (cd) cd.disabled = c <= CH_MIN;
-    if (ci2) ci2.disabled = c >= CH_MAX;
+    if (ci2) ci2.disabled = c >= GMAX || a + c >= GMAX;
     if (pillGuestsLabel) pillGuestsLabel.textContent = guestsText(a, c);
   };
   const openGuests = () => {
@@ -253,11 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ev.stopPropagation();
     const g = getGuests();
     if (b.hasAttribute('data-step-dec')) {
-      if (b.dataset.stepDec === 'adults') setGuests(g.a - 1, g.c);
-      else setGuests(g.a, g.c - 1);
+      if (b.dataset.stepDec === 'adults') setGuests(g.a - 1, g.c, 'adults');
+      else setGuests(g.a, g.c - 1, 'children');
     } else {
-      if (b.dataset.stepInc === 'adults') setGuests(g.a + 1, g.c);
-      else setGuests(g.a, g.c + 1);
+      if (b.dataset.stepInc === 'adults') setGuests(g.a + 1, g.c, 'adults');
+      else setGuests(g.a, g.c + 1, 'children');
     }
   }));
   gPanel.querySelector('[data-step-clear]').addEventListener('click', () => setGuests(2, 0));
