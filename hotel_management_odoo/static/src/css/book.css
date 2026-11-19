@@ -362,6 +362,79 @@ button:hover { background: var(--sav-deep); }
 .cal-actions { display: flex; gap: .5rem; }
 .cal-actions button { padding: .45rem .9rem; font-size: .88rem; }
 .cal-actions [data-cal-clear] { background: #e9e2cf; color: var(--sav-deep); }
+/* Esidai guest stepper dropdown, anchored under the pill bar. */
+.pill-panel[data-panel-guests] {
+  position: absolute;
+  top: calc(100% + .5rem);
+  right: 0;
+  width: min(22rem, calc(100vw - 2rem));
+  background: var(--card);
+  border: 1px solid #ddd5c2;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+  padding: 1rem 1.2rem;
+  z-index: 60;
+}
+.pill-panel[data-panel-guests][hidden] { display: none; }
+.step-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .7rem 0;
+}
+.step-row + .step-row { border-top: 1px solid #e7dfcc; }
+.step-meta { display: grid; gap: .1rem; }
+.step-meta strong { color: var(--sav-deep); font-size: 1rem; }
+.step-meta span { font-size: .85rem; color: var(--muted); font-weight: 400; }
+.stepper { display: flex; align-items: center; gap: .7rem; }
+.stepper button {
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--sav-deep);
+  border: 1px solid #cfc4ae;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepper button:hover:not(:disabled) { background: var(--sand); border-color: var(--sav); }
+.stepper button:disabled { opacity: .3; cursor: default; }
+.stepper button:disabled:hover { background: #fff; }
+.stepper [data-step-val] {
+  min-width: 1.4rem;
+  text-align: center;
+  font-weight: 700;
+  color: var(--sav-deep);
+}
+.step-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  margin-top: .5rem;
+  padding-top: .7rem;
+  border-top: 1px solid #e7dfcc;
+}
+.step-max { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.step-actions { display: flex; gap: .5rem; }
+.step-actions button { padding: .45rem .9rem; font-size: .88rem; }
+.step-actions [data-step-clear] { background: #e9e2cf; color: var(--sav-deep); }
+@media (max-width: 43.99rem) {
+  .pill-panel[data-panel-guests] {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    border-radius: 18px 18px 0 0;
+  }
+}
 /* Honeypot: humans never see it, bots fill it. */
 .hp-trap {
   position: absolute !important;

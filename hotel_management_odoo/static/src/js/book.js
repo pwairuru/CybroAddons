@@ -154,6 +154,94 @@ document.addEventListener('DOMContentLoaded', () => {
       openCal();
     }
   });
+  // ---- Esidai guest stepper dropdown, anchored under the pill bar ----
+  const pillGuests = document.querySelector('[data-pill-guests]');
+  const pillGuestsLabel = document.querySelector('[data-pill-guests-label]');
+  const adultsHid = document.querySelector('.search input[name="adults"]');
+  const childrenHid = document.querySelector('.search input[name="children"]');
+  const AD_MIN = 1, AD_MAX = 8, CH_MIN = 0, CH_MAX = 6;
+  const clampInt = (v, lo, hi, fb) => {
+    let n = parseInt(v, 10);
+    if (isNaN(n)) n = fb;
+    return Math.min(hi, Math.max(lo, n));
+  };
+  const guestsText = (a, c) => a + (a === 1 ? ' adult' : ' adults') +
+    (c > 0 ? ' · ' + c + (c === 1 ? ' child' : ' children') : '');
+  const gPanel = document.createElement('div');
+  gPanel.className = 'pill-panel';
+  gPanel.setAttribute('data-panel-guests', '1');
+  gPanel.hidden = true;
+  gPanel.innerHTML =
+    '<div class="step-row"><div class="step-meta"><strong>Adults</strong><span>Ages 13+</span></div>' +
+    '<div class="stepper"><button type="button" data-step-dec="adults" aria-label="Fewer adults">−</button>' +
+    '<span data-step-val="adults">2</span>' +
+    '<button type="button" data-step-inc="adults" aria-label="More adults">+</button></div></div>' +
+    '<div class="step-row"><div class="step-meta"><strong>Children</strong><span>Ages 2–12</span></div>' +
+    '<div class="stepper"><button type="button" data-step-dec="children" aria-label="Fewer children">−</button>' +
+    '<span data-step-val="children">0</span>' +
+    '<button type="button" data-step-inc="children" aria-label="More children">+</button></div></div>' +
+    '<div class="step-foot"><span class="step-max">Max 8 adults · 6 children</span>' +
+    '<span class="step-actions"><button type="button" data-step-clear="1">Clear</button>' +
+    '<button type="button" data-step-done="1">Done</button></span></div>';
+  (document.querySelector('.pill-bar') || searchForm || document.body).appendChild(gPanel);
+  const getGuests = () => ({
+    a: clampInt(adultsHid ? adultsHid.value : '2', AD_MIN, AD_MAX, 2),
+    c: clampInt(childrenHid ? childrenHid.value : '0', CH_MIN, CH_MAX, 0),
+  });
+  const setGuests = (a, c) => {
+    a = clampInt(a, AD_MIN, AD_MAX, 2);
+    c = clampInt(c, CH_MIN, CH_MAX, 0);
+    if (adultsHid) adultsHid.value = String(a);
+    if (childrenHid) childrenHid.value = String(c);
+    const av = gPanel.querySelector('[data-step-val="adults"]');
+    const cv = gPanel.querySelector('[data-step-val="children"]');
+    if (av) av.textContent = String(a);
+    if (cv) cv.textContent = String(c);
+    const ad = gPanel.querySelector('[data-step-dec="adults"]');
+    const ai = gPanel.querySelector('[data-step-inc="adults"]');
+    const cd = gPanel.querySelector('[data-step-dec="children"]');
+    const ci2 = gPanel.querySelector('[data-step-inc="children"]');
+    if (ad) ad.disabled = a <= AD_MIN;
+    if (ai) ai.disabled = a >= AD_MAX;
+    if (cd) cd.disabled = c <= CH_MIN;
+    if (ci2) ci2.disabled = c >= CH_MAX;
+    if (pillGuestsLabel) pillGuestsLabel.textContent = guestsText(a, c);
+  };
+  const openGuests = () => { closeCal(); setGuests(getGuests().a, getGuests().c); gPanel.hidden = false; };
+  const closeGuests = () => { gPanel.hidden = true; };
+  gPanel.querySelectorAll('[data-step-dec],[data-step-inc]').forEach((b) => b.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const g = getGuests();
+    if (b.hasAttribute('data-step-dec')) {
+      if (b.dataset.stepDec === 'adults') setGuests(g.a - 1, g.c);
+      else setGuests(g.a, g.c - 1);
+    } else {
+      if (b.dataset.stepInc === 'adults') setGuests(g.a + 1, g.c);
+      else setGuests(g.a, g.c + 1);
+    }
+  }));
+  gPanel.querySelector('[data-step-clear]').addEventListener('click', () => setGuests(2, 0));
+  gPanel.querySelector('[data-step-done]').addEventListener('click', closeGuests);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGuests(); });
+  document.addEventListener('click', (e) => {
+    if (gPanel.hidden) return;
+    const t = e.target;
+    if (gPanel.contains(t)) return;
+    if (t.closest && t.closest('[data-pill-guests]')) return;
+    closeGuests();
+  });
+  if (pillDates) pillDates.addEventListener('click', () => { if (!gPanel.hidden) closeGuests(); });
+  if (pillGuests) pillGuests.addEventListener('click', () => {
+    if (gPanel.hidden) openGuests();
+    else closeGuests();
+  });
+  // Seed stepper + label from server-rendered hidden values (?adults=&children=).
+  setGuests(getGuests().a, getGuests().c);
+  // UI-level clamp: never submit adults<1 (server clamps too).
+  if (searchForm) searchForm.addEventListener('submit', () => {
+    const g = getGuests();
+    setGuests(g.a, g.c);
+  });
   // Single booking dialog: Select buttons fill hidden room_id + summary.
   const dlg = document.getElementById('book-dialog');
   const form = dlg ? dlg.querySelector('form.book-confirm') : null;
