@@ -492,7 +492,7 @@ button:hover { background: var(--sav-deep); }
   opacity: 0;
 }
 @media (min-width: 44rem) {
-  .room-grid { grid-template-columns: 1fr 1fr; }
+  .room-grid { grid-template-columns: 1fr 1fr 1fr; }
   .book-hero h1 { font-size: 2.8rem; }
 }
 .esidai-foot {
