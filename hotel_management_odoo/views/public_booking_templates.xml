@@ -8,9 +8,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Book — Esidai Spa &amp; Resort</title>
-<link rel="icon" href="https://www.esidaisparesort.com/wp-content/uploads/2025/05/cropped-Esidai-by-Camp-David-Spa-Logo-32x32.jpg" sizes="32x32"/>
-<link rel="icon" href="https://www.esidaisparesort.com/wp-content/uploads/2025/05/cropped-Esidai-by-Camp-David-Spa-Logo-192x192.jpg" sizes="192x192"/>
-<link rel="apple-touch-icon" href="https://www.esidaisparesort.com/wp-content/uploads/2025/05/cropped-Esidai-by-Camp-David-Spa-Logo-180x180.jpg"/>
+<link rel="icon" type="image/png" href="/hotel_management_odoo/static/src/img/favicon.png?v=20261122a" sizes="32x32"/>
+<link rel="apple-touch-icon" href="/hotel_management_odoo/static/src/img/favicon.png?v=20261122a"/>
 <link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261120e"/>
 </head>
 <body>
