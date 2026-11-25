@@ -525,3 +525,100 @@ button:hover { background: var(--sav-deep); }
   .pill-panel[data-panel-board] { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
   .book-confirm { padding-bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* Task 1 (2026-11-25): CSS-only entrance motion for /book. Zero function
+   change: entry keyframes + control transitions only. Panel final geometry
+   unchanged; every [hidden] rule above stays display:none and winning —
+   motion below targets :not([hidden]) entry only. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes esidai-rise {
+    from { opacity: 0; transform: translateY(-4px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes esidai-sheet {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes esidai-dlg {
+    from { opacity: 0; transform: translateY(10px) scale(.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes esidai-backdrop {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes esidai-fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Desktop panel entry: short rise from the pill bar. */
+  .pill-panel[data-panel-dates]:not([hidden]),
+  .pill-panel[data-panel-guests]:not([hidden]),
+  .pill-panel[data-panel-board]:not([hidden]) {
+    animation: esidai-rise 160ms ease-out;
+    transform-origin: top center;
+  }
+
+  /* Board rows cascade on panel entry. */
+  .pill-panel[data-panel-board]:not([hidden]) .board-row {
+    animation: esidai-fade-up 240ms ease-out both;
+  }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(2) { animation-delay: 30ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(3) { animation-delay: 60ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(4) { animation-delay: 90ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(5) { animation-delay: 120ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(6) { animation-delay: 150ms; }
+
+  /* Confirm dialog entry + backdrop fade. */
+  #book-dialog[open] { animation: esidai-dlg 180ms ease-out; }
+  #book-dialog[open]::backdrop { animation: esidai-backdrop 180ms ease-out; }
+  .book-confirm > * { animation: esidai-fade-up 240ms ease-out both; }
+  .book-confirm > *:nth-child(2) { animation-delay: 30ms; }
+  .book-confirm > *:nth-child(3) { animation-delay: 60ms; }
+  .book-confirm > *:nth-child(4) { animation-delay: 90ms; }
+  .book-confirm > *:nth-child(5) { animation-delay: 120ms; }
+  .book-confirm > *:nth-child(6) { animation-delay: 150ms; }
+
+  /* Page life: hero copy on load, room cards stagger, photo zoom on hover. */
+  .book-hero > * { animation: esidai-fade-up 400ms ease-out both; }
+  .book-hero > *:nth-child(2) { animation-delay: 80ms; }
+  .room-card { animation: esidai-fade-up 400ms ease-out both; }
+  .room-card:nth-child(2) { animation-delay: 40ms; }
+  .room-card:nth-child(3) { animation-delay: 80ms; }
+  .room-card:nth-child(4) { animation-delay: 120ms; }
+  .room-card:nth-child(5) { animation-delay: 160ms; }
+  .room-card:nth-child(6) { animation-delay: 200ms; }
+  .room-card:nth-child(7) { animation-delay: 240ms; }
+  .room-card:nth-child(8) { animation-delay: 280ms; }
+  .room-card:nth-child(9) { animation-delay: 320ms; }
+  .room-photo { transition: transform 300ms ease; }
+  .room-card:hover .room-photo { transform: scale(1.04); }
+
+  /* Interactive control transitions. */
+  .pill-seg,
+  .select-room,
+  .search-fab,
+  .cal-day,
+  .board-row {
+    transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  }
+  .select-room:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(36, 53, 31, .25);
+  }
+}
+@media (max-width: 43.99rem) and (prefers-reduced-motion: no-preference) {
+  /* Mobile panels enter as bottom sheets instead of the desktop rise. */
+  .pill-panel[data-panel-dates]:not([hidden]),
+  .pill-panel[data-panel-guests]:not([hidden]),
+  .pill-panel[data-panel-board]:not([hidden]) {
+    animation: esidai-sheet 200ms ease-out;
+  }
+}
