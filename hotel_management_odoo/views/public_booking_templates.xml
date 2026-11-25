@@ -110,7 +110,7 @@ or <a href="https://wa.me/254743187486">WhatsApp us</a> and we'll help.</p>
 <t t-else="">
 <p class="availability"><t t-out="r.count"/> <t t-out="r.type"/> rooms free these dates</p>
 </t>
-<p class="price"><strong>Total <t t-out="r.total_str"/></strong> · taxes included</p>
+<p class="price"><strong>Total <t t-out="r.total_str"/></strong> · tax inc</p>
 <p class="price-total"><t t-out="r.nightly_str"/> / night · <t t-out="nights"/> night<t t-if="nights != 1">s</t></p>
 <button type="button" class="select-room"
 t-att-data-room-id="r.rep_id" t-att-data-room-name="r.rep_name"
