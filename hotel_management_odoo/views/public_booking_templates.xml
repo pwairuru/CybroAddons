@@ -10,7 +10,7 @@
 <title>Book — Esidai Spa &amp; Resort</title>
 <link rel="icon" type="image/png" href="/hotel_management_odoo/static/src/img/favicon.png?v=20261122a" sizes="32x32"/>
 <link rel="apple-touch-icon" href="/hotel_management_odoo/static/src/img/favicon.png?v=20261122a"/>
-<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261125c"/>
+<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261125d"/>
 </head>
 <body>
 <header class="esidai-nav">
@@ -180,8 +180,7 @@ t-att-data-room-type="r.type" t-att-data-count="r.count" t-att-data-total="r.tot
 <li>Questions? <a href="https://wa.me/254743187486">WhatsApp +254743187486</a>.</li>
 <li>Need a receipt? Write to <a href="mailto:reservations@esidaisparesort.com">reservations@esidaisparesort.com</a>.</li>
 </ol>
-<p class="hint">Show this reference at reception. Questions?
-<a href="https://wa.me/254743187486">WhatsApp +254743187486</a>.</p>
+<p class="hint done-followup">Thank you for booking with us — we will call you shortly to follow up on your booking.</p>
 </article>
 </div>
 </t>

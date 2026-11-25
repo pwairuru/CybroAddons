@@ -723,3 +723,10 @@ button:hover { background: var(--sav-deep); }
   .done-hero > *:nth-child(2) { animation-delay: 80ms; }
   .done-card { animation: esidai-fade-up 400ms ease-out both; }
 }
+.done-followup {
+  background: var(--sand);
+  border-radius: 12px;
+  padding: .8rem 1rem;
+  font-weight: 700;
+  margin: 0;
+}
