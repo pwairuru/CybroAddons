@@ -1,9 +1,13 @@
 # models/public_booking_service.py
 import html as _html
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+
+_logger = logging.getLogger(__name__)
 
 
 class HotelPublicBooking(models.AbstractModel):
@@ -279,6 +283,59 @@ class HotelPublicBooking(models.AbstractModel):
         return out
 
     @api.model
+    def _notify_reception(self, booking):
+        """Bell the on-duty reception team about a new website booking.
+
+        One Call activity per reception member + a single chatter post that
+        notifies their partners (Discuss inbox bell, no email). Never raises:
+        missing group or zero targets silently skip, anything else is
+        logged. Backend bookings never reach here — only create_booking
+        calls this, on newly created website bookings."""
+        try:
+            S = self.sudo()
+            group = S.env.ref(
+                'hotel_management_odoo.hotel_group_reception',
+                raise_if_not_found=False)
+            if not group:
+                return
+            # all_user_ids = direct + implied (manager/admin imply
+            # reception); skip inactive, portal/share, partner-less.
+            targets = group.all_user_ids.filtered(
+                lambda u: u.active and not u.share and u.partner_id)
+            if not targets:
+                return
+            bk = booking.sudo()
+            line = bk.room_line_ids[:1]
+            room_name = (line.room_id.display_name
+                         if line and line.room_id else '')
+            ci = (fields.Datetime.to_string(bk.checkin_date)
+                  if bk.checkin_date else '')
+            co = (fields.Datetime.to_string(bk.checkout_date)
+                  if bk.checkout_date else '')
+            guest = bk.partner_id.name or ''
+            phone = bk.partner_id.phone or bk.partner_id.mobile or ''
+            for u in targets:
+                bk.activity_schedule(
+                    act_type_xmlid='mail.mail_activity_data_call',
+                    summary='Call guest: %s' % bk.name,
+                    note='Website booking %s: %s -> %s, %s, guest %s (%s). '
+                         'Please call back.' % (
+                             bk.name, ci, co, room_name, guest, phone),
+                    user_id=u.id)
+            bk.message_post(
+                body='Website booking <b>%s</b>: %s &rarr; %s, %s, guest %s '
+                     '(%s). Please call back.' % (
+                         _html.escape(bk.name or ''),
+                         _html.escape(ci), _html.escape(co),
+                         _html.escape(room_name), _html.escape(guest),
+                         _html.escape(phone)),
+                partner_ids=targets.mapped('partner_id').ids,
+                subtype_xmlid='mail.mt_comment',
+                message_type='comment')
+        except Exception:
+            _logger.exception('website booking reception notify failed')
+
+    @api.model
     def create_booking(self, vals):
         # Whitelist-only: model/res_id/method/__ etc all rejected here.
         vals = dict(vals or {})
@@ -397,4 +454,5 @@ class HotelPublicBooking(models.AbstractModel):
                 if 'already booked' in str(e):
                     raise ValueError('room just sold')
                 raise
+        S._notify_reception(bk)
         return bk
