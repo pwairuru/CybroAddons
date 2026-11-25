@@ -308,8 +308,11 @@
                 <field name="booking_source" column_invisible="1"/>
                 <!-- Nameless icon: Odoo renders no action (ViewButton auto-disables
                      buttons without name/type/special), so the globe is a static
-                     indicator with tooltip, never an actionable button. -->
+                     indicator with tooltip, never an actionable button.
+                     btn-link/p-0/border-0 strips Odoo 20 ViewButton chrome so the
+                     list cell shows a bare icon, not a grey button. -->
                 <button icon="fa-globe"
+                        class="btn-link p-0 border-0"
                         title="Website booking — call to confirm/payment"
                         invisible="booking_source != 'website'"/>
                 <field name="state" widget="badge"

@@ -17,7 +17,11 @@ def migrate(cr, version):
         ('model', '=', 'room.booking'),
         ('body', 'ilike', 'source: public /book'),
     ])
-    for bkid in set(msgs.mapped('res_id')):
-        bk = env['room.booking'].browse(bkid)
-        if bk.exists() and bk.booking_source != 'website':
-            bk.write({'booking_source': 'website'})
+    ids = set(msgs.mapped('res_id'))
+    targets = env['room.booking'].browse(ids).exists().filtered(
+        lambda b: b.booking_source != 'website')
+    if not targets:
+        return
+    targets.with_context(
+        tracking_disable=True, mail_notrack=True,
+    ).write({'booking_source': 'website'})
