@@ -14,8 +14,9 @@
 </head>
 <body>
 <header class="esidai-nav">
-<span class="brand">Esidai Spa &amp; Resort</span>
+<a class="brand" href="https://www.esidaisparesort.com/">Esidai Spa &amp; Resort</a>
 <nav>
+<a href="https://www.esidaisparesort.com/">Home</a>
 <a href="https://www.esidaisparesort.com/">Stay</a>
 <a href="https://www.esidaisparesort.com/dining/">Dining</a>
 <a href="/book" class="cta">BOOK NOW</a>

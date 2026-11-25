@@ -39,7 +39,8 @@ h1, h2, .brand {
   z-index: 20;
 }
 .brand { font-size: 1.3rem; font-weight: 700; letter-spacing: .02em; }
-.esidai-nav nav { display: flex; gap: 1.1rem; align-items: center; margin-left: auto; }
+a.brand { text-decoration: none; }
+.esidai-nav nav { display: flex; flex-wrap: wrap; gap: .6rem 1.1rem; align-items: center; margin-left: auto; }
 .esidai-nav a { color: var(--sav-deep); text-decoration: none; font-weight: 600; }
 .cta {
   background: var(--sav);
@@ -508,6 +509,9 @@ button:hover { background: var(--sav-deep); }
 /* Task 3 mobile polish: unstick search, shrink hero, full-width fab,
    stacked dialog actions, 44px steppers, safe-area sheets, shorter photos. */
 @media (max-width: 43.99rem) {
+  .esidai-nav { padding: .7rem .9rem; }
+  .brand { font-size: 1.1rem; }
+  .esidai-nav nav { gap: .5rem .9rem; }
   .search { position: static; }
   .book-hero { padding: 2rem 1rem 1.8rem; }
   .book-hero h1 { font-size: 1.7rem; }
