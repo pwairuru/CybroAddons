@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from odoo.exceptions import ValidationError
 from odoo.tests.common import TransactionCase
 
 
@@ -47,7 +48,7 @@ class TestBookingOrigin(TransactionCase):
         v = {'room_id': rooms[0]['id'], 'ci': '2026-12-01',
              'co': '2026-12-03', 'name': 'Web Guest',
              'phone': '+254700000003', 'idem_key': 'origin-web-2'}
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             svc.create_booking(v)
 
     def test_origin_views_wired(self):
