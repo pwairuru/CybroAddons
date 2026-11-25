@@ -17,9 +17,31 @@ class RoomBookingOrigin(models.Model):
     _order = 'sequence, code'
 
     name = fields.Char(string="Name", required=True, tracking=True)
-    code = fields.Char(string="Code", required=True, tracking=True)
+    code = fields.Char(
+        string="Code", required=True, tracking=True,
+        help="Stable technical key used by website-booking logic "
+             "(_by_code lookups, public booking flow, search filters). "
+             "Do not rename casually: rename the Name instead; "
+             "codes are normalized to stripped lowercase.")
     sequence = fields.Integer(default=10, tracking=True)
     active = fields.Boolean(default=True, tracking=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Normalize code so imports/XML seed variants match the
+        lowercase unique key (constrains run on stored values)."""
+        for vals in vals_list:
+            code = vals.get('code')
+            if isinstance(code, str):
+                vals['code'] = code.strip().lower()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        """Normalize code on write for the same reason as create."""
+        code = vals.get('code')
+        if isinstance(code, str):
+            vals = dict(vals, code=code.strip().lower())
+        return super().write(vals)
 
     @api.constrains('code')
     def _check_unique_code(self):

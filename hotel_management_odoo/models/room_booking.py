@@ -161,7 +161,7 @@ class RoomBooking(models.Model):
         help="Where the booking came from. Website bookings need "
              "a confirmation/payment call.",
         required=True, default=_default_origin, index=True,
-        ondelete='restrict', tracking=True)
+        ondelete='restrict', tracking=True, copy=False)
     booking_origin_code = fields.Char(
         related='booking_origin_id.code', store=True, index=True,
         string="Origin Code",
