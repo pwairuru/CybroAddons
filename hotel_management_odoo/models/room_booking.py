@@ -20,7 +20,7 @@
 #
 #############################################################################
 from datetime import datetime, timedelta
-from odoo import _, api, fields, models
+from odoo import _, api, fields, models, tools
 from odoo.addons.base.models.avatar_mixin import generate_text_avatar_svg
 from odoo.exceptions import ValidationError
 
@@ -158,7 +158,7 @@ class RoomBooking(models.Model):
         origin model initializes). Return False then; the value is
         supplied on real record creation once the table exists.
         """
-        if not self.env.cr.table_exists('room_booking_origin'):
+        if not tools.sql.table_exists(self.env.cr, 'room_booking_origin'):
             return False
         origin = self.env['room.booking.origin']._by_code('reception')
         return origin or self.env['room.booking.origin'].search(
