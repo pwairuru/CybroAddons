@@ -298,9 +298,13 @@ class HotelPublicBooking(models.AbstractModel):
                 raise_if_not_found=False)
             if not group:
                 return
-            # all_user_ids = direct + implied (manager/admin imply
-            # reception); skip inactive, portal/share, partner-less.
-            targets = group.all_user_ids.filtered(
+            # Direct (explicit) members only: managers/admins imply
+            # reception, not reverse — they must not get the bell unless
+            # also directly in the reception group. Odoo 20: user_ids =
+            # "Users explicitly in this group"; all_user_ids would add
+            # implied (manager/admin) members. Skip inactive, portal/share,
+            # partner-less.
+            targets = group.user_ids.filtered(
                 lambda u: u.active and not u.share and u.partner_id)
             if not targets:
                 return

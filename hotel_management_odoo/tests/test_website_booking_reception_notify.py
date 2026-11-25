@@ -64,15 +64,20 @@ class TestWebsiteBookingReceptionNotify(TransactionCase):
     def test_empty_reception_never_blocks_booking(self):
         svc = self.env['hotel.public.booking']
         group = self.env.ref('hotel_management_odoo.hotel_group_reception')
-        # Odoo 20: all_user_ids covers direct + implied members (manager /
-        # admin imply reception); the computed inverse forbids clearing
-        # implied rows, so strip every implying group instead.
+        # Odoo 20: roster is direct members (group.user_ids). Strip the
+        # group itself plus every implying group (manager/admin imply
+        # reception; the computed all_user_ids inverse forbids clearing
+        # implied rows, so strip instead). Then assert the skip branch:
+        # booking succeeds AND zero activities are scheduled on it.
         for u in group.all_user_ids:
-            u.group_ids -= group.all_implied_by_ids
+            u.group_ids -= group.all_implied_by_ids + group
+        self.assertFalse(group.user_ids)
         room_id = self._free_room_vals()
         bk = svc.create_booking({'room_id': room_id, 'ci': '2026-12-01', 'co': '2026-12-03',
             'name': 'Web Guest', 'phone': '+254799000103', 'idem_key': 'notify-bell-3'})
         self.assertTrue(bk.exists())
+        self.assertFalse(self.env['mail.activity'].search(
+            [('res_model', '=', 'room.booking'), ('res_id', '=', bk.id)], limit=1))
 
     def test_share_and_inactive_excluded(self):
         svc = self.env['hotel.public.booking']
