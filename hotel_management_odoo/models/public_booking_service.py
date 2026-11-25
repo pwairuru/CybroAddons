@@ -65,13 +65,14 @@ class HotelPublicBooking(models.AbstractModel):
     def allowed_boards(self):
         """Overnight meal plans for the public page, from the DB catalogue.
 
-        Returns [{'code','name','description'}] for active, non-day-use
-        plans ordered by sequence. The widget renders these; validation
-        uses the same list, so a new overnight plan appears with no code
-        change."""
+        Returns [{'code','name','description'}] for active, website-published,
+        non-day-use plans ordered by sequence. The widget renders these;
+        validation uses the same list, so a new overnight plan appears with
+        no code change. Hidden plans stay usable in backend bookings."""
         S = self.sudo()
         plans = S.env['hotel.meal.plan'].search(
-            [('active', '=', True), ('code', 'not in', list(self.BOARD_DAY_USE))],
+            [('active', '=', True), ('website_published', '=', True),
+             ('code', 'not in', list(self.BOARD_DAY_USE))],
             order='sequence, code')
         return [{'code': p.code, 'name': p.name,
                  'description': p.description or ''} for p in plans]

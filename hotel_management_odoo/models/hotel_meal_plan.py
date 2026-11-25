@@ -21,6 +21,10 @@ class HotelMealPlan(models.Model):
     description = fields.Text(tracking=True)
     sequence = fields.Integer(default=10, tracking=True)
     active = fields.Boolean(default=True, tracking=True)
+    website_published = fields.Boolean(
+        default=True, tracking=True,
+        help="Show this meal plan on the website booking page. "
+        "Hidden plans stay usable in backend bookings and rates.")
 
     @api.constrains('code')
     def _check_unique_code(self):

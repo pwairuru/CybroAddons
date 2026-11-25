@@ -12,6 +12,10 @@
                         domain="[('active', '=', True)]"/>
                 <filter name="archived" string="Archived"
                         domain="[('active', '=', False)]"/>
+                <filter name="website_published" string="Website Published"
+                        domain="[('website_published', '=', True)]"/>
+                <filter name="website_hidden" string="Hidden from Website"
+                        domain="[('website_published', '=', False)]"/>
             </search>
         </field>
     </record>
@@ -25,6 +29,7 @@
                 <field name="code"/>
                 <field name="name"/>
                 <field name="description"/>
+                <field name="website_published" widget="boolean_toggle"/>
                 <field name="active"/>
             </list>
         </field>
@@ -42,6 +47,7 @@
                             <field name="name"/>
                             <field name="sequence"/>
                             <field name="active"/>
+                            <field name="website_published"/>
                         </group>
                     </group>
                     <group string="Description">
