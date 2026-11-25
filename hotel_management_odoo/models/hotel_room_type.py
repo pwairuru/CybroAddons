@@ -30,13 +30,14 @@ class HotelRoomType(models.Model):
         [('per_room', 'Per Room'), ('per_person', 'Per Person')],
         string="Charge Mode", default='per_room', required=True,
         tracking=True,
-        help="Per Room: plan price covers adult_capacity + included "
-        "children, extras via occupancy bands. Per Person: total = "
-        "plan price x heads / standard heads.")
+        help="Per Room: line price covers adult_capacity + included "
+        "children, extras via occupancy bands. Per Person: nightly "
+        "rent = line price x adults, plus child extras beyond the "
+        "line's included_children (included_adults ignored).")
     standard_heads = fields.Integer(
         string="Standard Heads", default=0, tracking=True,
-        help="Divisor for per-person pricing; 0 falls back to "
-        "adult_capacity (then 1).")
+        help="Unused by the engine since rate lines took over; kept "
+        "for history. Per-person math is line price x adults.")
     default_board = fields.Selection(
         [('RO', 'Room Only'), ('BB', 'Bed & Breakfast'),
          ('HB', 'Half Board'), ('FB', 'Full Board')],

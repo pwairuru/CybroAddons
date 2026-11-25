@@ -858,12 +858,18 @@ class HotelRateEngine(models.AbstractModel):
                 raise ValidationError('No rate configured for this stay.')
             base_price = float(room_type.base_rate or 0.0) \
                 if room_type else 0.0
+            # Unified rent: per-person scales the reference rate by adults
+            # so the fallback never quotes 1x for N adults either.
+            if room_type and room_type.charge_mode == 'per_person':
+                rent = base_price * eff_adults
+            else:
+                rent = base_price
             adj_amt = 0.0
             adj = self._matching_adjustment(plan_rec, room_type, period)
             if adj and adj.exists():
-                adj_amt = base_price * float(adj.value or 0.0) / 100.0 \
+                adj_amt = rent * float(adj.value or 0.0) / 100.0 \
                     if adj.mode == 'percent' else float(adj.value or 0.0)
-            resolved = base_price + adj_amt
+            resolved = rent + adj_amt
             reason = 'plan-adjustment' if adj_amt else 'base-rate'
             return {
                 'net': float(resolved),
@@ -885,12 +891,21 @@ class HotelRateEngine(models.AbstractModel):
         base_price = float(line.price or 0.0)
         extra_a = float(calc.get('extra_a', 0.0) or 0.0)
         extra_c = float(calc.get('extra_c', 0.0) or 0.0)
+        # Unified rent component: per-room covers included heads in the
+        # flat price; per-person charges the line price once per adult
+        # (compute_night already prices it that way). Using calc's adult
+        # scaling here keeps engine, booking quote and folio posting on
+        # one math instead of two.
+        if room_type and room_type.charge_mode == 'per_person':
+            rent = base_price * eff_adults
+        else:
+            rent = base_price
         supp_amt = 0.0
         if supp and supp.exists():
             supp_amt = float(supp.value or 0.0) \
                 if supp.mode == 'fixed' \
-                else base_price * float(supp.value or 0.0) / 100.0
-        subtotal = base_price + supp_amt
+                else rent * float(supp.value or 0.0) / 100.0
+        subtotal = rent + supp_amt
         adj_amt = 0.0
         is_override = bool(plan_rec and line.plan_id
                            and line.plan_id.id == plan_rec.id)
@@ -904,6 +919,8 @@ class HotelRateEngine(models.AbstractModel):
         reason = basis
         if adj_amt:
             reason = 'plan-adjustment'
+        is_pp = bool(room_type
+                      and room_type.charge_mode == 'per_person')
         return {
             'net': float(resolved + extra_a + extra_c),
             'base': base_price,
@@ -917,7 +934,8 @@ class HotelRateEngine(models.AbstractModel):
                 {'band': 'base', 'qty': 1,
                  'amount': float(resolved), 'total': float(resolved)},
                 {'band': 'adult',
-                 'qty': max(0, eff_adults - (line.included_adults or 0)),
+                 'qty': eff_adults if is_pp else max(
+                     0, eff_adults - (line.included_adults or 0)),
                  'amount': extra_a, 'total': extra_a,
                  'occupancy_id': occ_adult.id if occ_adult else False},
                 {'band': 'child',
