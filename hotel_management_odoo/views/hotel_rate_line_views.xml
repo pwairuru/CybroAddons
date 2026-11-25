@@ -4,7 +4,7 @@
         <field name="name">hotel.rate.line.view.list</field>
         <field name="model">hotel.rate.line</field>
         <field name="arch" type="xml">
-            <list>
+            <list expand="1">
                 <field name="period_id"/>
                 <field name="room_type_id"/>
                 <field name="meal_plan_id"/>
