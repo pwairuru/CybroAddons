@@ -49,3 +49,23 @@ class TestBookingOrigin(TransactionCase):
             with self.subTest(view=view_name):
                 self.assertIn('fa-globe', arch)
                 self.assertIn('Website booking', arch)  # tooltip copy
+
+    def test_backfill_marks_website_from_chatter(self):
+        import importlib.util
+        from pathlib import Path
+        mod_path = (Path(__file__).parent.parent / 'migrations'
+                    / '20.0.2.28.0' / 'post-migrate.py')
+        spec = importlib.util.spec_from_file_location(
+            'backfill_website_origin', mod_path)
+        post = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(post)
+        bk = self._make_booking()
+        self.assertEqual(bk.booking_source, 'reception')
+        bk.message_post(body='source: public /book test',
+                        message_type='comment')
+        post.migrate(self.env.cr, '20.0.2.28.0')
+        bk.invalidate_recordset()
+        self.assertEqual(bk.booking_source, 'website')
+        post.migrate(self.env.cr, '20.0.2.28.0')  # idempotent
+        bk.invalidate_recordset()
+        self.assertEqual(bk.booking_source, 'website')
