@@ -124,7 +124,7 @@
                             <field name="company_id"/>
                             <field name="active"/>
                         </group>
-                        <group string="Capacity">
+                        <group string="Capacity (booking limits)">
                             <field name="adult_capacity"/>
                             <field name="child_capacity"/>
                             <field name="max_occupants"/>
@@ -135,8 +135,6 @@
                             <field name="base_rate"/>
                             <field name="default_board"/>
                             <field name="charge_mode"/>
-                            <field name="standard_heads"
-                                   invisible="charge_mode != 'per_person'"/>
                         </group>
                         <group string="Website">
                             <field name="website_published"/>

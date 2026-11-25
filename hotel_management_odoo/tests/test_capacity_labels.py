@@ -22,7 +22,18 @@ class TestCapacityLabels(TransactionCase):
         self.assertIn('type max', num_help.lower())
         adult_help = self.env['hotel.room.type'].fields_get(['adult_capacity'])['adult_capacity']['help']
         self.assertIn('not enforced', adult_help.lower())
+        child_help = self.env['hotel.room.type'].fields_get(['child_capacity'])['child_capacity']['help']
+        self.assertIn('not enforced', child_help.lower())
         max_help = self.env['hotel.room.type'].fields_get(['max_occupants'])['max_occupants']['help']
         self.assertIn('hard', max_help.lower())
+        self.assertIn('booking', max_help.lower())
+        self.assertIn('pricing', max_help.lower())
         incl_help = self.env['hotel.rate.line'].fields_get(['included_adults'])['included_adults']['help']
         self.assertIn('extra', incl_help.lower())
+        incl_child_help = self.env['hotel.rate.line'].fields_get(['included_children'])['included_children']['help']
+        self.assertIn('extra', incl_child_help.lower())
+
+    def test_standard_heads_hidden_from_views(self):
+        views = self.env['ir.ui.view'].search([('model', '=', 'hotel.room.type')])
+        for v in views:
+            self.assertNotIn('standard_heads', v.arch or '')
