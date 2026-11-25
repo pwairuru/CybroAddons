@@ -12,7 +12,19 @@ from odoo import api, SUPERUSER_ID
 
 
 def migrate(cr, version):
+    # booking_source was removed from the code (replaced by the
+    # booking_origin_id link in 20.0.2.29.0). On DBs where the field
+    # or its column is already gone there is nothing to backfill;
+    # without this guard pre-28.0 upgrades crash on the write below.
+    cr.execute(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name='room_booking' "
+        "AND column_name='booking_source'")
+    if not cr.fetchone():
+        return
     env = api.Environment(cr, SUPERUSER_ID, {})
+    if 'booking_source' not in env['room.booking']._fields:
+        return
     msgs = env['mail.message'].search([
         ('model', '=', 'room.booking'),
         ('body', 'ilike', 'source: public /book'),

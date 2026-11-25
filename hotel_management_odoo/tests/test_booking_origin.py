@@ -78,3 +78,74 @@ class TestBookingOrigin(TransactionCase):
                 ('search', search, 'Website'), ('search', search, 'Phone')):
             with self.subTest(view=view_name, label=label):
                 self.assertIn(label, arch)
+
+    def _load_29_migrate(self):
+        import importlib.util
+        from pathlib import Path
+        from odoo.modules.module import get_module_path
+        path = (Path(get_module_path('hotel_management_odoo'))
+                / 'migrations' / '20.0.2.29.0' / 'post-migrate.py')
+        spec = importlib.util.spec_from_file_location(
+            'booking_origin_29_migrate', path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def _booking_source_gone(self):
+        self.cr.execute(
+            "SELECT count(*) FROM information_schema.columns "
+            "WHERE table_name='room_booking' "
+            "AND column_name='booking_source'")
+        return self.cr.fetchone()[0] == 0
+
+    def test_backfill_maps_and_drops_column(self):
+        web = self._origin('website')
+        rec = self._origin('reception')
+        bk_web = self._make_booking(booking_origin_id=rec.id)
+        bk_rec = self._make_booking()
+        bk_other = self._make_booking()
+        # Pre-upgrade shape: old varchar still present, new link
+        # nullable/unfilled (ORM default fill happens at column
+        # creation; NULLs are possible mid-upgrade).
+        self.cr.execute(
+            "ALTER TABLE room_booking ALTER COLUMN booking_origin_id "
+            "DROP NOT NULL")
+        self.cr.execute(
+            "ALTER TABLE room_booking ADD COLUMN booking_source varchar")
+        self.cr.execute(
+            "UPDATE room_booking SET booking_source='website', "
+            "booking_origin_id=NULL WHERE id=%s",
+            (bk_web.id,))
+        self.cr.execute(
+            "UPDATE room_booking SET booking_source='reception', "
+            "booking_origin_id=NULL WHERE id=%s",
+            (bk_rec.id,))
+        self.cr.execute(
+            "UPDATE room_booking SET booking_source='phone', "
+            "booking_origin_id=NULL WHERE id=%s",
+            (bk_other.id,))
+        mig = self._load_29_migrate()
+        mig.migrate(self.cr, '20.0.2.29.0')
+        Booking = self.env['room.booking']
+        Booking.invalidate_model(['booking_origin_id'])
+        self.assertEqual(
+            Booking.browse(bk_web.id).booking_origin_id.code, 'website')
+        self.assertEqual(
+            Booking.browse(bk_rec.id).booking_origin_id.code, 'reception')
+        # No evidence ever proved old phone rows: non-website maps
+        # to the reception default.
+        self.assertEqual(
+            Booking.browse(bk_other.id).booking_origin_id.code,
+            'reception')
+        self.assertTrue(self._booking_source_gone())
+        # Re-run idempotent: links unchanged, column stays gone.
+        mig.migrate(self.cr, '20.0.2.29.0')
+        Booking.invalidate_model(['booking_origin_id'])
+        self.assertEqual(
+            Booking.browse(bk_web.id).booking_origin_id.code, 'website')
+        self.assertEqual(
+            Booking.browse(bk_rec.id).booking_origin_id.code, 'reception')
+        self.assertEqual(
+            Booking.browse(bk_other.id).booking_origin_id.code,
+            'reception')
+        self.assertTrue(self._booking_source_gone())
