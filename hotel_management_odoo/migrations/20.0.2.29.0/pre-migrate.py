@@ -49,9 +49,8 @@ def migrate(cr, version):
     for code, _name, _sequence in ORIGINS:
         cr.execute(
             "INSERT INTO ir_model_data "
-            "(module, name, model, res_id, noupdate, date_init, "
-            "date_update) SELECT %s, %s, 'room.booking.origin', o.id, "
-            "true, now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC' "
+            "(module, name, model, res_id, noupdate) SELECT %s, %s, "
+            "'room.booking.origin', o.id, true "
             "FROM room_booking_origin o WHERE o.code = %s "
             "AND NOT EXISTS (SELECT 1 FROM ir_model_data d "
             "WHERE d.module = %s AND d.name = %s)",
