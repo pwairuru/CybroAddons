@@ -64,3 +64,4 @@ from . import test_reservation_deposit_lifecycle
 from . import test_deposit_math
 from . import test_booking_origin
 from . import test_booking_origin_table
+from . import test_public_booking_done_view
