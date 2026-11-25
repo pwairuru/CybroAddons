@@ -148,6 +148,14 @@ class RoomBooking(models.Model):
                                    "transitions only (action methods); direct "
                                    "writes are rejected.",
                               default='draft', tracking=True, readonly=True)
+    booking_source = fields.Selection(
+        selection=[('reception', 'Reception / Walk-in'),
+                   ('website', 'Website')],
+        string="Origin",
+        help="Where the booking came from. Website bookings need "
+             "a confirmation/payment call.",
+        default='reception', required=True, index=True, copy=False,
+        tracking=True)
     invoice_address_id = fields.Many2one(
         comodel_name='res.partner', string="Invoice Address",
         compute='_compute_invoice_address_id', store=True, readonly=False,

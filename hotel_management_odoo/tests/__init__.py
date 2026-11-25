@@ -62,3 +62,4 @@ from . import test_public_booking_grouping
 from . import test_public_booking_pax_cap
 from . import test_reservation_deposit_lifecycle
 from . import test_deposit_math
+from . import test_booking_origin
