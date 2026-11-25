@@ -44,6 +44,8 @@ class TestBookingOrigin(TransactionCase):
         form = self.env.ref(
             'hotel_management_odoo.room_booking_view_form').arch_db
         self.assertIn('booking_source', tree + kanban + search + form)
-        self.assertIn('fa-globe', tree + kanban)
-        self.assertIn('Website booking', tree + kanban)  # tooltip copy
         self.assertIn('group_by', search)
+        for view_name, arch in (('tree', tree), ('kanban', kanban)):
+            with self.subTest(view=view_name):
+                self.assertIn('fa-globe', arch)
+                self.assertIn('Website booking', arch)  # tooltip copy

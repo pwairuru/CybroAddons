@@ -305,8 +305,13 @@
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
                 <field name="amount_total" widget="monetary"/>
-                <field name="booking_source" widget="badge"
-                       decoration-info="booking_source == 'website'"/>
+                <field name="booking_source" column_invisible="1"/>
+                <!-- Nameless icon: Odoo renders no action (ViewButton auto-disables
+                     buttons without name/type/special), so the globe is a static
+                     indicator with tooltip, never an actionable button. -->
+                <button icon="fa-globe"
+                        title="Website booking — call to confirm/payment"
+                        invisible="booking_source != 'website'"/>
                 <field name="state" widget="badge"
                        decoration-muted="state in ('draft', 'cancel', 'done')"
                        decoration-info="state == 'reserved'"
