@@ -74,6 +74,12 @@
                 <field name="meal_plan_id"/>
                 <filter name="active_period" string="Active Periods"
                         domain="[('period_id.active', '=', True)]"/>
+                <group>
+                    <filter name="by_period" string="Period"
+                            domain="[]" context="{'group_by': 'period_id'}"/>
+                    <filter name="by_room_type" string="Room Type"
+                            domain="[]" context="{'group_by': 'room_type_id'}"/>
+                </group>
             </search>
         </field>
     </record>
@@ -94,6 +100,7 @@
         <field name="name">Rate Lines</field>
         <field name="res_model">hotel.rate.line</field>
         <field name="view_mode">list,form,pivot</field>
+        <field name="context">{'search_default_by_period': 1, 'search_default_by_room_type': 1}</field>
     </record>
 
     <!-- Room-type smart-button target: same views, pre-filtered. -->
