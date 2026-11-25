@@ -48,6 +48,7 @@ from . import hotel_rate_occupancy
 from . import hotel_rate_period
 from . import hotel_rate_period_meal
 from . import hotel_meal_plan
+from . import room_booking_origin
 from . import hotel_room_type
 from . import hotel_rooming
 from . import hotel_service
