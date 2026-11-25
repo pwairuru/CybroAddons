@@ -27,6 +27,8 @@ class RoomBooking(models.Model):
 
     pos_order_line_ids = fields.One2many('hotel.pos.line', 'booking_id', string='POS Orders')
     amount_total_pos = fields.Monetary(string="Total POS Amount", compute='_compute_amount_total_pos', store=False)
+    amount_untaxed_pos = fields.Monetary(string="POS Untaxed", compute='_compute_amount_total_pos', store=False)
+    amount_taxed_pos = fields.Monetary(string="POS Tax", compute='_compute_amount_total_pos', store=False)
     amount_total_combined = fields.Monetary(
         string="Combined Total (Rooms + Services + POS)",
         compute='_compute_amount_total_combined', store=False,
@@ -90,6 +92,9 @@ class RoomBooking(models.Model):
             record.amount_total_pos = sum(
                 link.pos_order_id.amount_total
                 for link in record._settled_pos_links())
+            untaxed, tax = record._additional_amounts()
+            record.amount_untaxed_pos = untaxed
+            record.amount_taxed_pos = tax
 
     @api.depends('amount_total')
     def _compute_amount_total_combined(self):

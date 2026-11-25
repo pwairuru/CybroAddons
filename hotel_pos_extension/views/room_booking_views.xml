@@ -17,6 +17,8 @@
             </xpath>
             <xpath expr="//notebook" position="inside">
                 <field name="has_pos_orders" invisible="1"/>
+                <field name="amount_untaxed_pos" invisible="1"/>
+                <field name="amount_taxed_pos" invisible="1"/>
                 <field name="amount_total_pos" invisible="1"/>
                 <field name="amount_total_combined" invisible="1"/>
                 <page string="POS orders" name="pos_orders" invisible="not has_pos_orders">
@@ -39,9 +41,19 @@
                     </group>
                 </page>
             </xpath>
+            <xpath expr="//group[@name='booking_summary']/div[@name='totals_header']" position="before">
+                <div colspan="2" class="text-end fw-bold mt-1" invisible="not has_pos_orders">POS Orders<hr class="ms-auto my-1" style="width: 40%;"/></div>
+                <field name="amount_untaxed_pos" widget="monetary"
+                       string="POS Untaxed" invisible="not has_pos_orders"/>
+                <field name="amount_taxed_pos" widget="monetary"
+                       string="POS Tax" invisible="not has_pos_orders"/>
+                <label for="amount_total_pos" string="POS Total" class="fw-bold"
+                       invisible="not has_pos_orders"/>
+                <field name="amount_total_pos" nolabel="1" widget="monetary"
+                       string="POS Total" class="fw-bold"
+                       invisible="not has_pos_orders"/>
+            </xpath>
             <xpath expr="//group[@name='booking_summary']/field[@name='amount_total']" position="after">
-                <field name="amount_total_pos" widget="monetary"
-                       string="Bar/Restaurant Total" invisible="not has_pos_orders"/>
                 <field name="amount_total_combined" widget="monetary"
                        string="Combined Total" invisible="not has_pos_orders"/>
             </xpath>
