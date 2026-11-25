@@ -66,10 +66,20 @@ class TestBookingOrigin(TransactionCase):
         self.assertIn("[('booking_origin_code', '=', 'website')]", search)
         self.assertIn("[('booking_origin_code', '=', 'phone')]", search)
         self.assertIn("'group_by': 'booking_origin_id'", search)
+        tree_origin_icons = ('icon="public"', 'icon="phone"')
+        for icon_attr in tree_origin_icons:
+            with self.subTest(view='tree', icon=icon_attr):
+                self.assertIn(icon_attr, tree)
+        for icon_attr in ('data-icon="public"', 'data-icon="phone"'):
+            with self.subTest(view='kanban', icon=icon_attr):
+                self.assertIn(icon_attr, kanban)
+        self.assertIn('class="oi', kanban)
         for view_name, arch in (('tree', tree), ('kanban', kanban)):
             with self.subTest(view=view_name):
-                self.assertIn('fa-globe', arch)
-                self.assertIn('fa-phone', arch)
+                # Odoo 20 icons are Material Symbols ("public" = website
+                # globe), not Font Awesome.
+                self.assertNotIn('fa-globe', arch)
+                self.assertNotIn('fa-phone', arch)
                 self.assertIn(  # tooltip copy, verbatim
                     'Website booking — call to confirm/payment', arch)
                 self.assertIn(  # tooltip copy, verbatim

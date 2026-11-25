@@ -10,7 +10,7 @@
 <title>Book — Esidai Spa &amp; Resort</title>
 <link rel="icon" type="image/png" href="/hotel_management_odoo/static/src/img/favicon.png?v=20261122a" sizes="32x32"/>
 <link rel="apple-touch-icon" href="/hotel_management_odoo/static/src/img/favicon.png?v=20261122a"/>
-<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261125a"/>
+<link rel="stylesheet" href="/hotel_management_odoo/static/src/css/book.css?v=20261125d"/>
 </head>
 <body>
 <header class="esidai-nav">
@@ -159,21 +159,34 @@ t-att-data-room-type="r.type" t-att-data-count="r.count" t-att-data-total="r.tot
 <!-- PII-free: renders ref + dates + room only after ref + phone-last-3 gate. -->
 <template id="public_book_done" name="Public book done">
 <t t-call="hotel_management_odoo.public_book_layout">
-<div class="book-wrap">
-<h1>Booking received</h1>
 <t t-if="confirmation">
-<p class="ok">Thank you. Your reservation is with us.</p>
-<dl class="confirm">
+<div class="done-hero">
+<svg class="done-seal" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.7 2.7L16 9.5"/></svg>
+<h1>Booking received</h1>
+<p class="done-ref"><t t-out="confirmation.ref"/></p>
+<p class="done-dates"><t t-out="confirmation.ci"/> → <t t-out="confirmation.co"/></p>
+</div>
+<div class="book-wrap">
+<article class="done-card">
+<dl class="done-grid">
 <dt>Reference</dt><dd><t t-out="confirmation.ref"/></dd>
 <dt>Check-in</dt><dd><t t-out="confirmation.ci"/></dd>
 <dt>Check-out</dt><dd><t t-out="confirmation.co"/></dd>
 <dt>Room</dt><dd><t t-out="confirmation.room"/></dd>
 <dt>Status</dt><dd><t t-out="confirmation.state"/></dd>
 </dl>
-<p class="hint">Show this reference at reception. Questions?
-<a href="https://wa.me/254743187486">WhatsApp +254743187486</a>.</p>
+<ol class="done-steps">
+<li>Show this reference at reception when you arrive.</li>
+<li>Questions? <a href="https://wa.me/254743187486">WhatsApp +254743187486</a>.</li>
+<li>Need a receipt? Write to <a href="mailto:reservations@esidaisparesort.com">reservations@esidaisparesort.com</a>.</li>
+</ol>
+<p class="hint done-followup">Thank you for booking with us — we will call you shortly to follow up on your booking.</p>
+</article>
+</div>
 </t>
 <t t-else="">
+<div class="book-wrap">
+<article class="done-card done-gate">
 <t t-if="ref and last3">
 <p class="alert">We couldn't match that reference with those digits.
 Check both and try again.</p>
@@ -190,8 +203,9 @@ pattern="[0-9]{3}" inputmode="numeric" t-att-value="last3 or ''"/>
 </label>
 <button type="submit">View booking</button>
 </form>
-</t>
+</article>
 </div>
+</t>
 </t>
 </template>
 

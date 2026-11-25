@@ -65,3 +65,5 @@ from . import test_deposit_math
 from . import test_booking_origin
 from . import test_booking_origin_table
 from . import test_capacity_labels
+from . import test_public_booking_done_view
+from . import test_website_booking_reception_notify

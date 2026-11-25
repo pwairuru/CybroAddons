@@ -525,3 +525,208 @@ button:hover { background: var(--sav-deep); }
   .pill-panel[data-panel-board] { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
   .book-confirm { padding-bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* Task 1 (2026-11-25): CSS-only entrance motion for /book. Zero function
+   change: entry keyframes + control transitions only. Panel final geometry
+   unchanged; every [hidden] rule above stays display:none and winning —
+   motion below targets :not([hidden]) entry only. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes esidai-rise {
+    from { opacity: 0; transform: translateY(-4px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes esidai-sheet {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes esidai-dlg {
+    from { opacity: 0; transform: translateY(10px) scale(.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes esidai-backdrop {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes esidai-fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Desktop panel entry: short rise from the pill bar. */
+  .pill-panel[data-panel-dates]:not([hidden]),
+  .pill-panel[data-panel-guests]:not([hidden]),
+  .pill-panel[data-panel-board]:not([hidden]) {
+    animation: esidai-rise 160ms ease-out;
+    transform-origin: top center;
+  }
+
+  /* Board rows cascade on panel entry. */
+  .pill-panel[data-panel-board]:not([hidden]) .board-row {
+    animation: esidai-fade-up 240ms ease-out both;
+  }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(2) { animation-delay: 30ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(3) { animation-delay: 60ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(4) { animation-delay: 90ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(5) { animation-delay: 120ms; }
+  .pill-panel[data-panel-board]:not([hidden]) .board-row:nth-child(6) { animation-delay: 150ms; }
+
+  /* Confirm dialog entry + backdrop fade. */
+  #book-dialog[open] { animation: esidai-dlg 180ms ease-out; }
+  #book-dialog[open]::backdrop { animation: esidai-backdrop 180ms ease-out; }
+  .book-confirm > * { animation: esidai-fade-up 240ms ease-out both; }
+  .book-confirm > *:nth-child(2) { animation-delay: 30ms; }
+  .book-confirm > *:nth-child(3) { animation-delay: 60ms; }
+  .book-confirm > *:nth-child(4) { animation-delay: 90ms; }
+  .book-confirm > *:nth-child(5) { animation-delay: 120ms; }
+  .book-confirm > *:nth-child(6) { animation-delay: 150ms; }
+
+  /* Page life: hero copy on load, room cards stagger, photo zoom on hover. */
+  .book-hero > * { animation: esidai-fade-up 400ms ease-out both; }
+  .book-hero > *:nth-child(2) { animation-delay: 80ms; }
+  .room-card { animation: esidai-fade-up 400ms ease-out both; }
+  .room-card:nth-child(2) { animation-delay: 40ms; }
+  .room-card:nth-child(3) { animation-delay: 80ms; }
+  .room-card:nth-child(4) { animation-delay: 120ms; }
+  .room-card:nth-child(5) { animation-delay: 160ms; }
+  .room-card:nth-child(6) { animation-delay: 200ms; }
+  .room-card:nth-child(7) { animation-delay: 240ms; }
+  .room-card:nth-child(8) { animation-delay: 280ms; }
+  .room-card:nth-child(9) { animation-delay: 320ms; }
+  .room-photo { transition: transform 300ms ease; }
+  .room-card:hover .room-photo { transform: scale(1.04); }
+
+  /* Interactive control transitions. */
+  .pill-seg,
+  .select-room,
+  .search-fab,
+  .cal-day,
+  .board-row {
+    transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  }
+  .select-room:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(36, 53, 31, .25);
+  }
+}
+@media (max-width: 43.99rem) and (prefers-reduced-motion: no-preference) {
+  /* Mobile panels enter as bottom sheets instead of the desktop rise. */
+  .pill-panel[data-panel-dates]:not([hidden]),
+  .pill-panel[data-panel-guests]:not([hidden]),
+  .pill-panel[data-panel-board]:not([hidden]) {
+    animation: esidai-sheet 200ms ease-out;
+  }
+}
+
+/* Task 2 (2026-11-25): done page hero + card. Reuses book tokens, the
+   .book-hero overlap pattern (existing .book-wrap negative margin), and
+   the esidai-fade-up entry guarded by the existing
+   prefers-reduced-motion pattern (no new keyframes). */
+.done-hero {
+  background: linear-gradient(135deg, var(--sav-deep) 0%, var(--sav) 70%, #57744f 100%);
+  color: #fff;
+  text-align: center;
+  padding: 3rem 1.2rem 2.4rem;
+}
+.done-hero h1 { color: #fff; margin: 0 0 .4rem; }
+.done-seal { width: 3rem; height: 3rem; color: var(--gold); }
+.done-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  margin: .6rem 0;
+  overflow-wrap: anywhere;
+}
+.done-dates {
+  display: inline-block;
+  background: var(--sand);
+  color: var(--sav-deep);
+  font-weight: 700;
+  border-radius: 999px;
+  padding: .3rem 1.1rem;
+  margin: 0;
+}
+.done-card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(36, 53, 31, .12);
+  padding: 1.4rem;
+  display: grid;
+  gap: 1rem;
+}
+.done-grid {
+  display: grid;
+  gap: .5rem 1.5rem;
+  grid-template-columns: 1fr;
+  margin: 0;
+}
+.done-grid dt {
+  font-weight: 800;
+  color: var(--sav-deep);
+  font-size: .78rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.done-grid dd { margin: 0 0 .5rem; overflow-wrap: anywhere; }
+@media (min-width: 44rem) {
+  .done-grid { grid-template-columns: 1fr 1fr; }
+  .done-grid dd { margin: 0; }
+}
+.done-steps {
+  list-style: none;
+  counter-reset: done;
+  display: grid;
+  gap: .7rem;
+  grid-template-columns: 1fr;
+  margin: 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid #e7dfcc;
+}
+.done-steps li {
+  counter-increment: done;
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+}
+.done-steps li::before {
+  content: counter(done);
+  flex: 0 0 auto;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--sav);
+  color: #fff;
+  font-weight: 800;
+  font-size: .9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (min-width: 44rem) {
+  .done-steps { grid-template-columns: repeat(3, 1fr); }
+}
+.done-gate { max-width: 30rem; margin-left: auto; margin-right: auto; }
+.done-gate form { display: grid; gap: .7rem; }
+@media (max-width: 43.99rem) {
+  .done-hero { padding: 2rem 1rem 1.8rem; }
+  .done-ref { font-size: 1.1rem; }
+  .done-card { padding: 1.1rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .done-hero > * { animation: esidai-fade-up 400ms ease-out both; }
+  .done-hero > *:nth-child(2) { animation-delay: 80ms; }
+  .done-card { animation: esidai-fade-up 400ms ease-out both; }
+}
+.done-followup {
+  background: var(--sand);
+  border-radius: 12px;
+  padding: .8rem 1rem;
+  font-weight: 700;
+  margin: 0;
+}

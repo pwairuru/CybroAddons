@@ -307,16 +307,18 @@
                 <field name="checkout_date"/>
                 <field name="amount_total" widget="monetary"/>
                 <field name="booking_origin_code" column_invisible="1"/>
-                <!-- Nameless icons: Odoo renders no action (ViewButton auto-disables
-                     buttons without name/type/special), so the globe/phone are static
-                     indicators with tooltips, never actionable buttons.
-                     btn-link/p-0/border-0 strips Odoo 20 ViewButton chrome so the
-                     list cell shows a bare icon, not a grey button. -->
-                <button icon="fa-globe"
+                <!-- Origin icons: Odoo 20 list buttons render
+                     <i class="o_button_icon oi" data-icon="..."/> (Material
+                     Symbols ligatures, NOT Font Awesome), so icon names must
+                     be Material Symbols ("public" = globe, "phone" = phone).
+                     Nameless buttons auto-disable (no action) so the icons
+                     are static indicators with tooltips. btn-link/p-0/border-0
+                     strips the button chrome to a bare icon. -->
+                <button icon="public"
                         class="btn-link p-0 border-0"
                         title="Website booking — call to confirm/payment"
                         invisible="booking_origin_code != 'website'"/>
-                <button icon="fa-phone"
+                <button icon="phone"
                         class="btn-link p-0 border-0"
                         title="Phone booking — confirm details"
                         invisible="booking_origin_code != 'phone'"/>
@@ -394,11 +396,13 @@
                                         <field name="name"/>
                                     </strong>
                                     <i t-if="record.booking_origin_code.raw_value == 'website'"
-                                       class="fa fa-globe text-info ms-1"
+                                       class="oi text-info ms-1"
+                                       data-icon="public"
                                        title="Website booking — call to confirm/payment"
                                        role="img" aria-label="Website booking"/>
                                     <i t-if="record.booking_origin_code.raw_value == 'phone'"
-                                       class="fa fa-phone text-info ms-1"
+                                       class="oi text-info ms-1"
+                                       data-icon="phone"
                                        title="Phone booking — confirm details"
                                        role="img" aria-label="Phone booking"/>
                                     <span class="ms-2">
