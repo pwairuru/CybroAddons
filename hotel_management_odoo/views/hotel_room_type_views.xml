@@ -106,8 +106,11 @@
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="%(hotel_rate_line_by_type_action)d"
-                                type="action" string="Rates"
-                                class="oe_stat_button" icon="fa-money"/>
+                                type="action" class="oe_stat_button"
+                                icon="fa-money">
+                            <field name="rate_line_count" widget="statinfo"
+                                   string="Rates"/>
+                        </button>
                     </div>
                     <field name="image" widget="image" class="oe_avatar"/>
                     <div class="oe_title">

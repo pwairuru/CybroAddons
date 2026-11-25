@@ -26,37 +26,26 @@
             <form>
                 <sheet>
                     <group>
-                        <group string="Combination">
-                            <group col="4">
-                                <field name="company_id"/>
-                                <field name="period_id"/>
-                            </group>
-                            <group col="4">
-                                <field name="room_type_id"/>
-                                <field name="meal_plan_id"/>
-                            </group>
+                        <group string="Rate">
+                            <field name="company_id"/>
+                            <field name="period_id"/>
+                            <field name="room_type_id"/>
+                            <field name="meal_plan_id"/>
+                            <field name="plan_id"/>
                         </group>
-                        <group string="Pricing">
-                            <group col="4">
-                                <field name="price"/>
-                                <field name="currency_id"/>
-                            </group>
-                            <group col="4">
-                                <field name="included_adults"/>
-                                <field name="included_children"/>
-                            </group>
-                            <group col="4">
-                                <field name="extra_adult_mode"/>
-                                <field name="extra_adult_value"/>
-                            </group>
-                            <group col="4">
-                                <field name="extra_child_mode"/>
-                                <field name="extra_child_value"/>
-                            </group>
-                            <group col="4">
-                                <field name="extra_bed_price"/>
-                            </group>
+                        <group string="Price">
+                            <field name="price"/>
+                            <field name="currency_id"/>
+                            <field name="included_adults"/>
+                            <field name="included_children"/>
                         </group>
+                    </group>
+                    <group string="Extras">
+                        <field name="extra_adult_mode"/>
+                        <field name="extra_adult_value"/>
+                        <field name="extra_child_mode"/>
+                        <field name="extra_child_value"/>
+                        <field name="extra_bed_price"/>
                     </group>
                 </sheet>
                 <chatter/>
