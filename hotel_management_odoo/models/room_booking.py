@@ -150,7 +150,16 @@ class RoomBooking(models.Model):
                               default='draft', tracking=True, readonly=True)
     @api.model
     def _default_origin(self):
-        """Reception origin by code; first active origin as fallback."""
+        """Reception origin by code; first active origin as fallback.
+
+        Table-safe: during module install/upgrade this default can be
+        evaluated while the registry is still building tables, before
+        ``room.booking.origin`` exists (column init runs before the
+        origin model initializes). Return False then; the value is
+        supplied on real record creation once the table exists.
+        """
+        if not self.env.cr.table_exists('room_booking_origin'):
+            return False
         origin = self.env['room.booking.origin']._by_code('reception')
         return origin or self.env['room.booking.origin'].search(
             [('active', '=', True)], order='sequence, code', limit=1)
