@@ -149,3 +149,66 @@ class TestBookingOrigin(TransactionCase):
             Booking.browse(bk_other.id).booking_origin_id.code,
             'reception')
         self.assertTrue(self._booking_source_gone())
+
+    def _shape_pre_upgrade(self):
+        # Pre-upgrade shape: old varchar still present, new link
+        # nullable/unfilled (ORM default fill happens at column
+        # creation; NULLs are possible mid-upgrade).
+        self.cr.execute(
+            "ALTER TABLE room_booking ALTER COLUMN booking_origin_id "
+            "DROP NOT NULL")
+        self.cr.execute(
+            "ALTER TABLE room_booking ADD COLUMN booking_source varchar")
+
+    def _make_pre_upgrade_row(self, source=None):
+        bk = self._make_booking()
+        self.cr.execute(
+            "UPDATE room_booking SET booking_origin_id=NULL WHERE id=%s",
+            (bk.id,))
+        if source is not None:
+            self.cr.execute(
+                "UPDATE room_booking SET booking_source=%s WHERE id=%s",
+                (source, bk.id))
+        return bk
+
+    def _post_chatter(self, booking):
+        return self.env['mail.message'].create({
+            'model': 'room.booking',
+            'res_id': booking.id,
+            'message_type': 'comment',
+            'body': 'Booking created from website (source: public /book).',
+        })
+
+    def test_backfill_chatter_proves_website_on_direct_jump(self):
+        # Direct <28→29 jump: the 28.0 varchar flagging never ran, so
+        # the varchar still says reception — chatter must win.
+        self._shape_pre_upgrade()
+        bk = self._make_pre_upgrade_row(source='reception')
+        self._post_chatter(bk)
+        mig = self._load_29_migrate()
+        mig.migrate(self.cr, '20.0.2.29.0')
+        Booking = self.env['room.booking']
+        Booking.invalidate_model(['booking_origin_id'])
+        self.assertEqual(
+            Booking.browse(bk.id).booking_origin_id.code, 'website')
+        self.assertTrue(self._booking_source_gone())
+
+    def test_backfill_links_archived_website(self):
+        # Resolved with the same active_test=False search as the
+        # ensure step: an archived website origin still links.
+        web = self._origin('website')
+        web.write({'active': False})
+        self._shape_pre_upgrade()
+        bk = self._make_pre_upgrade_row(source='website')
+        mig = self._load_29_migrate()
+        mig.migrate(self.cr, '20.0.2.29.0')
+        Booking = self.env['room.booking']
+        Booking.invalidate_model(['booking_origin_id'])
+        self.assertEqual(
+            Booking.browse(bk.id).booking_origin_id.id, web.id)
+
+    def test_require_origin_raises_when_missing(self):
+        mig = self._load_29_migrate()
+        Origin = self.env['room.booking.origin']
+        with self.assertRaises(ValueError):
+            mig._require_origin(Origin, 'no-such-origin')
