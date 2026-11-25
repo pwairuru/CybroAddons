@@ -333,7 +333,7 @@ class HotelPublicBooking(models.AbstractModel):
                          _html.escape(ci), _html.escape(co),
                          _html.escape(room_name), _html.escape(guest),
                          _html.escape(phone)),
-                partner_ids=targets.mapped('partner_id').ids,
+                partner_ids=sorted(set(targets.mapped('partner_id').ids)),
                 subtype_xmlid='mail.mt_comment',
                 message_type='comment')
         except Exception:

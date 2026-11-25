@@ -27,9 +27,19 @@ class TestWebsiteBookingReceptionNotify(TransactionCase):
     def test_website_booking_notifies_reception_bell(self):
         svc = self.env['hotel.public.booking']
         group = self.env.ref('hotel_management_odoo.hotel_group_reception')
+        manager = self.env.ref('hotel_management_odoo.hotel_group_manager')
+        internal = self.env.ref('base.group_user')
         baseline = set(group.all_user_ids.ids)
         u1 = self._reception_user('recept_notify_1')
         u2 = self._reception_user('recept_notify_2')
+        # Implied-only member: manager implies reception, but the roster is
+        # direct members — this user must NOT be belled.
+        mgr = self.env['res.users'].create({
+            'name': 'Mgr', 'login': 'recept_mgr',
+            'group_ids': [(6, 0, [internal.id, manager.id])],
+        })
+        self.assertNotIn(mgr.id, group.user_ids.ids)
+        self.assertIn(mgr.id, group.all_user_ids.ids)
         outsider = self.env['res.users'].create({'name': 'Out', 'login': 'recept_outsider'})
         room_id = self._free_room_vals()
         bk = svc.create_booking({'room_id': room_id, 'ci': '2026-12-01', 'co': '2026-12-03',
@@ -39,6 +49,7 @@ class TestWebsiteBookingReceptionNotify(TransactionCase):
         notified_uids = set(acts.mapped('user_id.id'))
         self.assertTrue({u1.id, u2.id} <= notified_uids)
         self.assertNotIn(outsider.id, notified_uids)
+        self.assertNotIn(mgr.id, notified_uids)
         # no strangers beyond pre-existing members + our two
         self.assertTrue(notified_uids <= baseline | {u1.id, u2.id})
         msg = self.env['mail.message'].search([('model', '=', 'room.booking'), ('res_id', '=', bk.id)], order='id desc', limit=1)
@@ -47,6 +58,7 @@ class TestWebsiteBookingReceptionNotify(TransactionCase):
         partners = set(msg.notified_partner_ids.ids) if msg and 'notified_partner_ids' in msg._fields else set(notified)
         self.assertTrue({u1.partner_id.id, u2.partner_id.id} <= partners)
         self.assertNotIn(outsider.partner_id.id, partners)
+        self.assertNotIn(mgr.partner_id.id, partners)
 
     def test_idem_retry_does_not_double_notify(self):
         svc = self.env['hotel.public.booking']
@@ -98,8 +110,9 @@ class TestWebsiteBookingReceptionNotify(TransactionCase):
 
     def test_backend_booking_does_not_notify(self):
         group = self.env.ref('hotel_management_odoo.hotel_group_reception')
+        internal = self.env.ref('base.group_user')
         u = self.env['res.users'].create({'name': 'R', 'login': 'recept_back',
-            'group_ids': [(6, 0, [group.id])]})
+            'group_ids': [(6, 0, [internal.id, group.id])]})
         bk = self.env['room.booking'].create({
             'partner_id': self.env['res.partner'].create({'name': 'Walk'}).id,
             'checkin_date': '2026-12-01 14:00:00', 'checkout_date': '2026-12-03 11:00:00',
