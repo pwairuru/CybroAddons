@@ -327,7 +327,7 @@ class HotelPublicBooking(models.AbstractModel):
                              bk.name, ci, co, room_name, guest, phone),
                     user_id=u.id)
             bk.message_post(
-                body='Website booking <b>%s</b>: %s &rarr; %s, %s, guest %s '
+                body='Website booking %s: %s -> %s, %s, guest %s '
                      '(%s). Please call back.' % (
                          _html.escape(bk.name or ''),
                          _html.escape(ci), _html.escape(co),
