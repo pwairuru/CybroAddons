@@ -60,9 +60,20 @@ class TestBookingOrigin(TransactionCase):
             'hotel_management_odoo.room_booking_view_search').arch_db
         form = self.env.ref(
             'hotel_management_odoo.room_booking_view_form').arch_db
-        self.assertIn('booking_source', tree + kanban + search + form)
+        self.assertNotIn('booking_source', tree + kanban + search + form)
+        self.assertIn('booking_origin_id', form)
+        self.assertIn("[('active', '=', True)]", form)
+        self.assertIn('booking_origin_id', search)
         self.assertIn('group_by', search)
         for view_name, arch in (('tree', tree), ('kanban', kanban)):
             with self.subTest(view=view_name):
                 self.assertIn('fa-globe', arch)
-                self.assertIn('Website booking', arch)  # tooltip copy
+                self.assertIn('fa-phone', arch)
+                self.assertIn(  # tooltip copy, verbatim
+                    'Website booking — call to confirm/payment', arch)
+                self.assertIn(  # tooltip copy, verbatim
+                    'Phone booking — confirm details', arch)
+        for view_name, arch, label in (
+                ('search', search, 'Website'), ('search', search, 'Phone')):
+            with self.subTest(view=view_name, label=label):
+                self.assertIn(label, arch)

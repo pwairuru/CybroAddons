@@ -162,6 +162,13 @@ class RoomBooking(models.Model):
              "a confirmation/payment call.",
         required=True, default=_default_origin, index=True,
         ondelete='restrict', tracking=True)
+    booking_origin_code = fields.Char(
+        related='booking_origin_id.code', store=True, index=True,
+        string="Origin Code",
+        help="Technical origin key (reception/website/phone). "
+             "Stored so list/kanban visibility and search filters "
+             "can compare the code without traversing the Many2one "
+             "client-side.")
     invoice_address_id = fields.Many2one(
         comodel_name='res.partner', string="Invoice Address",
         compute='_compute_invoice_address_id', store=True, readonly=False,
