@@ -47,6 +47,9 @@ class HotelRoomType(models.Model):
                                      'room_type_id',
                                      string="Meal Prices",
                                      help="Legacy per-board prices, no longer used for pricing since rate lines took over. Kept for history.")
+    rate_line_count = fields.Integer(
+        string="Rate Lines", compute='_compute_rate_line_count',
+        help="Number of rate lines pointing at this type.")
     website_published = fields.Boolean(default=False, tracking=True,
                                        help="Show this room type on the website booking page.")
     amenity_ids = fields.Many2many('hotel.amenity', string="Amenities",
@@ -58,6 +61,20 @@ class HotelRoomType(models.Model):
     def default_rate(self):
         self.ensure_one()
         return self.base_rate
+
+    def _compute_rate_line_count(self):
+        """Count rate lines per type via a single read_group."""
+        for rec in self:
+            rec.rate_line_count = 0
+        ids = [rec.id for rec in self if rec.id]
+        if not ids:
+            return
+        groups = self.env['hotel.rate.line']._read_group(
+            [('room_type_id', 'in', ids)],
+            ['room_type_id'], ['__count'])
+        counts = {room_type.id: count for room_type, count in groups}
+        for rec in self:
+            rec.rate_line_count = counts.get(rec.id, 0)
 
     def ensure_meal_price_lines(self):
         """Create the missing per-plan price lines (0.0)."""

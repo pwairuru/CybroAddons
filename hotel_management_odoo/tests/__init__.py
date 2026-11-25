@@ -36,6 +36,7 @@ from . import test_per_person_quote
 from . import test_period_meal_lines
 from . import test_anchor_pricing
 from . import test_rate_line
+from . import test_rate_line_count
 from . import test_rate_line_multiroom
 from . import test_booking_flow
 from . import test_reservation_menu
