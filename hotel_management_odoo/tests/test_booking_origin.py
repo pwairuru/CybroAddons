@@ -63,8 +63,9 @@ class TestBookingOrigin(TransactionCase):
         self.assertNotIn('booking_source', tree + kanban + search + form)
         self.assertIn('booking_origin_id', form)
         self.assertIn("[('active', '=', True)]", form)
-        self.assertIn('booking_origin_id', search)
-        self.assertIn('group_by', search)
+        self.assertIn("[('booking_origin_code', '=', 'website')]", search)
+        self.assertIn("[('booking_origin_code', '=', 'phone')]", search)
+        self.assertIn("'group_by': 'booking_origin_id'", search)
         for view_name, arch in (('tree', tree), ('kanban', kanban)):
             with self.subTest(view=view_name):
                 self.assertIn('fa-globe', arch)
