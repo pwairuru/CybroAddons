@@ -3,6 +3,7 @@ import html as _html
 import re
 from datetime import datetime, timedelta, timezone
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 
 class HotelPublicBooking(models.AbstractModel):
@@ -353,13 +354,17 @@ class HotelPublicBooking(models.AbstractModel):
             datetime(ci.year, ci.month, ci.day, 14, 0, 0))
         checkout_dt = fields.Datetime.to_string(
             datetime(co.year, co.month, co.day, 11, 0, 0))
+        website = S.env['room.booking.origin']._by_code('website')
+        if not website:
+            raise ValidationError(
+                'Website booking origin is missing or archived.')
         bk = S.env['room.booking'].create({
             'partner_id': partner.id,
             'company_id': company.id,
             'meal_plan': board,
             'checkin_date': checkin_dt,
             'checkout_date': checkout_dt,
-            'booking_source': 'website',
+            'booking_origin_id': website.id,
         })
         S.env['room.booking.line'].create({
             'booking_id': bk.id,

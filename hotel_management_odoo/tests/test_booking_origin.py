@@ -8,19 +8,23 @@ class TestBookingOrigin(TransactionCase):
         vals.update(kwargs)
         return self.env['room.booking'].create(vals)
 
+    def _origin(self, code):
+        return self.env['room.booking.origin']._by_code(code)
+
     def test_default_is_reception(self):
         bk = self._make_booking()
-        self.assertEqual(bk.booking_source, 'reception')
+        self.assertEqual(bk.booking_origin_id.code, 'reception')
 
     def test_website_persists_and_groups(self):
-        bk = self._make_booking(booking_source='website')
-        self.assertEqual(bk.booking_source, 'website')
+        bk = self._make_booking(
+            booking_origin_id=self._origin('website').id)
+        self.assertEqual(bk.booking_origin_id.code, 'website')
         self._make_booking()
         groups = self.env['room.booking']._read_group(
-            [], ['booking_source'], ['__count'])
-        sources = [source for source, _count in groups]
-        self.assertIn('website', sources)
-        self.assertIn('reception', sources)
+            [], ['booking_origin_id'], ['__count'])
+        codes = [origin.code for origin, _count in groups]
+        self.assertIn('website', codes)
+        self.assertIn('reception', codes)
 
     def test_public_create_marks_website(self):
         svc = self.env['hotel.public.booking']
@@ -31,8 +35,20 @@ class TestBookingOrigin(TransactionCase):
              'co': '2026-12-03', 'name': 'Web Guest',
              'phone': '+254700000002', 'idem_key': 'origin-web-1'}
         bk = svc.create_booking(v)
-        self.assertEqual(bk.booking_source, 'website')
+        self.assertEqual(bk.booking_origin_id.code, 'website')
         self.assertEqual(svc.create_booking(v).id, bk.id)
+
+    def test_public_create_fails_without_website_origin(self):
+        self._origin('website').write({'active': False})
+        svc = self.env['hotel.public.booking']
+        rooms = svc.search_free('2026-12-01', '2026-12-03')
+        if not rooms:
+            self.skipTest('no published rooms')
+        v = {'room_id': rooms[0]['id'], 'ci': '2026-12-01',
+             'co': '2026-12-03', 'name': 'Web Guest',
+             'phone': '+254700000003', 'idem_key': 'origin-web-2'}
+        with self.assertRaises(Exception):
+            svc.create_booking(v)
 
     def test_origin_views_wired(self):
         tree = self.env.ref(
@@ -49,23 +65,3 @@ class TestBookingOrigin(TransactionCase):
             with self.subTest(view=view_name):
                 self.assertIn('fa-globe', arch)
                 self.assertIn('Website booking', arch)  # tooltip copy
-
-    def test_backfill_marks_website_from_chatter(self):
-        import importlib.util
-        from pathlib import Path
-        mod_path = (Path(__file__).parent.parent / 'migrations'
-                    / '20.0.2.28.0' / 'post-migrate.py')
-        spec = importlib.util.spec_from_file_location(
-            'backfill_website_origin', mod_path)
-        post = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(post)
-        bk = self._make_booking()
-        self.assertEqual(bk.booking_source, 'reception')
-        bk.message_post(body='source: public /book test',
-                        message_type='comment')
-        post.migrate(self.env.cr, '20.0.2.28.0')
-        bk.invalidate_recordset()
-        self.assertEqual(bk.booking_source, 'website')
-        post.migrate(self.env.cr, '20.0.2.28.0')  # idempotent
-        bk.invalidate_recordset()
-        self.assertEqual(bk.booking_source, 'website')

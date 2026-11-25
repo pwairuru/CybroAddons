@@ -148,14 +148,20 @@ class RoomBooking(models.Model):
                                    "transitions only (action methods); direct "
                                    "writes are rejected.",
                               default='draft', tracking=True, readonly=True)
-    booking_source = fields.Selection(
-        selection=[('reception', 'Reception / Walk-in'),
-                   ('website', 'Website')],
+    @api.model
+    def _default_origin(self):
+        """Reception origin by code; first active origin as fallback."""
+        origin = self.env['room.booking.origin']._by_code('reception')
+        return origin or self.env['room.booking.origin'].search(
+            [('active', '=', True)], order='sequence, code', limit=1)
+
+    booking_origin_id = fields.Many2one(
+        'room.booking.origin',
         string="Origin",
         help="Where the booking came from. Website bookings need "
              "a confirmation/payment call.",
-        default='reception', required=True, index=True, copy=False,
-        tracking=True)
+        required=True, default=_default_origin, index=True,
+        ondelete='restrict', tracking=True)
     invoice_address_id = fields.Many2one(
         comodel_name='res.partner', string="Invoice Address",
         compute='_compute_invoice_address_id', store=True, readonly=False,
