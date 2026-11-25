@@ -1224,11 +1224,6 @@ class RoomBooking(models.Model):
             'context': {'create': False}
         }
 
-    def action_nop_origin(self):
-        """No-op target for the list-view origin globe (read-only icon)."""
-        self.ensure_one()
-        return True
-
     def _charge_pending_ancillaries(self, quiet=False):
         """Post unposted service/food/fleet/event lines to the open folio.
 
