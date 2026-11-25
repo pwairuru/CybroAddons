@@ -21,3 +21,15 @@ class TestBookingOrigin(TransactionCase):
         sources = [source for source, _count in groups]
         self.assertIn('website', sources)
         self.assertIn('reception', sources)
+
+    def test_public_create_marks_website(self):
+        svc = self.env['hotel.public.booking']
+        rooms = svc.search_free('2026-12-01', '2026-12-03')
+        if not rooms:
+            self.skipTest('no published rooms')
+        v = {'room_id': rooms[0]['id'], 'ci': '2026-12-01',
+             'co': '2026-12-03', 'name': 'Web Guest',
+             'phone': '+254700000002', 'idem_key': 'origin-web-1'}
+        bk = svc.create_booking(v)
+        self.assertEqual(bk.booking_source, 'website')
+        self.assertEqual(svc.create_booking(v).id, bk.id)

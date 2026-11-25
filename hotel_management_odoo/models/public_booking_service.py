@@ -359,6 +359,7 @@ class HotelPublicBooking(models.AbstractModel):
             'meal_plan': board,
             'checkin_date': checkin_dt,
             'checkout_date': checkout_dt,
+            'booking_source': 'website',
         })
         S.env['room.booking.line'].create({
             'booking_id': bk.id,
