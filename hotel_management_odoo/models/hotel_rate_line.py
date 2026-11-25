@@ -25,10 +25,14 @@ class HotelRateLine(models.Model):
                                   help="Currency of the price below. Follows the company currency.")
     price = fields.Monetary(required=True, tracking=True,
                             help="Nightly rent covering the included adults and children below. Guests beyond the included counts pay the extras.")
-    included_adults = fields.Integer(default=2, tracking=True,
-                                     help="Adults covered by the rent. Each extra adult pays the adult extra below.")
-    included_children = fields.Integer(default=0, tracking=True,
-                                       help="Children covered by the rent. Each extra child pays the child extra below.")
+    included_adults = fields.Integer(
+        string="Price Covers Adults", default=2, tracking=True,
+        help="Adults covered by the nightly rent. Extra adults are "
+        "billed per the Extras group below.")
+    included_children = fields.Integer(
+        string="Price Covers Children", default=0, tracking=True,
+        help="Children covered by the nightly rent. Extra children "
+        "are billed per the Extras group below.")
     extra_adult_mode = fields.Selection([('fixed','Fixed'),('percent','Percent')], default='fixed', required=True, tracking=True,
                                         help="How an extra adult is charged: a flat amount, or a percent of the per-slot rate (price divided by included adults + children).")
     extra_adult_value = fields.Float(default=0.0, tracking=True,

@@ -18,12 +18,18 @@ class HotelRoomType(models.Model):
                                  default=lambda self: self.env.company,
                                  tracking=True,
                                  help="Hotel this type belongs to. Types, prices and rules never cross companies.")
-    adult_capacity = fields.Integer(default=2, tracking=True,
-                                    help="Adults the rent normally covers. Extra adults beyond the rate line's included count are billed on top.")
-    child_capacity = fields.Integer(default=0, tracking=True,
-                                    help="Children the rooms of this type can take. Informational: the hard limit is Max Occupants.")
-    max_occupants = fields.Integer(default=2, tracking=True,
-                                   help="Hard ceiling for adults + children together. Bookings and pricing refuse anything above this number.")
+    adult_capacity = fields.Integer(
+        string="Std Adults (display default)", default=2, tracking=True,
+        help="Display default for adults, not enforced. Extra adults "
+        "beyond the rate line's included count are billed on top.")
+    child_capacity = fields.Integer(
+        string="Std Children (display default)", default=0, tracking=True,
+        help="Display default for children, not enforced. The hard "
+        "limit is Type Max Occupants.")
+    max_occupants = fields.Integer(
+        string="Type Max Occupants (hard cap)", default=2, tracking=True,
+        help="Hard cap for adults + children together. Bookings and "
+        "pricing refuse anything above this number.")
     base_rate = fields.Float(required=True, default=0.0, tracking=True,
                              help="Reference nightly rent for this type. Engine pricing comes from rate lines; this stays as the fallback reference.")
     charge_mode = fields.Selection(

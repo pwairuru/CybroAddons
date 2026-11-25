@@ -75,9 +75,11 @@ class ProductTemplate(models.Model):
         default=False, tracking=True,
         help="Hide this room from the website even when its "
              "Room Type is published.")
-    num_person = fields.Integer(string='Number Of Persons',
+    num_person = fields.Integer(string='Room Capacity (hard cap)',
                                 required=True, default=1,
-                                help="Automatically chooses the No. of Persons",
+                                help="Hard cap for this room: enforced by "
+                                "website search, booking and pricing engine. "
+                                "The room type max is a second, separate gate.",
                                 tracking=True)
     avatar_128 = fields.Image(string='Avatar 128',
                                compute='_compute_avatar_128_hotel',
