@@ -33,3 +33,17 @@ class TestBookingOrigin(TransactionCase):
         bk = svc.create_booking(v)
         self.assertEqual(bk.booking_source, 'website')
         self.assertEqual(svc.create_booking(v).id, bk.id)
+
+    def test_origin_views_wired(self):
+        tree = self.env.ref(
+            'hotel_management_odoo.room_booking_view_tree').arch_db
+        kanban = self.env.ref(
+            'hotel_management_odoo.room_booking_view_kanban').arch_db
+        search = self.env.ref(
+            'hotel_management_odoo.room_booking_view_search').arch_db
+        form = self.env.ref(
+            'hotel_management_odoo.room_booking_view_form').arch_db
+        self.assertIn('booking_source', tree + kanban + search + form)
+        self.assertIn('fa-globe', tree + kanban)
+        self.assertIn('Website booking', tree + kanban)  # tooltip copy
+        self.assertIn('group_by', search)
